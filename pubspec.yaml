@@ -12,11 +12,40 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
+  
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  firebase_analytics: ^10.7.4
+  
+  # SMS & HTTP Services
+  http: ^1.1.0
+  
+  # Device Info & Storage
+  device_info_plus: ^9.1.1
+  shared_preferences: ^2.2.2
+  sms_autofill: ^2.3.0
+  
+  # Other utilities
+  uuid: ^4.2.1
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21

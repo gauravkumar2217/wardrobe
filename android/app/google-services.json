@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "306420873549",
+    "project_id": "wordrope-f31e5",
+    "storage_bucket": "wordrope-f31e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:306420873549:android:27bb6637f5848c16565f04",
+        "android_client_info": {
+          "package_name": "com.wardrobe.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4jwik0gRdcGYvsqn5WmI6IuW3BplcI6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
