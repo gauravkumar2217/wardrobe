@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+wordrope-f31e5-firebase-adminsdk-fbsvc-cf63d4422a.json
+wordrobe-chat-firebase-adminsdk-fbsvc-8f6d0dd316.json
+
+# Keystore files
+*.jks
+*.keystore
+key.properties
