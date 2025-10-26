@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyA-FZnI1GyWIh1TFrCCkBw8XzNy6utcK7s</string>
+	<string>AIzaSyD0Dv2sM5Y8A0VGVIjwd65nRGDbCSL4BL8</string>
 	<key>GCM_SENDER_ID</key>
-	<string>306420873549</string>
+	<string>352478951229</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.wardrobe.app</string>
+	<string>com.wardrobe-chat.app</string>
 	<key>PROJECT_ID</key>
-	<string>wordrope-f31e5</string>
+	<string>wordrobe-chat</string>
 	<key>STORAGE_BUCKET</key>
-	<string>wordrope-f31e5.firebasestorage.app</string>
+	<string>wordrobe-chat.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:306420873549:ios:87693de94330a6f8565f04</string>
+	<string>1:352478951229:ios:335fae394671b9a82d3754</string>
 </dict>
 </plist>

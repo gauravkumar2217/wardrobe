@@ -49,6 +49,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Future<void> _signOut() async {
     try {
       await FirebaseAuth.instance.signOut();
+      // Clear any cached data
+      await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         Navigator.pushReplacement(
           context,

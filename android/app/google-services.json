@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "306420873549",
-    "project_id": "wordrope-f31e5",
-    "storage_bucket": "wordrope-f31e5.firebasestorage.app"
+    "project_number": "352478951229",
+    "project_id": "wordrobe-chat",
+    "storage_bucket": "wordrobe-chat.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:306420873549:android:27bb6637f5848c16565f04",
+        "mobilesdk_app_id": "1:352478951229:android:11a68b4fca7f69b32d3754",
         "android_client_info": {
-          "package_name": "com.wardrobe.app"
+          "package_name": "com.wardrobe_chat.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC4jwik0gRdcGYvsqn5WmI6IuW3BplcI6o"
+          "current_key": "AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y"
         }
       ],
       "services": {

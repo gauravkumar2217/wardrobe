@@ -20,6 +20,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   bool _isOTPSent = false;
   String? _verificationId;
   int _resendTimer = 0;
+  bool _isManualInput = false; // Track if user is manually entering OTP
 
   @override
   void initState() {
@@ -41,12 +42,15 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
 
   @override
   void codeUpdated() {
-    setState(() {
-      _otpController.text = code!;
-    });
-    // Auto verify OTP when received
-    if (code != null && code!.length == 6) {
-      _verifyOTP();
+    // Only auto-fill if user hasn't started manual input
+    if (!_isManualInput && code != null) {
+      setState(() {
+        _otpController.text = code!;
+      });
+      // Auto verify OTP when received
+      if (code!.length == 6) {
+        _verifyOTP();
+      }
     }
   }
 
@@ -82,6 +86,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
             _isOTPSent = true;
             _verificationId = verificationId;
             _resendTimer = 60;
+            _isManualInput = false; // Reset manual input flag for new OTP
           });
           _startResendTimer();
           _showSuccessSnackBar('OTP sent successfully! Check your messages.');
@@ -109,24 +114,69 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
     });
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: _otpController.text,
-      );
+      PhoneAuthCredential credential;
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      // For development: Allow test OTP 123456
+      if (_otpController.text == '123456' &&
+          _phoneController.text == '9899204201') {
+        // Create a mock credential for testing
+        credential = PhoneAuthProvider.credential(
+          verificationId: _verificationId ?? 'test_verification_id',
+          smsCode: '123456',
         );
+      } else {
+        if (_verificationId == null) {
+          throw Exception('Verification ID not found. Please resend OTP.');
+        }
+        credential = PhoneAuthProvider.credential(
+          verificationId: _verificationId!,
+          smsCode: _otpController.text,
+        );
+      }
+
+      // Sign in with credential
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Check if sign in was successful
+      if (userCredential.user != null) {
+        if (mounted) {
+          // Show success message before navigation
+          _showSuccessSnackBar('Login successful! Redirecting...');
+
+          // Add a small delay to ensure the success message is visible
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Check mounted again after async operation
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            );
+          }
+        }
+      } else {
+        throw Exception('Authentication failed - no user returned');
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      _showErrorSnackBar('Invalid OTP. Please try again.');
+
+      // More specific error handling
+      String errorMessage = 'Invalid OTP. Please try again.';
+      if (e.toString().contains('invalid-verification-code')) {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (e.toString().contains('invalid-verification-id')) {
+        errorMessage = 'Session expired. Please resend OTP.';
+      } else if (e.toString().contains('Verification ID not found')) {
+        errorMessage = 'Please resend OTP first.';
+      }
+
+      _showErrorSnackBar(errorMessage);
+
+      // Debug print for development
+      debugPrint('OTP Verification Error: $e');
     }
   }
 
@@ -137,6 +187,11 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           _resendTimer--;
         });
         _startResendTimer();
+      } else if (mounted) {
+        // Timer expired, reset manual input flag to allow auto-fill again
+        setState(() {
+          _isManualInput = false;
+        });
       }
     });
   }
@@ -303,14 +358,40 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                             Colors.white.withValues(alpha: 0.7)),
                       ),
                       onCodeChanged: (code) {
+                        // Mark that user is manually entering OTP
+                        _isManualInput = true;
                         if (code != null && code.length == 6) {
                           _verifyOTP();
                         }
                       },
                       onCodeSubmitted: (val) {
+                        _isManualInput = true;
                         _verifyOTP();
                       },
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Development Helper
+                    if (_phoneController.text == '9899204201')
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.5)),
+                        ),
+                        child: const Text(
+                          'Development Mode: Use OTP 123456 for testing',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
 
                     const SizedBox(height: 16),
 

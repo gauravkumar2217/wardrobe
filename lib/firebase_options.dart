@@ -41,47 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyC4jwik0gRdcGYvsqn5WmI6IuW3BplcI6o',
-    appId: '1:306420873549:web:your-web-app-id',
-    messagingSenderId: '306420873549',
-    projectId: 'wordrope-f31e5',
-    authDomain: 'wordrope-f31e5.firebaseapp.com',
-    storageBucket: 'wordrope-f31e5.firebasestorage.app',
+    apiKey: 'AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y',
+    appId: '1:352478951229:web:wordrobe-chat-web',
+    messagingSenderId: '352478951229',
+    projectId: 'wordrobe-chat',
+    authDomain: 'wordrobe-chat.firebaseapp.com',
+    storageBucket: 'wordrobe-chat.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC4jwik0gRdcGYvsqn5WmI6IuW3BplcI6o',
-    appId: '1:306420873549:android:27bb6637f5848c16565f04',
-    messagingSenderId: '306420873549',
-    projectId: 'wordrope-f31e5',
-    storageBucket: 'wordrope-f31e5.firebasestorage.app',
+    apiKey: 'AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y',
+    appId: '1:352478951229:android:11a68b4fca7f69b32d3754',
+    messagingSenderId: '352478951229',
+    projectId: 'wordrobe-chat',
+    storageBucket: 'wordrobe-chat.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyA-FZnI1GyWIh1TFrCCkBw8XzNy6utcK7s',
-    appId: '1:306420873549:ios:87693de94330a6f8565f04',
-    messagingSenderId: '306420873549',
-    projectId: 'wordrope-f31e5',
-    storageBucket: 'wordrope-f31e5.firebasestorage.app',
-    iosBundleId: 'com.wardrobe.app',
+    apiKey: 'AIzaSyD0Dv2sM5Y8A0VGVIjwd65nRGDbCSL4BL8',
+    appId: '1:352478951229:ios:335fae394671b9a82d3754',
+    messagingSenderId: '352478951229',
+    projectId: 'wordrobe-chat',
+    storageBucket: 'wordrobe-chat.firebasestorage.app',
+    iosBundleId: 'com.wardrobe-chat.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyA-FZnI1GyWIh1TFrCCkBw8XzNy6utcK7s',
-    appId: '1:306420873549:ios:87693de94330a6f8565f04',
-    messagingSenderId: '306420873549',
-    projectId: 'wordrope-f31e5',
-    storageBucket: 'wordrope-f31e5.firebasestorage.app',
-    iosBundleId: 'com.wardrobe.app',
+    apiKey: 'AIzaSyD0Dv2sM5Y8A0VGVIjwd65nRGDbCSL4BL8',
+    appId: '1:352478951229:ios:335fae394671b9a82d3754',
+    messagingSenderId: '352478951229',
+    projectId: 'wordrobe-chat',
+    storageBucket: 'wordrobe-chat.firebasestorage.app',
+    iosBundleId: 'com.wardrobe-chat.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyC4jwik0gRdcGYvsqn5WmI6IuW3BplcI6o',
-    appId: '1:306420873549:web:your-web-app-id',
-    messagingSenderId: '306420873549',
-    projectId: 'wordrope-f31e5',
-    authDomain: 'wordrope-f31e5.firebaseapp.com',
-    storageBucket: 'wordrope-f31e5.firebasestorage.app',
+    apiKey: 'AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y',
+    appId: '1:352478951229:web:wordrobe-chat-web',
+    messagingSenderId: '352478951229',
+    projectId: 'wordrobe-chat',
+    authDomain: 'wordrobe-chat.firebaseapp.com',
+    storageBucket: 'wordrobe-chat.firebasestorage.app',
   );
 }
-

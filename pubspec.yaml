@@ -3,7 +3,7 @@ description: A simple Hello World Flutter application.
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -19,6 +19,7 @@ dependencies:
   cloud_firestore: ^4.13.6
   firebase_storage: ^11.5.6
   firebase_analytics: ^10.7.4
+  firebase_app_check: ^0.2.1+2
   
   # SMS & HTTP Services
   http: ^1.1.0
