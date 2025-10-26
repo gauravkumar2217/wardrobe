@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "352478951229",
+    "project_id": "wordrobe-chat",
+    "storage_bucket": "wordrobe-chat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:352478951229:android:11a68b4fca7f69b32d3754",
+        "android_client_info": {
+          "package_name": "com.wardrobe_chat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
