@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'otp_auth_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/wardrobe_provider.dart';
+import '../models/wardrobe.dart';
+import 'create_wardrobe_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -19,6 +22,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void initState() {
     super.initState();
     _setupAnimations();
+    _loadWardrobes();
+  }
+
+  void _loadWardrobes() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<WardrobeProvider>().loadWardrobes(user.uid);
+      });
+    }
   }
 
   void _setupAnimations() {
@@ -46,28 +59,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _animationController.forward();
   }
 
-  Future<void> _signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      // Clear any cached data
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OTPAuthScreen()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -102,7 +93,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 20),
 
                         // Success Icon
                         Center(
@@ -130,7 +121,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                         ),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 20),
 
                         // Welcome Message
                         Text(
@@ -146,14 +137,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           textAlign: TextAlign.center,
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
                         Text(
                           'You have successfully logged in to your account.',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 18,
+                                    fontSize: 16,
                                   ),
                           textAlign: TextAlign.center,
                         ),
@@ -165,99 +156,74 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.8),
-                                    fontSize: 16,
+                                    fontSize: 14,
                                   ),
                           textAlign: TextAlign.center,
                         ),
 
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 20),
 
-                        // Features Cards
+                        // Wardrobes Section
                         Expanded(
-                          child: Column(
-                            children: [
-                              _buildFeatureCard(
-                                icon: Icons.text_fields,
-                                title: 'Smart Writing',
-                                description: 'AI-powered writing assistance',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildFeatureCard(
-                                icon: Icons.auto_fix_high,
-                                title: 'Content Generation',
-                                description:
-                                    'Create engaging content effortlessly',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildFeatureCard(
-                                icon: Icons.analytics,
-                                title: 'Writing Analytics',
-                                description: 'Track your writing progress',
-                              ),
-                            ],
+                          child: Consumer<WardrobeProvider>(
+                            builder: (context, provider, child) {
+                              if (provider.isLoading && provider.wardrobes.isEmpty) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }
+
+                              if (provider.wardrobes.isEmpty) {
+                                return _buildEmptyState(context, provider);
+                              }
+
+                              return _buildWardrobesList(context, provider);
+                            },
                           ),
                         ),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 12),
 
-                        // Action Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _signOut,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                        // Create Wardrobe Button
+                        Consumer<WardrobeProvider>(
+                          builder: (context, provider, child) {
+                            return ElevatedButton(
+                              onPressed: provider.hasReachedLimit
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const CreateWardrobeScreen(),
+                                        ),
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF7C3AED),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
-                                  'Sign Out',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                elevation: 0,
+                              ),
+                              child: Text(
+                                provider.hasReachedLimit
+                                    ? 'Max 2 Wardrobes (Upgrade to add more)'
+                                    : 'Create Wardrobe',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Coming Soon!'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFF7C3AED),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                child: const Text(
-                                  'Get Started',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -270,13 +236,50 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildFeatureCard({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
+  Widget _buildEmptyState(BuildContext context, WardrobeProvider provider) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.inventory_2,
+          size: 80,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'No Wardrobes Yet',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Create your first wardrobe to get started!',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWardrobesList(BuildContext context, WardrobeProvider provider) {
+    return ListView.builder(
+      itemCount: provider.wardrobes.length,
+      itemBuilder: (context, index) {
+        final wardrobe = provider.wardrobes[index];
+        return _buildWardrobeCard(context, wardrobe);
+      },
+    );
+  }
+
+  Widget _buildWardrobeCard(BuildContext context, Wardrobe wardrobe) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
@@ -284,47 +287,88 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           color: Colors.white.withValues(alpha: 0.2),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
+      child: ListTile(
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: const Icon(
+            Icons.checkroom,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+        title: Text(
+          wardrobe.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              wardrobe.location,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    wardrobe.season,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(width: 8),
                 Text(
-                  description,
+                  '${wardrobe.clothCount} clothes',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          color: Colors.white.withValues(alpha: 0.8),
+          size: 16,
+        ),
+        onTap: () {
+          // TODO: Navigate to wardrobe detail screen (Phase 4)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Wardrobe details coming in Phase 4'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
       ),
     );
   }
 }
+
