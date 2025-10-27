@@ -1,199 +1,374 @@
-# Firebase & MSG91 Configuration Guide
+# High level goal (one sentence)
 
-## Required Setup Steps
+After login, show the user a Welcome screen that lists their wardrobes (max **2** for now). If they have none, show a **Create Wardrobe** flow (title, location/room, seasonal). After creating a wardrobe, take the user to **Add Cloth** flow (image + metadata). Later we’ll unlock more wardrobes via payments.
 
-### 1. Firebase Configuration
+---
 
-#### Create Firebase Project:
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or select existing project
-3. Enable Authentication with Phone provider
-4. Download configuration files
+# Phase breakdown (start to finish)
 
-#### Update Firebase Configuration Files:
+Each phase contains: objective → screens & flows → Firestore schema → service/provider actions → validations → acceptance criteria.
 
-**Android (`android/app/google-services.json`):**
+---
+
+## Phase 1 — Auth & Welcome + Wardrobe List (CORE)
+
+**Objective:** After sign-in, land on Welcome screen that displays up to 2 wardrobes. Enforce limit.
+
+### Screens / UI
+
+1. `WelcomeScreen` (default after auth)
+
+   * Header: greeting + profile
+   * If user has wardrobes: show list (grid or list)
+   * If none: show CTA “Create Wardrobe”
+   * Button: “Create Wardrobe” (disabled if user has 2)
+2. `WardrobeCard` (summary)
+
+   * title, location/room, seasonal tag, cloth count, last modified
+3. `CreateWardrobeButton` (floating / top-right)
+
+### Firestore structure
+
+```
+/users/{userId}/wardrobes/{wardrobeId}
+```
+
+Wardrobe document:
+
 ```json
 {
-  "project_info": {
-    "project_number": "YOUR_FIREBASE_PROJECT_NUMBER",
-    "project_id": "your-firebase-project-id",
-    "storage_bucket": "your-firebase-project-id.appspot.com"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "YOUR_ANDROID_APP_ID",
-        "android_client_info": {
-          "package_name": "com.wardrobe.app"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "YOUR_FIREBASE_CLIENT_ID",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "YOUR_FIREBASE_API_KEY"
-        }
-      ]
-    }
-  ]
+  "title": "Office Clothes",
+  "location": "Master Bedroom",
+  "season": "Summer",     // enum: Summer, Winter, All-season, etc.
+  "createdAt": Timestamp,
+  "updatedAt": Timestamp
 }
 ```
 
-**iOS (`ios/Runner/GoogleService-Info.plist`):**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0">
-<dict>
-    <key>API_KEY</key>
-    <string>YOUR_IOS_FIREBASE_API_KEY</string>
-    <key>GOOGLE_APP_ID</key>
-    <string>YOUR_IOS_FIREBASE_APP_ID</string>
-    <key>GCM_SENDER_ID</key>
-    <string>YOUR_FIREBASE_PROJECT_NUMBER</string>
-    <key>PROJECT_ID</key>
-    <string>your-firebase-project-id</string>
-    <key>STORAGE_BUCKET</key>
-    <string>your-firebase-project-id.appspot.com</string>
-    <key>IS_ADS_ENABLED</key>
-    <false/>
-    <key>IS_ANALYTICS_ENABLED</key>
-    <false/>
-    <key>IS_APPINVITE_ENABLED</key>
-    <true/>
-    <key>IS_GCM_ENABLED</key>
-    <true/>
-    <key>IS_SIGNIN_ENABLED</key>
-    <true/>
-    <key>BUNDLE_ID</key>
-    <string>com.wardrobe.app</string>
-</dict>
-</plist>
+### Services / Provider actions
+
+* `WardrobeService.getUserWardrobes(userId)` → returns list (limit 2)
+* `WardrobeService.createWardrobe(userId, data)` → checks count then creates
+* `WardrobeProvider` exposes `List<Wardrobe>` and `loading` state
+
+### Validation + Rules
+
+* Client-side: title non-empty (min 2 chars), location optional but recommended, season selected.
+* Server-side / Firestore rules: allow create only if `count < 2` (see rules snippet below).
+* Display friendly message: “Upgrade to create more wardrobes” (future flow).
+
+### Firestore security rule (concept)
+
+```js
+// pseudo-rule: enforce max 2 wardrobes per user
+allow create: if request.auth.uid == userId
+  && get(/databases/$(default)/documents/users/$(userId))
+       .data != null
+  && ( // check number of existing docs
+       exists(...) ? true : true
+     );
 ```
 
-### 2. MSG91 Configuration
+(Implement counting logic server-side/cloud-function or check in backend before write — Firestore rules can't easily count documents; enforce limit in Cloud Function or client + re-check with a transaction.)
 
-#### Create MSG91 Account:
-1. Go to [MSG91 Dashboard](https://control.msg91.com/)
-2. Create account and verify your mobile number
-3. Add funds to your account
-4. Create SMS template
+### Acceptance criteria
 
-#### Update MSG91 Settings:
+* After login, users see 0–2 wardrobe cards.
+* If user has 2 wardrobes, the create button is disabled and shows tooltip: “Max 2 wardrobes. Upgrade to add more.”
+* Creating a wardrobe with valid input creates the doc and returns to Welcome with new card visible.
 
-**File: `lib/services/sms_service.dart`**
+---
+
+## Phase 2 — Create Wardrobe Flow (UI + Create API)
+
+**Objective:** Build the create wardrobe screen and persist the wardrobe.
+
+### Screens
+
+1. `CreateWardrobeScreen`
+
+   * Fields:
+
+     * `Wardrobe Title` (text)
+     * `Location / Room` (text)
+     * `Seasonal` (dropdown: Summer/Winter/All-season/Custom)
+   * Buttons: `Create` and `Cancel`
+
+### Step-by-step flow (cursor-friendly)
+
+1. On `CreateWardrobeScreen`, user fills fields.
+2. Press `Create` → UI disables button and shows spinner.
+3. Client calls `WardrobeService.createWardrobe(userId, payload)`.
+4. Service checks current wardrobe count (transaction read).
+
+   * If count >= 2 → return error: “Limit reached”.
+5. If allowed → create wardrobe doc with timestamps.
+6. On success → navigate to `AddClothFirstScreen` with `wardrobeId`.
+
+### Firestore transaction example (pseudo)
+
 ```dart
-// Line 7-11: Update these values
-static const String _authKey = 'YOUR_MSG91_AUTH_KEY'; // Get from MSG91 Dashboard
-static const String _templateId = 'YOUR_TEMPLATE_ID'; // Create template in MSG91
-static const String _senderId = 'WPOBE'; // Your 4-6 character sender ID
-static const String _route = '4'; // 4 for transactional SMS
+final userWardrobesRef = firestore.collection('users').doc(uid).collection('wardrobes');
+firestore.runTransaction((tx) async {
+  final snapshot = await tx.get(userWardrobesRef.limit(3));
+  if (snapshot.docs.length >= 2) throw Exception('Limit reached');
+  final newRef = userWardrobesRef.doc();
+  tx.set(newRef, {...});
+});
 ```
 
-#### MSG91 Setup Steps:
-1. **Get Auth Key**: Login to MSG91 → Settings → Auth Key
-2. **Create Template**: 
-   - Go to Templates → Create Template
-   - Use template: "Your OTP for Wardrobe is {#var#}. Do not share this OTP."
-   - Set template type: "Transactional"
-   - Get template ID after approval
-3. **Set Sender ID**: 
-   - Use "WPOBE" or create custom 4-6 character ID
-   - Should be alphabetic only
+### Validation + UX
 
-### 3. Android Configuration
+* Title required; if empty show inline error.
+* If transaction fails due to race, show modal and refresh local list.
 
-#### Update Package Name:
-**File: `android/app/build.gradle.kts`**
-```gradle
-defaultConfig {
-    applicationId = "com.wardrobe.app" // Updated package name
-    // ... other config
+### Acceptance criteria
+
+* Create button performs server-side safe creation (transactional).
+* On success, user proceeds to Add Cloth screen for that wardrobe.
+
+---
+
+## Phase 3 — Add Cloth (Image upload + metadata)
+
+**Objective:** Allow adding cloth images + metadata for a selected wardrobe.
+
+### Screens
+
+1. `AddClothScreen` (for a single wardrobe)
+
+   * Image picker (camera / gallery)
+   * Type (dropdown: Shirt, Pants, Dress, Jacket, etc.)
+   * Color (text or color picker)
+   * Occasion (dropdown: Casual, Formal, Party, Work)
+   * Season (auto from wardrobe or pick)
+   * `Save` button
+
+2. Optional `CropImageScreen` (image crop + resize)
+
+### Firestore & Storage
+
+Cloth path:
+
+```
+/users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
+```
+
+Cloth document:
+
+```json
+{
+  "imageUrl": "https://firebasestorage/...",
+  "type": "Shirt",
+  "color": "Blue",
+  "occasion": "Casual",
+  "season": "Summer",
+  "createdAt": Timestamp,
+  "lastWorn": null
 }
 ```
 
-#### Permissions (Already Added):
-**File: `android/app/src/main/AndroidManifest.xml`**
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-<uses-permission android:name="android.permission.RECEIVE_SMS" />
-<uses-permission android:name="android.permission.READ_SMS" />
+Image stored in Firebase Storage:
+
+```
+/user_uploads/{userId}/wardrobe_{wardrobeId}/{clothId}.jpg
 ```
 
-### 4. iOS Configuration
+### Step-by-step flow (cursor-friendly)
 
-#### Update Bundle Identifier:
-**File: `ios/Runner.xcodeproj/project.pbxproj`**
-```bash
-# Search and replace: PRODUCT_BUNDLE_IDENTIFIER = com.example.wardrobe
-# Replace with: PRODUCT_BUNDLE_IDENTIFIER = com.wardrobe.app
+1. On `AddClothScreen` choose Camera/Gallery.
+2. Compress & crop image on device (recommended).
+3. Upload image to Firebase Storage: `uploadTask = storageRef.putFile(file)`.
+4. Get `imageUrl = await uploadTask.snapshot.ref.getDownloadURL()`.
+5. Create cloth doc with `imageUrl` and other metadata.
+6. Update `wardrobe.updatedAt` and optionally `wardrobe.clothCount` (denormalized).
+
+### Client side validation
+
+* Image required.
+* Type required.
+* Optional size limits and allowed formats.
+
+### Acceptance criteria
+
+* After saving, the cloth appears under that wardrobe list and cloth count increments.
+* Images load properly and are compressed (to save storage).
+
+---
+
+## Phase 4 — Wardrobe Detail & Cloth Management
+
+**Objective:** View a wardrobe, list clothes, edit/delete clothes.
+
+### Screens
+
+* `WardrobeDetailScreen` — shows all clothes grid, add cloth button, edit wardrobe button.
+* `ClothDetailScreen` — full image view, metadata, edit, delete, mark as worn.
+
+### Actions
+
+* `EditCloth` → update metadata or replace image (delete old image in storage).
+* `DeleteCloth` → remove doc and delete storage object; decrement cloth count.
+* `MarkAsWorn` → set `lastWorn = Timestamp.now()`.
+
+### Firestore considerations
+
+* Use batched writes for multi-step changes (e.g., delete storage then doc or vice versa with retries).
+* Consider `cloud function` to clean up orphaned storage objects if doc deletion fails.
+
+### Acceptance criteria
+
+* Edit and delete work reliably and update UI instantly (optimistic update + rollback on failure).
+
+---
+
+## Phase 5 — Suggestion (basic) + Daily Notification hook (MVP)
+
+**Objective:** Generate a “What to Wear Today” suggestion after the user has at least one wardrobe and some clothes.
+
+### Suggestion algorithm (MVP)
+
+1. Input: wardrobeId, clothes list.
+2. Filter clothes by season (match wardrobe season) and occasion (optional).
+3. Sort by `lastWorn` ascending (oldest first) to avoid repetition.
+4. Pick top N (1–3) and save into:
+
+```
+/users/{userId}/suggestions/{YYYY-MM-DD}
+{
+  "wardrobeId": "...",
+  "clothIds": ["..."],
+  "createdAt": Timestamp
+}
 ```
 
-### 5. Testing Setup
+### Notification scheduling
 
-#### For Development/Testing:
-Use these test credentials in development:
+* Use Cloud Scheduler + Cloud Functions OR server cron to:
 
-**Test Phone Numbers:**
-- `test@example.com` + password: `password` (Email login)
-- `9999999999` with any 6-digit OTP (Phone login)
+  * For each active user, compute suggestion for that day and send FCM push at 7:00 AM user local time.
+  * Alternatively, keep notification local: schedule local notification on device at 7:00; fetch suggestion from Firestore when tapped.
 
-**Firebase Test Phone:**
-- Add test phone numbers in Firebase Console → Authentication → Sign-in method → Phone
+### Acceptance criteria
 
-### 6. Environment Variables (Optional)
+* Suggestion saved in Firestore.
+* Push or local notification shows suggestion title and small image.
 
-Create `lib/config/config.dart`:
+---
+
+## Phase 6 — Billing / Upgrade Flow (future)
+
+**Objective:** Allow users to buy more wardrobe capacity.
+
+### Basic plan
+
+* Free Plan: 2 wardrobes
+* Pro Plan: X wardrobes (configurable)
+* Implement Stripe / Google Play Billing for subscription (later)
+* After payment success update `users/{userId}/plan` and allow create more wardrobes
+
+### Implementation hints
+
+* Use Firestore to store plan info:
+
+```json
+users/{userId}.plan = {
+  "name": "free",
+  "maxWardrobes": 2,
+  "expiresAt": null
+}
+```
+
+* When creating wardrobe check `user.plan.maxWardrobes`.
+
+---
+
+## Phase 7 — Polishing, testing, and production checklist
+
+* Image compression + size limit (max 5 MB)
+* Pagination of clothes list
+* Offline support (local cache + sync)
+* Accessibility labels for images and controls
+* Unit tests for providers/services (mock Firestore)
+* Analytics events: wardrobe_created, cloth_added, suggestion_sent
+* E2E testing on real devices
+* Backup/restore user data option
+
+---
+
+# Useful code & schema snippets (copy-ready)
+
+### Dart model (wardrobe)
+
 ```dart
-class Config {
-  static const String firebaseProjectId = 'your-firebase-project-id';
-  static const String msg91AuthKey = 'YOUR_MSG91_AUTH_KEY';
-  static const String msg91TemplateId = 'YOUR_TEMPLATE_ID';
-  static const String senderId = 'WPOBE';
-  
-  // Environment specific configs
-  static const bool isDevelopment = true;
-  static const String baseUrl = isDevelopment 
-    ? 'https://dev-api.wardrobe.com'
-    : 'https://api.wardrobe.com';
+class Wardrobe {
+  final String id;
+  final String title;
+  final String location;
+  final String season;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Wardrobe({...});
+  Map<String, dynamic> toJson() => {...};
 }
 ```
 
-## Security Notes:
+### Firestore path constants
 
-1. **Never commit real API keys** to version control
-2. **Use environment variables** for production
-3. **Enable API key restrictions** in Firebase
-4. **Set up OAuth consent screen** for Android
-5. **Review SMS template content** before production
-
-## Troubleshooting:
-
-### Common Issues:
-1. **"Firebase not initialized"**: Check google-services.json has correct package name
-2. **"SMS not sent"**: Verify MSG91 auth key and template ID
-3. **"App not installed"**: Update applicationId in build.gradle.kts
-
-### Debug Commands:
-```bash
-# Clean and rebuild
-flutter clean
-flutter pub get
-flutter run
-
-# Check Firebase setup
-flutter packages get
-firebase --version
+```dart
+String userDoc(String uid) => 'users/$uid';
+String wardrobesCol(String uid) => '${userDoc(uid)}/wardrobes';
+String clothesCol(String uid, String wardrobeId) => '${wardrobesCol(uid)}/$wardrobeId/clothes';
 ```
 
-## Support:
-- Firebase: [Firebase Documentation](https://firebase.google.com/docs)
-- MSG91: [MSG91 API Documentation](https://docs.msg91.com/)
-- Flutter: [Flutter Firebase](https://firebase.flutter.dev/)
+### Create wardrobe (pseudo-Dart)
 
+```dart
+Future<void> createWardrobe(String uid, Map<String,dynamic> data) async {
+  final col = firestore.collection(wardrobesCol(uid));
+  await firestore.runTransaction((tx) async {
+    final q = await col.get();
+    if (q.docs.length >= userPlanMax) throw Exception('Limit reached');
+    final doc = col.doc();
+    tx.set(doc, {...data, 'createdAt': FieldValue.serverTimestamp()});
+  });
+}
+```
 
+---
+
+# Cursor-friendly Step-by-step document (exact order to follow)
+
+1. Login flow finished (you have Firebase OTP in place).
+2. After login, call `WardrobeService.getUserWardrobes(uid)`.
+3. If returned list length == 0 → navigate user to `CreateWardrobeScreen`.
+4. If list length > 0 → show `WelcomeScreen` with wardrobes.
+5. On `CreateWardrobeScreen`:
+
+   * Validate title & season
+   * Call `createWardrobe` transaction
+   * On success navigate to `AddClothScreen(wardrobeId)`
+6. On `AddClothScreen`:
+
+   * Get image (camera/gallery)
+   * Compress & crop
+   * Upload to Storage, get URL
+   * Create cloth doc under wardrobe
+   * Update wardrobe.updatedAt
+7. On `WardrobeDetailScreen`:
+
+   * List clothes with lazy loading
+   * Provide edit/delete/mark-worn
+8. Suggestion service can run once user has ≥1 cloth:
+
+   * Run simple selection & save suggestion doc
+   * Send FCM push or local notification at 7:00 AM
+
+---
+
+# Extra notes / edge cases
+
+* Firestore document count checks must be done in transaction to avoid race conditions.
+* Because Firestore rules cannot count docs easily, enforce limit in the transaction and also validate in Cloud Function (if you plan server SDK).
+* When deleting cloth always try to delete the storage file — consider a Cloud Function to clean up leftover files.
