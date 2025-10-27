@@ -19,16 +19,16 @@ void main() async {
     appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
   );
 
-  runApp(const WordRopeApp());
+  runApp(const WardrobeApp());
 }
 
-class WordRopeApp extends StatelessWidget {
-  const WordRopeApp({super.key});
+class WardrobeApp extends StatelessWidget {
+  const WardrobeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WordRope - Smart Writing Companion',
+      title: 'Wardrobe - Smart Writing Companion',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

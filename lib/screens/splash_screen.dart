@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // WordRope Logo
+                      // Wardrobe Logo
                       Container(
                         width: 160,
                         height: 160,
@@ -132,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 40),
                       Text(
-                        'WordRope',
+                        'Wardrobe',
                         style:
                             Theme.of(context).textTheme.headlineLarge?.copyWith(
                                   color: Colors.white,

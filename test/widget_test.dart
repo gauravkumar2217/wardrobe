@@ -10,12 +10,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wardrobe/main.dart';
 
 void main() {
-  testWidgets('WordRope app smoke test', (WidgetTester tester) async {
+  testWidgets('Wardrobe app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const WordRopeApp());
+    await tester.pumpWidget(const WardrobeApp());
 
     // Verify that our app shows the splash screen
-    expect(find.text('WordRope'), findsOneWidget);
+    expect(find.text('Wardrobe'), findsOneWidget);
     expect(find.text('Your Smart Writing Companion'), findsOneWidget);
   });
 }
