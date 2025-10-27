@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/wardrobe_provider.dart';
 import '../models/wardrobe.dart';
-import 'add_cloth_screen.dart';
 
 class CreateWardrobeScreen extends StatefulWidget {
   const CreateWardrobeScreen({super.key});
@@ -56,12 +55,15 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
       );
 
       if (mounted && wardrobeId != null) {
-        // Navigate to Add Cloth screen
         Navigator.of(context).pop(); // Close loading dialog
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddClothFirstScreen(wardrobeId: wardrobeId),
+        // Pop back to welcome screen - it will auto-refresh
+        Navigator.of(context).pop();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wardrobe created successfully!'),
+            backgroundColor: Colors.green,
           ),
         );
       } else if (mounted && wardrobeProvider.errorMessage != null) {
