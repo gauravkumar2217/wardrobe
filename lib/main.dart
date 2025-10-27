@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'providers/wardrobe_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,18 +30,23 @@ class WardrobeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Wardrobe Chat',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C3AED),
-          brightness: Brightness.light,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => WardrobeProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Wardrobe Chat',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF7C3AED),
+            brightness: Brightness.light,
+          ),
+          useMaterial3: true,
+          fontFamily: 'Inter',
         ),
-        useMaterial3: true,
-        fontFamily: 'Inter',
+        home: const SplashScreen(),
       ),
-      home: const SplashScreen(),
     );
   }
 }
