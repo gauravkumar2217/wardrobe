@@ -134,7 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                         // Welcome Message
                         Text(
-                          'Welcome to WordRope!',
+                          'Welcome to Wardrobe!',
                           style: Theme.of(context)
                               .textTheme
                               .headlineLarge
