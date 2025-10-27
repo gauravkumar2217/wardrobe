@@ -116,23 +116,32 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
     try {
       PhoneAuthCredential credential;
 
-      // For development: Allow test OTP 123456
-      if (_otpController.text == '123456' &&
-          _phoneController.text == '9899204201') {
-        // Create a mock credential for testing
-        credential = PhoneAuthProvider.credential(
-          verificationId: _verificationId ?? 'test_verification_id',
-          smsCode: '123456',
-        );
-      } else {
+      // For development: Handle test OTP
+      if (_otpController.text == '123456' && _phoneController.text == '9899204201') {
+        // For test phone numbers, Firebase returns verificationCompleted automatically
+        // We just need to handle the credential
         if (_verificationId == null) {
-          throw Exception('Verification ID not found. Please resend OTP.');
+          // If we don't have a verification ID, get a new one
+          setState(() {
+            _isLoading = false;
+          });
+          _showErrorSnackBar('Please resend OTP first');
+          return;
         }
-        credential = PhoneAuthProvider.credential(
-          verificationId: _verificationId!,
-          smsCode: _otpController.text,
-        );
       }
+      
+      if (_verificationId == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showErrorSnackBar('Verification ID not found. Please resend OTP.');
+        return;
+      }
+      
+      credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: _otpController.text,
+      );
 
       // Sign in with credential
       final userCredential =
@@ -171,6 +180,24 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
         errorMessage = 'Session expired. Please resend OTP.';
       } else if (e.toString().contains('Verification ID not found')) {
         errorMessage = 'Please resend OTP first.';
+      } else if (e.toString().contains('type')) {
+        // Suppress type casting errors that occur after successful auth
+        debugPrint('Auth completed but type error: $e');
+        // Try to navigate anyway since auth might have succeeded
+        if (FirebaseAuth.instance.currentUser != null) {
+          if (mounted) {
+            _showSuccessSnackBar('Login successful!');
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                );
+              }
+            });
+          }
+          return;
+        }
       }
 
       _showErrorSnackBar(errorMessage);
@@ -265,7 +292,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Welcome to WordRope',
+                          'Welcome to Wardrobe',
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium
