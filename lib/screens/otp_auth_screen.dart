@@ -255,6 +255,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           ),
         ),
         child: SafeArea(
+          top: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Form(
