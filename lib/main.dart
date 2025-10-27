@@ -29,7 +29,7 @@ class WardrobeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Wardrobe - Smart Writing Companion',
+      title: 'Wardrobe Chat',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
