@@ -265,7 +265,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Welcome to WordRope',
+                          'Welcome to Wardrobe',
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium

@@ -22,9 +22,7 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
+// Removed evaluationDependsOn to avoid circular dependency issues
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
