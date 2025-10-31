@@ -29,6 +29,13 @@ dependencies:
   shared_preferences: ^2.2.2
   sms_autofill: ^2.3.0
   
+  # Image handling
+  image_picker: ^1.0.7
+  
+  # File handling
+  path_provider: ^2.1.2
+  path: ^1.8.3
+  
   # Other utilities
   uuid: ^4.2.1
   crypto: ^3.0.3

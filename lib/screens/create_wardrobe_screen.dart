@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/wardrobe_provider.dart';
 import '../models/wardrobe.dart';
+import 'wardrobe_detail_screen.dart';
 
 class CreateWardrobeScreen extends StatefulWidget {
   const CreateWardrobeScreen({super.key});
@@ -56,14 +57,22 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
 
       if (mounted && wardrobeId != null) {
         Navigator.of(context).pop(); // Close loading dialog
-        // Pop back to welcome screen - it will auto-refresh
-        Navigator.of(context).pop();
         
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Wardrobe created successfully!'),
-            backgroundColor: Colors.green,
+        // Create a temporary Wardrobe object for navigation
+        final newWardrobe = Wardrobe(
+          id: wardrobeId,
+          title: _titleController.text.trim(),
+          location: _locationController.text.trim(),
+          season: _selectedSeason,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          clothCount: 0,
+        );
+        
+        // Navigate to Wardrobe Detail screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => WardrobeDetailScreen(wardrobe: newWardrobe),
           ),
         );
       } else if (mounted && wardrobeProvider.errorMessage != null) {
@@ -186,7 +195,7 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
 
                             // Season Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedSeason,
+                              initialValue: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),

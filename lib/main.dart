@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'providers/wardrobe_provider.dart';
+import 'providers/cloth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,7 @@ class WardrobeApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => WardrobeProvider()),
+        ChangeNotifierProvider(create: (_) => ClothProvider()),
       ],
       child: MaterialApp(
         title: 'Wardrobe Chat',
