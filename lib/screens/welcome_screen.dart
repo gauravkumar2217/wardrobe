@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/wardrobe_provider.dart';
 import '../models/wardrobe.dart';
 import 'create_wardrobe_screen.dart';
+import 'wardrobe_detail_screen.dart';
 import 'otp_auth_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -129,10 +130,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         
+        if (!mounted) return;
+        
         if (provider.errorMessage == null) {
           // Reload wardrobes to update UI
           await provider.loadWardrobes(user.uid);
           
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Wardrobe deleted successfully'),
@@ -140,6 +144,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
           );
         } else {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(provider.errorMessage!),
@@ -488,11 +493,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ],
         ),
         onTap: () {
-          // TODO: Navigate to wardrobe detail screen (Phase 4)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Wardrobe details coming in Phase 4'),
-              backgroundColor: Colors.green,
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WardrobeDetailScreen(wardrobe: wardrobe),
             ),
           );
         },
