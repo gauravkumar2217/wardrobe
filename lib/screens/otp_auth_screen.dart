@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 import 'welcome_screen.dart';
@@ -78,7 +79,21 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           setState(() {
             _isLoading = false;
           });
-          _showErrorSnackBar('Verification failed: ${e.message}');
+          
+          // Handle redirect errors specifically for web
+          String errorMessage = 'Verification failed: ${e.message}';
+          if (kIsWeb && e.message != null && 
+              (e.message!.contains('missing initial state') ||
+               e.message!.contains('sessionStorage') ||
+               e.message!.contains('redirect'))) {
+            errorMessage = 'Authentication error on web. Please ensure:\n'
+                '1. Cookies and sessionStorage are enabled\n'
+                '2. Not using private/incognito mode\n'
+                '3. Try a different browser\n'
+                '4. Clear browser cache and try again';
+          }
+          
+          _showErrorSnackBar(errorMessage);
         },
         codeSent: (String verificationId, int? resendToken) {
           setState(() {
@@ -247,6 +262,8 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
@@ -492,6 +509,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
