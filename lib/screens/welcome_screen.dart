@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/wardrobe_provider.dart';
 import '../models/wardrobe.dart';
+import '../models/user_profile.dart';
+import '../services/user_service.dart';
+import '../widgets/profile_completion_modal.dart';
 import 'create_wardrobe_screen.dart';
 import 'wardrobe_detail_screen.dart';
 import 'otp_auth_screen.dart';
@@ -19,12 +22,54 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  UserProfile? _userProfile;
 
   @override
   void initState() {
     super.initState();
     _setupAnimations();
     _loadWardrobes();
+    _checkProfileCompleteness();
+  }
+
+  Future<void> _checkProfileCompleteness() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final profile = await UserService.getUserProfile(user.uid);
+      
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+        });
+
+        // Check if profile is incomplete and show modal
+        if (profile == null || !profile.isComplete) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showProfileCompletionModal();
+          });
+        }
+      }
+    } catch (e) {
+      // Handle error silently or show error message if needed
+    }
+  }
+
+  Future<void> _showProfileCompletionModal() async {
+    if (!mounted) return;
+    
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // Prevent dismissing without completing
+      builder: (context) => const ProfileCompletionModal(),
+    );
+
+    // If profile was saved successfully, reload the profile and refresh the screen
+    if (result == true && mounted) {
+      await _checkProfileCompleteness();
+      setState(() {}); // Trigger rebuild to show updated welcome message
+    }
   }
 
   void _loadWardrobes() {
@@ -166,6 +211,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final phoneNumber = user?.phoneNumber ?? 'Unknown';
+    final userName = _userProfile?.name;
 
     return Scaffold(
       body: Container(
@@ -244,7 +290,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                             // Welcome Message
                             Text(
-                              'Welcome to Wardrobe!',
+                              userName != null && userName.isNotEmpty
+                                  ? 'Welcome, $userName!'
+                                  : 'Welcome to Wardrobe!',
                               style: Theme.of(context)
                                   .textTheme
                                   .headlineLarge
@@ -259,7 +307,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             const SizedBox(height: 8),
 
                             Text(
-                              'You have successfully logged in to your account.',
+                              userName != null && userName.isNotEmpty
+                                  ? 'You have successfully logged in to your account.'
+                                  : 'You have successfully logged in to your account.',
                               style:
                                   Theme.of(context).textTheme.titleMedium?.copyWith(
                                         color: Colors.white.withValues(alpha: 0.9),
