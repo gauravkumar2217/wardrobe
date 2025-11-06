@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/cloth.dart';
 import '../models/wardrobe.dart';
 import '../providers/cloth_provider.dart';
+import '../services/ai_vision_service.dart';
 
 class AddClothFirstScreen extends StatefulWidget {
   final String wardrobeId;
@@ -32,6 +34,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   String _selectedSeason = '';
   
   bool _isUploading = false;
+  bool _isAnalyzing = false;
 
   @override
   void initState() {
@@ -53,9 +56,58 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         setState(() {
           _selectedImage = File(image.path);
         });
+        
+        // Auto-analyze image with AI
+        _analyzeImage(File(image.path));
       }
     } catch (e) {
       _showErrorSnackBar('Failed to pick image: ${e.toString()}');
+    }
+  }
+
+  Future<void> _analyzeImage(File imageFile) async {
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    try {
+      final metadata = await AIVisionService.analyzeImage(imageFile);
+      
+      if (mounted) {
+        setState(() {
+          // Update form fields with AI-detected values
+          if (Cloth.types.contains(metadata.type)) {
+            _selectedType = metadata.type;
+          }
+          _colorController = metadata.color;
+          if (Cloth.occasions.contains(metadata.occasion)) {
+            _selectedOccasion = metadata.occasion;
+          }
+          _isAnalyzing = false;
+        });
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'AI detected: ${metadata.type}, ${metadata.color}, ${metadata.occasion} '
+              '(Confidence: ${(metadata.confidence * 100).toStringAsFixed(0)}%)',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+        // Silently fail - user can still fill manually
+        if (kDebugMode) {
+          print('AI analysis failed: $e');
+        }
+      }
     }
   }
 
@@ -235,12 +287,45 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                   ),
                                 ),
                                 child: _selectedImage != null
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.file(
-                                          _selectedImage!,
-                                          fit: BoxFit.cover,
-                                        ),
+                                    ? Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.file(
+                                              _selectedImage!,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                            ),
+                                          ),
+                                          if (_isAnalyzing)
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(alpha: 0.5),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: const Center(
+                                                child: Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    CircularProgressIndicator(
+                                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                                        Colors.white,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Text(
+                                                      'Analyzing with AI...',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       )
                                     : const Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
