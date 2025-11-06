@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/cloth.dart';
+import '../utils/image_compression.dart';
 
 class ClothService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -26,8 +27,11 @@ class ClothService {
     String clothId,
   ) async {
     try {
+      // Compress image before upload
+      final compressedFile = await ImageCompression.compressImage(imageFile);
+      
       final storageRef = _storage.ref().child(_storagePath(userId, wardrobeId, clothId));
-      final uploadTask = storageRef.putFile(imageFile);
+      final uploadTask = storageRef.putFile(compressedFile);
       
       await uploadTask;
       final imageUrl = await storageRef.getDownloadURL();

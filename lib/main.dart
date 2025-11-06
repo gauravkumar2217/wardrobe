@@ -7,6 +7,9 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'providers/wardrobe_provider.dart';
 import 'providers/cloth_provider.dart';
+import 'providers/suggestion_provider.dart';
+import 'providers/chat_provider.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +26,10 @@ void main() async {
     );
   }
 
+  // Initialize notification service
+  await NotificationService.initialize();
+  await NotificationService.requestPermissions();
+
   runApp(const WardrobeApp());
 }
 
@@ -35,6 +42,8 @@ class WardrobeApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => WardrobeProvider()),
         ChangeNotifierProvider(create: (_) => ClothProvider()),
+        ChangeNotifierProvider(create: (_) => SuggestionProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp(
         title: 'Wardrobe Chat',
