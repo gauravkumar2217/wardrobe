@@ -22,19 +22,41 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   String? _verificationId;
   int _resendTimer = 0;
   bool _isManualInput = false; // Track if user is manually entering OTP
+  DateTime? _lastManualInputTime; // Track when user last typed manually
 
   @override
   void initState() {
     super.initState();
     _listenForSms();
+    // Listen to controller changes to detect manual input
+    _otpController.addListener(_onOTPControllerChanged);
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _otpController.removeListener(_onOTPControllerChanged);
     _otpController.dispose();
     SmsAutoFill().unregisterListener();
     super.dispose();
+  }
+
+  void _onOTPControllerChanged() {
+    // Detect if user is manually typing
+    final currentText = _otpController.text;
+    final currentLength = currentText.length;
+    
+    // If text is being typed character by character (not all at once), it's manual input
+    if (currentLength > 0 && currentLength < 6) {
+      // Check if this is a gradual input (manual) vs instant fill (auto)
+      final now = DateTime.now();
+      if (_lastManualInputTime == null || 
+          now.difference(_lastManualInputTime!) < const Duration(milliseconds: 100)) {
+        // User is typing manually
+        _isManualInput = true;
+        _lastManualInputTime = now;
+      }
+    }
   }
 
   void _listenForSms() {
@@ -43,14 +65,39 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
 
   @override
   void codeUpdated() {
-    // Only auto-fill if user hasn't started manual input
-    if (!_isManualInput && code != null) {
-      setState(() {
-        _otpController.text = code!;
-      });
-      // Auto verify OTP when received
-      if (code!.length == 6) {
-        _verifyOTP();
+    // Only auto-fill if:
+    // 1. User hasn't started manual input, OR
+    // 2. The field is empty, OR
+    // 3. The auto-fill code is different from what's already there (new OTP received)
+    if (code != null && code!.length == 6) {
+      final currentText = _otpController.text;
+      
+      // Allow auto-fill only if:
+      // - Field is completely empty, OR
+      // - User hasn't manually typed AND this is a different code, OR
+      // - Field has less than 6 digits AND user hasn't typed recently
+      final now = DateTime.now();
+      final timeSinceLastManualInput = _lastManualInputTime != null 
+          ? now.difference(_lastManualInputTime!) 
+          : const Duration(days: 1);
+      
+      if (currentText.isEmpty || 
+          (!_isManualInput && currentText != code && timeSinceLastManualInput > const Duration(seconds: 2)) ||
+          (currentText.length < 6 && timeSinceLastManualInput > const Duration(seconds: 2))) {
+        setState(() {
+          _otpController.text = code!;
+          // Reset manual input flag when auto-fill succeeds on empty field
+          if (currentText.isEmpty) {
+            _isManualInput = false;
+            _lastManualInputTime = null;
+          }
+        });
+        // Auto verify OTP when received via auto-fill
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _otpController.text == code && !_isManualInput) {
+            _verifyOTP();
+          }
+        });
       }
     }
   }
@@ -102,6 +149,8 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
             _verificationId = verificationId;
             _resendTimer = 60;
             _isManualInput = false; // Reset manual input flag for new OTP
+            _lastManualInputTime = null; // Reset manual input tracking
+            _otpController.clear(); // Clear any previous OTP
           });
           _startResendTimer();
           _showSuccessSnackBar('OTP sent successfully! Check your messages.');
@@ -390,29 +439,88 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                       },
                     ),
                   ] else ...[
-                    PinFieldAutoFill(
+                    // OTP Input Field - supports both auto-fill and manual entry
+                    TextFormField(
                       controller: _otpController,
-                      codeLength: 6,
-                      decoration: UnderlineDecoration(
-                        textStyle: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      maxLength: 6,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Enter OTP',
+                        hintText: '000000',
+                        counterText: '',
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.1),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
                         ),
-                        colorBuilder: FixedColorBuilder(
-                            Colors.white.withValues(alpha: 0.7)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        labelStyle: const TextStyle(color: Colors.white),
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 24,
+                          letterSpacing: 8,
+                        ),
                       ),
-                      onCodeChanged: (code) {
-                        // Mark that user is manually entering OTP
-                        _isManualInput = true;
-                        if (code != null && code.length == 6) {
-                          _verifyOTP();
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                      ),
+                      onChanged: (value) {
+                        // Mark as manual input when user types
+                        if (value.isNotEmpty) {
+                          setState(() {
+                            _isManualInput = true;
+                            _lastManualInputTime = DateTime.now();
+                          });
+                        }
+                        // Auto-verify when 6 digits are entered manually
+                        if (value.length == 6) {
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (mounted && _otpController.text.length == 6) {
+                              _verifyOTP();
+                            }
+                          });
                         }
                       },
-                      onCodeSubmitted: (val) {
-                        _isManualInput = true;
-                        _verifyOTP();
+                      onTap: () {
+                        // When user taps the field, allow manual input
+                        setState(() {
+                          _isManualInput = true;
+                        });
                       },
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Helper text
+                    Text(
+                      'OTP will be auto-filled if received via SMS',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
 
                     const SizedBox(height: 16),
