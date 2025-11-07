@@ -50,3 +50,6 @@ wordrobe-chat-firebase-adminsdk-fbsvc-8f6d0dd316.json
 *.jks
 *.keystore
 key.properties
+
+# Environment variables
+.env
