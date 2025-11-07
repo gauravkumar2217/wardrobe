@@ -15,7 +15,7 @@ class NotificationService {
     tz.initializeTimeZones();
 
     // Android initialization settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
 
     // iOS initialization settings
     const iosSettings = DarwinInitializationSettings(
@@ -52,7 +52,7 @@ class NotificationService {
 
     // Schedule for 7 AM every day
     final now = DateTime.now();
-    final scheduledDate = tz.TZDateTime(
+    var scheduledDate = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
@@ -62,7 +62,7 @@ class NotificationService {
 
     // If 7 AM has already passed today, schedule for tomorrow
     if (scheduledDate.isBefore(now)) {
-      scheduledDate.add(const Duration(days: 1));
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
     const androidDetails = AndroidNotificationDetails(
@@ -71,7 +71,7 @@ class NotificationService {
       channelDescription: 'Get daily outfit suggestions at 7 AM',
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon',
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -85,17 +85,39 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _notifications.zonedSchedule(
-      0, // Notification ID
-      'Outfit Suggestion Ready!',
-      'Check out today\'s outfit suggestion',
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
-    );
+    try {
+      // Try exact alarm first (requires permission on Android 12+)
+      await _notifications.zonedSchedule(
+        0, // Notification ID
+        'Outfit Suggestion Ready!',
+        'Check out today\'s outfit suggestion',
+        scheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
+      );
+    } catch (e) {
+      // If exact alarms aren't permitted, fall back to inexact scheduling
+      // This doesn't require special permission but may be less precise
+      try {
+        await _notifications.zonedSchedule(
+          0, // Notification ID
+          'Outfit Suggestion Ready!',
+          'Check out today\'s outfit suggestion',
+          scheduledDate,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
+        );
+      } catch (fallbackError) {
+        // If scheduling still fails, log the error but don't crash
+        print('Failed to schedule notification: $fallbackError');
+      }
+    }
   }
 
   /// Cancel daily notification
@@ -117,7 +139,7 @@ class NotificationService {
       channelDescription: 'Immediate notifications',
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon',
     );
 
     const iosDetails = DarwinNotificationDetails(

@@ -101,7 +101,13 @@ class SuggestionService {
           .set(suggestion.toJson());
 
       // Schedule notification for tomorrow if not already scheduled
-      await NotificationService.scheduleDailySuggestionNotification();
+      // Don't fail suggestion generation if notification scheduling fails
+      try {
+        await NotificationService.scheduleDailySuggestionNotification();
+      } catch (notificationError) {
+        // Log but don't throw - notification is optional
+        print('Failed to schedule notification: $notificationError');
+      }
 
       return suggestion;
     } catch (e) {

@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.Delete
 import org.gradle.api.file.Directory
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
     repositories {
@@ -31,7 +32,7 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 
-    // ✅ Enforce Java 11 for all modules (including plugins)
+    // ✅ Enforce Java 17 for all modules (including plugins)
     afterEvaluate {
         if (project.hasProperty("android")) {
             val android = project.extensions.findByName("android")
@@ -39,8 +40,8 @@ subprojects {
                 try {
                     val androidExtension = android as com.android.build.gradle.BaseExtension
                     androidExtension.compileOptions {
-                        sourceCompatibility = JavaVersion.VERSION_11
-                        targetCompatibility = JavaVersion.VERSION_11
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
                     }
                 } catch (_: Exception) {
                     // Some subprojects might not have BaseExtension
@@ -48,9 +49,16 @@ subprojects {
             }
         }
 
-        // ✅ Ensure all Kotlin subprojects use Java 11 toolchain
+        // ✅ Ensure all Kotlin subprojects use Java 17 toolchain
         extensions.findByType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java)?.apply {
-            jvmToolchain(11)
+            jvmToolchain(17)
+        }
+        
+        // ✅ Explicitly configure all Kotlin compilation tasks to use JVM target 17
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
         }
     }
 }

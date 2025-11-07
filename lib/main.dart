@@ -14,21 +14,34 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with platform-specific options
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    // Initialize Firebase with platform-specific options
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Use Play Integrity for production builds, debug provider for development
-  // Disable App Check in debug mode to avoid authentication errors
-  if (kReleaseMode) {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.playIntegrity,
-      appleProvider: AppleProvider.appAttest,
-    );
+    // Use Play Integrity for production builds, debug provider for development
+    // Disable App Check in debug mode to avoid authentication errors
+    if (kReleaseMode) {
+      try {
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: AndroidProvider.playIntegrity,
+          appleProvider: AppleProvider.appAttest,
+        );
+      } catch (e) {
+        debugPrint('Firebase App Check initialization failed: $e');
+      }
+    }
+
+    // Initialize notification service
+    try {
+      await NotificationService.initialize();
+      await NotificationService.requestPermissions();
+    } catch (e) {
+      debugPrint('Notification service initialization failed: $e');
+    }
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+    // Continue anyway - Firebase might work later
   }
-
-  // Initialize notification service
-  await NotificationService.initialize();
-  await NotificationService.requestPermissions();
 
   runApp(const WardrobeApp());
 }
@@ -54,7 +67,7 @@ class WardrobeApp extends StatelessWidget {
             brightness: Brightness.light,
           ),
           useMaterial3: true,
-          fontFamily: 'Inter',
+          // Removed fontFamily: 'Inter' - font not configured in pubspec.yaml
         ),
         home: const SplashScreen(),
       ),
