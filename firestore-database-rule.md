@@ -27,14 +27,21 @@ service cloud.firestore {
     
     // Helper function to validate cloth data
     function isValidCloth(data) {
-      return data.keys().hasAll(['imageUrl', 'type', 'color', 'occasion', 'season', 'createdAt']) &&
+      // Validate required fields - support both new format (occasions list) and old format (occasion string)
+      return data.keys().hasAll(['imageUrl', 'type', 'color', 'season', 'createdAt']) &&
              data.imageUrl is string &&
              data.type is string &&
              data.color is string &&
-             data.occasion is string &&
              data.season is string &&
              data.createdAt is timestamp &&
-             (data.lastWorn == null || data.lastWorn is timestamp);
+             (data.lastWorn == null || data.lastWorn is timestamp) &&
+             // Require 'occasions' (new format) - must be a list with at least one item
+             // Also allow 'occasion' field for backward compatibility (optional)
+             ('occasions' in data) &&
+             data.occasions is list &&
+             data.occasions.size() > 0 &&
+             // Optional: allow 'occasion' field for backward compatibility (but not required)
+             (!('occasion' in data) || data.occasion is string);
     }
     
     // Helper function to validate suggestion data
@@ -104,9 +111,20 @@ service cloud.firestore {
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
           
           // Allow update if user owns the cloth
-          // Allow partial updates (e.g., just updating lastWorn or updatedAt)
+          // Allow partial updates (e.g., just updating lastWorn, updatedAt, occasions, or other fields)
           allow update: if isOwner(userId) &&
                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastWorn', 'updatedAt']) ||
+                          // Allow updates to occasions, type, color, season individually
+                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['occasions', 'occasion']) &&
+                           request.resource.data.occasions is list &&
+                           request.resource.data.occasions.size() > 0) ||
+                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['type']) &&
+                           request.resource.data.type is string) ||
+                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['color']) &&
+                           request.resource.data.color is string) ||
+                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['season']) &&
+                           request.resource.data.season is string) ||
+                          // Full validation for complete updates
                           isValidCloth(request.resource.data));
           
           // Allow delete if user owns the cloth

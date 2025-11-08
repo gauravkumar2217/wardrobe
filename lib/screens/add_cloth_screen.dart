@@ -144,19 +144,47 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   }
 
   Future<void> _saveCloth() async {
+    if (kDebugMode) {
+      debugPrint('AddClothScreen: Starting save process');
+    }
+
     if (!_formKey.currentState!.validate()) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Form validation failed');
+      }
       return;
     }
 
     if (_selectedImage == null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: No image selected');
+      }
       _showErrorSnackBar('Please select an image');
+      return;
+    }
+
+    if (_selectedOccasions.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: No occasions selected');
+      }
+      _showErrorSnackBar('Please select at least one occasion');
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: User not authenticated');
+      }
       _showErrorSnackBar('User not authenticated');
       return;
+    }
+
+    if (kDebugMode) {
+      debugPrint('AddClothScreen: User ID: ${user.uid}');
+      debugPrint('AddClothScreen: Wardrobe ID: ${widget.wardrobeId}');
+      debugPrint('AddClothScreen: Image path: ${_selectedImage?.path}');
+      debugPrint('AddClothScreen: Type: $_selectedType, Color: ${_colorController.trim()}, Occasions: $_selectedOccasions, Season: $_selectedSeason');
     }
 
     setState(() {
@@ -166,6 +194,10 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
     final clothProvider = context.read<ClothProvider>();
 
     try {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Calling ClothProvider.addCloth');
+      }
+
       final clothId = await clothProvider.addCloth(
         user.uid,
         widget.wardrobeId,
@@ -176,10 +208,21 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         _selectedSeason,
       );
 
-      if (mounted && clothId != null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: ClothProvider.addCloth returned: $clothId');
+        debugPrint('AddClothScreen: Error message: ${clothProvider.errorMessage}');
+      }
+
+      if (!mounted) return;
+
+      if (clothId != null) {
         setState(() {
           _isUploading = false;
         });
+
+        if (kDebugMode) {
+          debugPrint('AddClothScreen: Cloth added successfully with ID: $clothId');
+        }
 
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,13 +234,22 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
         // Navigate back to wardrobe detail screen (will refresh automatically via stream)
         Navigator.of(context).pop();
-      } else if (mounted && clothProvider.errorMessage != null) {
+      } else {
         setState(() {
           _isUploading = false;
         });
-        _showErrorSnackBar(clothProvider.errorMessage!);
+
+        final errorMsg = clothProvider.errorMessage ?? 'Unknown error occurred';
+        if (kDebugMode) {
+          debugPrint('AddClothScreen: Failed to add cloth - $errorMsg');
+        }
+        _showErrorSnackBar(errorMsg);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Exception caught: $e');
+        debugPrint('AddClothScreen: Stack trace: $stackTrace');
+      }
       if (mounted) {
         setState(() {
           _isUploading = false;

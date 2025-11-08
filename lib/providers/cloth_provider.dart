@@ -54,11 +54,22 @@ class ClothProvider with ChangeNotifier {
     List<String> occasions, // Changed to support multiple occasions
     String season,
   ) async {
+    if (kDebugMode) {
+      debugPrint('ClothProvider: Starting addCloth');
+      debugPrint('ClothProvider: User ID: $userId, Wardrobe ID: $wardrobeId');
+      debugPrint('ClothProvider: Type: $type, Color: $color, Occasions: $occasions, Season: $season');
+      debugPrint('ClothProvider: Image file: ${imageFile?.path ?? "null"}');
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      if (kDebugMode) {
+        debugPrint('ClothProvider: Calling ClothService.addCloth');
+      }
+
       final clothId = await ClothService.addCloth(
         userId,
         wardrobeId,
@@ -69,14 +80,22 @@ class ClothProvider with ChangeNotifier {
         season,
       );
 
+      if (kDebugMode) {
+        debugPrint('ClothProvider: ClothService.addCloth returned: $clothId');
+      }
+
       _errorMessage = null;
       _isLoading = false;
       notifyListeners();
 
       return clothId;
-    } catch (e) {
+    } catch (e, stackTrace) {
       _errorMessage = 'Failed to add cloth: ${e.toString()}';
       _isLoading = false;
+      if (kDebugMode) {
+        debugPrint('ClothProvider: Error adding cloth: $_errorMessage');
+        debugPrint('ClothProvider: Stack trace: $stackTrace');
+      }
       notifyListeners();
       return null;
     }
