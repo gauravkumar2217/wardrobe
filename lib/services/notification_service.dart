@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -115,7 +116,9 @@ class NotificationService {
         );
       } catch (fallbackError) {
         // If scheduling still fails, log the error but don't crash
-        print('Failed to schedule notification: $fallbackError');
+        if (kDebugMode) {
+          debugPrint('Failed to schedule notification: $fallbackError');
+        }
       }
     }
   }

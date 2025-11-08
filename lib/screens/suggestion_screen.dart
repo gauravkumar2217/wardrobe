@@ -183,7 +183,7 @@ class _SuggestionScreenState extends State<SuggestionScreen> {
                                 children: [
                                   // Occasion Filter
                                   DropdownButtonFormField<String>(
-                                    initialValue: _selectedOccasion,
+                                    value: _selectedOccasion,
                                     decoration: InputDecoration(
                                       labelText: 'Filter by Occasion (Optional)',
                                       prefixIcon: const Icon(Icons.filter_list),

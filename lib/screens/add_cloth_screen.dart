@@ -26,13 +26,13 @@ class AddClothFirstScreen extends StatefulWidget {
 class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-  
+
   File? _selectedImage;
   String _selectedType = Cloth.types[0];
   String _colorController = '';
   String _selectedOccasion = Cloth.occasions[0];
   String _selectedSeason = '';
-  
+
   bool _isUploading = false;
   bool _isAnalyzing = false;
 
@@ -56,7 +56,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         setState(() {
           _selectedImage = File(image.path);
         });
-        
+
         // Auto-analyze image with AI
         _analyzeImage(File(image.path));
       }
@@ -72,7 +72,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
     try {
       final metadata = await AIVisionService.analyzeImage(imageFile);
-      
+
       if (mounted) {
         setState(() {
           // Update form fields with AI-detected values
@@ -178,7 +178,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         setState(() {
           _isUploading = false;
         });
-        
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -186,7 +186,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Navigate back to wardrobe detail screen (will refresh automatically via stream)
         Navigator.of(context).pop();
       } else if (mounted && clothProvider.errorMessage != null) {
@@ -290,7 +290,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                     ? Stack(
                                         children: [
                                           ClipRRect(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                             child: Image.file(
                                               _selectedImage!,
                                               fit: BoxFit.cover,
@@ -301,15 +302,20 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                           if (_isAnalyzing)
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: Colors.black.withValues(alpha: 0.5),
-                                                borderRadius: BorderRadius.circular(12),
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.5),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                               child: const Center(
                                                 child: Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
                                                   children: [
                                                     CircularProgressIndicator(
-                                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                              Color>(
                                                         Colors.white,
                                                       ),
                                                     ),
@@ -328,7 +334,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                         ],
                                       )
                                     : const Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             Icons.add_photo_alternate,
@@ -352,7 +359,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Type Dropdown
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedType,
+                              value: _selectedType,
                               decoration: InputDecoration(
                                 labelText: 'Type *',
                                 prefixIcon: const Icon(Icons.checkroom),
@@ -402,7 +409,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Occasion Dropdown
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedOccasion,
+                              value: _selectedOccasion,
                               decoration: InputDecoration(
                                 labelText: 'Occasion',
                                 prefixIcon: const Icon(Icons.event),
@@ -429,7 +436,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Season Dropdown (pre-filled from wardrobe)
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedSeason,
+                              value: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),
@@ -460,7 +467,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF7C3AED),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -472,7 +480,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
                                           Colors.white,
                                         ),
                                       ),

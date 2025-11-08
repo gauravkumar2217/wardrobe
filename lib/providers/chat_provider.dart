@@ -60,7 +60,7 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to get response: ${e.toString()}';
       if (kDebugMode) {
-        print('Chat error: $e');
+        debugPrint('Chat error: $e');
       }
     } finally {
       _isLoading = false;
@@ -91,7 +91,7 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to load chat history: ${e.toString()}';
       if (kDebugMode) {
-        print('Error loading chat: $e');
+        debugPrint('Error loading chat: $e');
       }
     } finally {
       _isLoading = false;

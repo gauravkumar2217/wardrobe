@@ -23,10 +23,10 @@ class AITaggingIndicator extends StatelessWidget {
           color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
         ),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(
+          SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
@@ -34,8 +34,8 @@ class AITaggingIndicator extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'AI analyzing image...',
             style: TextStyle(
               color: Color(0xFF7C3AED),

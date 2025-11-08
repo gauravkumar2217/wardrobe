@@ -197,7 +197,7 @@ class _ProfileCompletionModalState extends State<ProfileCompletionModal> {
 
                 // Gender dropdown
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedGender,
+                  value: _selectedGender,
                   decoration: InputDecoration(
                     labelText: 'Gender',
                     hintText: 'Select your gender',

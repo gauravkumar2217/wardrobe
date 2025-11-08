@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/suggestion.dart';
 import '../models/cloth.dart';
 import '../models/wardrobe.dart';
@@ -106,7 +107,9 @@ class SuggestionService {
         await NotificationService.scheduleDailySuggestionNotification();
       } catch (notificationError) {
         // Log but don't throw - notification is optional
-        print('Failed to schedule notification: $notificationError');
+        if (kDebugMode) {
+          debugPrint('Failed to schedule notification: $notificationError');
+        }
       }
 
       return suggestion;
