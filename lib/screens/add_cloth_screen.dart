@@ -30,7 +30,9 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   File? _selectedImage;
   String _selectedType = Cloth.types[0];
   String _colorController = '';
-  String _selectedOccasion = Cloth.occasions[0];
+  List<String> _selectedOccasions = [
+    Cloth.occasionOptions[0]
+  ]; // Changed to support multiple
   String _selectedSeason = '';
 
   bool _isUploading = false;
@@ -80,8 +82,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
             _selectedType = metadata.type;
           }
           _colorController = metadata.color;
-          if (Cloth.occasions.contains(metadata.occasion)) {
-            _selectedOccasion = metadata.occasion;
+          if (Cloth.occasionOptions.contains(metadata.occasion)) {
+            _selectedOccasions = [metadata.occasion];
           }
           _isAnalyzing = false;
         });
@@ -170,7 +172,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         _selectedImage,
         _selectedType,
         _colorController.trim(),
-        _selectedOccasion,
+        _selectedOccasions,
         _selectedSeason,
       );
 
@@ -407,29 +409,85 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             const SizedBox(height: 24),
 
-                            // Occasion Dropdown
-                            DropdownButtonFormField<String>(
-                              value: _selectedOccasion,
-                              decoration: InputDecoration(
-                                labelText: 'Occasion',
-                                prefixIcon: const Icon(Icons.event),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            // Occasions Multi-Select
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.event, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Occasions (Select Multiple)',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              items: Cloth.occasions.map((occasion) {
-                                return DropdownMenuItem(
-                                  value: occasion,
-                                  child: Text(occasion),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedOccasion = value;
-                                  });
-                                }
-                              },
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children:
+                                      Cloth.occasionOptions.map((occasion) {
+                                    final isSelected =
+                                        _selectedOccasions.contains(occasion);
+                                    return FilterChip(
+                                      label: Text(occasion),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          if (selected) {
+                                            if (!_selectedOccasions
+                                                .contains(occasion)) {
+                                              _selectedOccasions.add(occasion);
+                                            }
+                                          } else {
+                                            _selectedOccasions.remove(occasion);
+                                            // Ensure at least one occasion is selected
+                                            if (_selectedOccasions.isEmpty) {
+                                              _selectedOccasions = [
+                                                Cloth.occasionOptions[0]
+                                              ];
+                                            }
+                                          }
+                                        });
+                                      },
+                                      selectedColor: const Color(0xFF7C3AED)
+                                          .withValues(alpha: 0.2),
+                                      checkmarkColor: const Color(0xFF7C3AED),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? const Color(0xFF7C3AED)
+                                            : Colors.grey[700],
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                      side: BorderSide(
+                                        color: isSelected
+                                            ? const Color(0xFF7C3AED)
+                                            : Colors.grey[300]!,
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                if (_selectedOccasions.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      'Please select at least one occasion',
+                                      style: TextStyle(
+                                        color: Colors.red[400],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
 
                             const SizedBox(height: 24),

@@ -35,10 +35,12 @@ class SmartOutfitService {
         filteredClothes = clothes;
       }
 
-      // Filter by occasion if specified
+      // Filter by occasion if specified (check if cloth has the occasion in its occasions list)
       if (occasion != null && occasion.isNotEmpty) {
         filteredClothes = filteredClothes.where((cloth) {
-          return cloth.occasion == occasion || cloth.occasion == 'Other';
+          return cloth.occasions.contains(occasion) || 
+                 cloth.occasions.contains('Other') ||
+                 occasion == 'Other';
         }).toList();
       }
 
@@ -92,7 +94,7 @@ class SmartOutfitService {
           id: DateTime.now().millisecondsSinceEpoch.toString() + i.toString(),
           wardrobeId: wardrobeId,
           clothIds: clothIds,
-          occasion: occasion ?? top.occasion,
+          occasion: occasion ?? (top.occasions.isNotEmpty ? top.occasions.first : 'Other'),
           weather: weather,
           confidence: confidence.clamp(0.0, 1.0),
           createdAt: DateTime.now(),

@@ -38,10 +38,12 @@ class SuggestionService {
                wardrobe.season == 'All-season';
       }).toList();
 
-      // Filter by occasion if specified
+      // Filter by occasion if specified (check if cloth has the occasion in its occasions list)
       if (occasion != null && occasion.isNotEmpty) {
         filteredClothes = filteredClothes.where((cloth) {
-          return cloth.occasion == occasion || cloth.occasion == 'Other';
+          return cloth.occasions.contains(occasion) || 
+                 cloth.occasions.contains('Other') ||
+                 occasion == 'Other';
         }).toList();
       }
 

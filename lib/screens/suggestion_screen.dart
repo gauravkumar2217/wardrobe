@@ -196,7 +196,7 @@ class _SuggestionScreenState extends State<SuggestionScreen> {
                                         value: null,
                                         child: Text('All Occasions'),
                                       ),
-                                      ...Cloth.occasions.map((occasion) {
+                                      ...Cloth.occasionOptions.map((occasion) {
                                         return DropdownMenuItem(
                                           value: occasion,
                                           child: Text(occasion),

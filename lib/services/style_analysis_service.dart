@@ -35,7 +35,10 @@ class StyleAnalysisService {
       for (final cloth in clothes) {
         typeCounts[cloth.type] = (typeCounts[cloth.type] ?? 0) + 1;
         colorCounts[cloth.color] = (colorCounts[cloth.color] ?? 0) + 1;
-        occasionCounts[cloth.occasion] = (occasionCounts[cloth.occasion] ?? 0) + 1;
+        // Count all occasions for each cloth
+        for (final occasion in cloth.occasions) {
+          occasionCounts[occasion] = (occasionCounts[occasion] ?? 0) + 1;
+        }
       }
     }
 

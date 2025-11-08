@@ -308,8 +308,10 @@ Be friendly, helpful, and concise. Keep responses under 200 words unless asked f
           for (final cloth in clothes) {
             typeCounts[cloth.type] = (typeCounts[cloth.type] ?? 0) + 1;
             colorCounts[cloth.color] = (colorCounts[cloth.color] ?? 0) + 1;
-            occasionCounts[cloth.occasion] =
-                (occasionCounts[cloth.occasion] ?? 0) + 1;
+            // Count all occasions for each cloth
+            for (final occasion in cloth.occasions) {
+              occasionCounts[occasion] = (occasionCounts[occasion] ?? 0) + 1;
+            }
           }
 
           buffer.writeln(
@@ -322,7 +324,7 @@ Be friendly, helpful, and concise. Keep responses under 200 words unless asked f
           // Show some recent items
           final recentItems = clothes
               .take(5)
-              .map((c) => '${c.type} (${c.color}, ${c.occasion})')
+              .map((c) => '${c.type} (${c.color}, ${c.occasions.join(", ")})')
               .join(', ');
           if (recentItems.isNotEmpty) {
             buffer.writeln('    Sample Items: $recentItems');

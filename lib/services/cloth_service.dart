@@ -48,7 +48,7 @@ class ClothService {
     File? imageFile,
     String type,
     String color,
-    String occasion,
+    List<String> occasions, // Changed to support multiple occasions
     String season,
   ) async {
     try {
@@ -69,7 +69,8 @@ class ClothService {
         'imageUrl': imageUrl,
         'type': type,
         'color': color,
-        'occasion': occasion,
+        'occasions': occasions, // Store as array
+        'occasion': occasions.isNotEmpty ? occasions.first : 'Other', // Keep for backward compatibility
         'season': season,
         'createdAt': FieldValue.serverTimestamp(),
         'lastWorn': null,

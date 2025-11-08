@@ -5,6 +5,7 @@ import '../models/wardrobe.dart';
 import '../models/cloth.dart';
 import '../providers/cloth_provider.dart';
 import 'add_cloth_screen.dart';
+import 'edit_cloth_screen.dart';
 
 class WardrobeDetailScreen extends StatefulWidget {
   final Wardrobe wardrobe;
@@ -51,6 +52,18 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _editCloth(Cloth cloth) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditClothScreen(
+          cloth: cloth,
+          wardrobeId: widget.wardrobe.id,
+        ),
       ),
     );
   }
@@ -378,7 +391,7 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          cloth.occasion,
+                          cloth.occasions.join(', '),
                           style: TextStyle(
                             fontSize: 9,
                             color: Colors.grey[500],
@@ -458,7 +471,7 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     _buildDetailRow('Color', cloth.color),
-                    _buildDetailRow('Occasion', cloth.occasion),
+                    _buildDetailRow('Occasions', cloth.occasions.join(', ')),
                     _buildDetailRow('Season', cloth.season),
                     if (cloth.lastWorn != null) ...[
                       const SizedBox(height: 8),
@@ -470,6 +483,17 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
                     const Spacer(),
                     Row(
                       children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _editCloth(cloth);
+                            },
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Edit'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => _markAsWorn(cloth),

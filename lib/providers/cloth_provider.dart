@@ -51,7 +51,7 @@ class ClothProvider with ChangeNotifier {
     File? imageFile,
     String type,
     String color,
-    String occasion,
+    List<String> occasions, // Changed to support multiple occasions
     String season,
   ) async {
     _isLoading = true;
@@ -65,7 +65,7 @@ class ClothProvider with ChangeNotifier {
         imageFile,
         type,
         color,
-        occasion,
+        occasions,
         season,
       );
 
