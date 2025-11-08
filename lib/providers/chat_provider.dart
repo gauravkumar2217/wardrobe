@@ -58,7 +58,22 @@ class ChatProvider with ChangeNotifier {
 
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Failed to get response: ${e.toString()}';
+      // Extract user-friendly error message
+      String errorMsg = e.toString();
+      if (errorMsg.contains('Exception: ')) {
+        errorMsg = errorMsg.replaceFirst('Exception: ', '');
+      }
+      _errorMessage = errorMsg;
+      
+      // Add error message as assistant message for better UX
+      final errorMsgObj = ChatMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        role: 'assistant',
+        content: 'Sorry, I\'m unable to respond right now. $errorMsg',
+        timestamp: DateTime.now(),
+      );
+      _messages.add(errorMsgObj);
+      
       if (kDebugMode) {
         debugPrint('Chat error: $e');
       }

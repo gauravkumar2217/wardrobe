@@ -157,13 +157,60 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       }
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        itemCount: provider.messages.length,
-                        itemBuilder: (context, index) {
-                          return ChatBubble(message: provider.messages[index]);
-                        },
+                      return Column(
+                        children: [
+                          // Error message banner
+                          if (provider.errorMessage != null)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red.shade700,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      provider.errorMessage!,
+                                      style: TextStyle(
+                                        color: Colors.red.shade700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 18),
+                                    color: Colors.red.shade700,
+                                    onPressed: () {
+                                      provider.clearError();
+                                    },
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Messages list
+                          Expanded(
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              itemCount: provider.messages.length,
+                              itemBuilder: (context, index) {
+                                return ChatBubble(message: provider.messages[index]);
+                              },
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),

@@ -5,9 +5,10 @@ import 'dart:convert';
 /// AI Vision Service for image recognition and auto-tagging
 /// Supports multiple providers: OpenAI Vision, Google Cloud Vision, etc.
 class AIVisionService {
-  // API Keys - should be stored in environment variables
-  static const String? _openaiApiKey = null; // Set your OpenAI API key here
-  static const String? _googleVisionApiKey = null; // Set your Google Vision API key here
+  // API Keys - can be configured via build config
+  // For now, set to null (AI vision features will be disabled)
+  static const String? _openaiApiKey = null;
+  static const String? _googleVisionApiKey = null;
 
   /// Analyze image using OpenAI Vision API
   static Future<ClothMetadata> analyzeImageWithOpenAI(File imageFile) async {
@@ -50,9 +51,7 @@ Respond in JSON format:
                 },
                 {
                   'type': 'image_url',
-                  'image_url': {
-                    'url': 'data:image/jpeg;base64,$base64Image'
-                  }
+                  'image_url': {'url': 'data:image/jpeg;base64,$base64Image'}
                 }
               ]
             }
@@ -64,7 +63,7 @@ Respond in JSON format:
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'] as String;
-        
+
         // Parse JSON from response
         final jsonMatch = RegExp(r'\{[^}]+\}').firstMatch(content);
         if (jsonMatch != null) {
@@ -80,7 +79,8 @@ Respond in JSON format:
   }
 
   /// Analyze image using Google Cloud Vision API
-  static Future<ClothMetadata> analyzeImageWithGoogleVision(File imageFile) async {
+  static Future<ClothMetadata> analyzeImageWithGoogleVision(
+      File imageFile) async {
     if (_googleVisionApiKey == null) {
       throw Exception('Google Vision API key not configured');
     }
@@ -119,10 +119,12 @@ Respond in JSON format:
         String? type;
         for (final label in labels) {
           final description = (label['description'] as String).toLowerCase();
-          if (description.contains('shirt') || description.contains('t-shirt')) {
+          if (description.contains('shirt') ||
+              description.contains('t-shirt')) {
             type = 'T-Shirt';
             break;
-          } else if (description.contains('pants') || description.contains('trousers')) {
+          } else if (description.contains('pants') ||
+              description.contains('trousers')) {
             type = 'Pants';
             break;
           } else if (description.contains('dress')) {
@@ -157,7 +159,7 @@ Respond in JSON format:
           final r = dominantColor['red'] as int;
           final g = dominantColor['green'] as int;
           final b = dominantColor['blue'] as int;
-          
+
           // Simple color mapping
           color = _rgbToColorName(r, g, b);
         }
@@ -244,4 +246,3 @@ class ClothMetadata {
     );
   }
 }
-

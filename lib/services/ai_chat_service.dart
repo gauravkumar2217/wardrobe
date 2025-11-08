@@ -11,8 +11,9 @@ import 'user_service.dart';
 class AIChatService {
   // API Keys - can be configured via environment variables or build config
   // For now, set to null (AI features will be disabled)
-  static String? get _openaiApiKey => null;
-  static String? get _geminiApiKey => null;
+  static String? get _openaiApiKey =>
+      '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';
+  static String? get _geminiApiKey => 'AIzaSyBQHIBtvLWP9spv2VF9lYrPpYqdS_gIB20';
 
   /// Get chat response from OpenAI
   static Future<String> getOpenAIResponse(
@@ -252,7 +253,7 @@ Be friendly, helpful, and concise. Keep responses under 200 words unless asked f
 
     // Only show fallback if both APIs are truly unavailable
     throw Exception(
-        'AI service unavailable. Please check your API configuration.');
+        'AI chat feature is currently unavailable. To enable this feature, please configure API keys in the app settings.');
   }
 
   /// Build context string from user's wardrobe data and profile
@@ -336,4 +337,3 @@ Be friendly, helpful, and concise. Keep responses under 200 words unless asked f
     }
   }
 }
-
