@@ -158,7 +158,7 @@ For support, please contact:
 
 ## License
 
-Copyright © 2024 Wardrobe App. All rights reserved.
+Copyright © 2025 Wardrobe App. All rights reserved.
 
 ## Learn More
 
