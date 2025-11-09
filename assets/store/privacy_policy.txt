@@ -1,0 +1,128 @@
+PRIVACY POLICY
+
+Last Updated: 2025-11-09
+
+1. INTRODUCTION
+
+Welcome to Wardrobe (the "App"). We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our mobile application.
+
+2. INFORMATION WE COLLECT
+
+2.1 Personal Information
+- Phone Number: We collect your phone number for authentication purposes using Firebase Authentication.
+- User Profile: Name, gender, birthday, and subscription plan information (if applicable).
+
+2.2 Wardrobe Data
+- Wardrobe Information: Titles, locations, seasons, and cloth counts.
+- Clothing Items: Images, types, colors, seasons, occasions, and last worn dates.
+- Outfit Suggestions: AI-generated outfit suggestions based on your wardrobe.
+
+2.3 Chat Data
+- Chat History: Conversations with our AI styling assistant.
+- Messages: User queries and AI responses stored in Firestore.
+
+2.4 Device Information
+- Device Information: Collected through Firebase Analytics for app improvement.
+- Push Notification Tokens: For sending you daily outfit suggestions and updates.
+
+2.5 Images
+- Clothing Photos: Images you upload to organize your wardrobe.
+- Storage: Images are stored securely in Firebase Storage.
+
+3. HOW WE USE YOUR INFORMATION
+
+3.1 Core Services
+- To provide wardrobe organization features
+- To generate personalized outfit suggestions
+- To enable AI chat assistant functionality
+- To send daily outfit suggestions via push notifications
+
+3.2 Service Improvement
+- To analyze app usage patterns through Firebase Analytics
+- To improve app performance and user experience
+- To fix bugs and develop new features
+
+3.3 Communication
+- To send you notifications about daily suggestions
+- To respond to your inquiries and provide support
+
+4. DATA STORAGE AND SECURITY
+
+4.1 Firebase Services
+We use the following Firebase services:
+- Firebase Authentication: For secure user authentication
+- Cloud Firestore: For storing your wardrobe data, chat history, and user profile
+- Firebase Storage: For storing clothing images
+- Firebase Analytics: For understanding app usage
+- Firebase Cloud Messaging: For push notifications
+
+4.2 Data Security
+- All data is encrypted in transit using HTTPS
+- Firestore data is encrypted at rest
+- Firebase Storage uses secure access controls
+- We implement Firebase App Check for additional security
+
+4.3 Data Location
+Your data is stored in Firebase servers, which may be located in various regions. We ensure compliance with applicable data protection laws.
+
+5. THIRD-PARTY SERVICES
+
+5.1 Firebase (Google)
+- We use Google Firebase services for authentication, database, storage, and analytics.
+- Firebase's privacy policy: https://firebase.google.com/support/privacy
+
+5.2 AI Services
+- We may use third-party AI services for outfit suggestions and chat functionality.
+- These services process your wardrobe data to provide personalized recommendations.
+
+6. YOUR RIGHTS
+
+6.1 Access
+- You can access your data through the app at any time.
+
+6.2 Deletion
+- You can delete your account and all associated data through the Account Settings in the app.
+- Account deletion will permanently remove:
+  - Your user profile
+  - All wardrobes and clothing items
+  - Chat history
+  - All images stored in Firebase Storage
+
+6.3 Data Export
+- You can view all your data within the app.
+- For data export requests, please contact us at privacy@wardrobe.app
+
+6.4 Opt-Out
+- You can disable push notifications in your device settings.
+- You can delete your account at any time.
+
+7. DATA RETENTION
+
+- We retain your data as long as your account is active.
+- Upon account deletion, all data is permanently removed within 30 days.
+- Some anonymized analytics data may be retained for service improvement.
+
+8. CHILDREN'S PRIVACY
+
+Our app is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If you believe we have collected information from a child under 13, please contact us immediately.
+
+9. CHANGES TO THIS PRIVACY POLICY
+
+We may update this privacy policy from time to time. We will notify you of any changes by:
+- Posting the new privacy policy in the app
+- Updating the "Last Updated" date
+- Sending you a notification if changes are significant
+
+10. CONTACT US
+
+If you have questions about this privacy policy or our data practices, please contact us:
+
+Email: privacy@wardrobe.app
+Support Email: support@wardrobe.app
+
+11. GOVERNING LAW
+
+This privacy policy is governed by applicable data protection laws in your jurisdiction.
+
+By using Wardrobe, you agree to this privacy policy.
+

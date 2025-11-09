@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/account_deletion_service.dart';
 import '../screens/otp_auth_screen.dart';
+import '../screens/about_screen.dart';
+import '../screens/privacy_policy_screen.dart';
+import '../screens/terms_conditions_screen.dart';
 
 class AccountSettingsDialog extends StatelessWidget {
   const AccountSettingsDialog({super.key});
@@ -10,30 +13,82 @@ class AccountSettingsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Account Settings'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.orange),
-            title: const Text('Logout'),
-            subtitle: const Text('Sign out from your account'),
-            onTap: () {
-              Navigator.pop(context);
-              _showLogoutConfirmation(context);
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text('Delete Account'),
-            subtitle: const Text('Permanently delete your account and all data'),
-            onTap: () {
-              Navigator.pop(context);
-              _showDeleteAccountConfirmation(context);
-            },
-          ),
-        ],
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // About
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.blue),
+              title: const Text('About'),
+              subtitle: const Text('App information and credits'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AboutScreen(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            // Privacy Policy
+            ListTile(
+              leading: const Icon(Icons.privacy_tip, color: Colors.green),
+              title: const Text('Privacy Policy'),
+              subtitle: const Text('How we handle your data'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicyScreen(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            // Terms & Conditions
+            ListTile(
+              leading: const Icon(Icons.description, color: Colors.purple),
+              title: const Text('Terms & Conditions'),
+              subtitle: const Text('Terms of service'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TermsConditionsScreen(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            // Logout
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.orange),
+              title: const Text('Logout'),
+              subtitle: const Text('Sign out from your account'),
+              onTap: () {
+                Navigator.pop(context);
+                _showLogoutConfirmation(context);
+              },
+            ),
+            const Divider(),
+            // Delete Account
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text('Delete Account'),
+              subtitle: const Text('Permanently delete your account and all data'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteAccountConfirmation(context);
+              },
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

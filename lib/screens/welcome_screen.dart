@@ -66,7 +66,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
     try {
       final profile = await UserService.getUserProfile(user.uid);
-      
+
       if (mounted) {
         setState(() {
           _userProfile = profile;
@@ -86,7 +86,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   Future<void> _showProfileCompletionModal() async {
     if (!mounted) return;
-    
+
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false, // Prevent dismissing without completing
@@ -149,7 +149,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Wardrobe'),
-        content: Text('Are you sure you want to delete "${wardrobe.title}"? This action cannot be undone.'),
+        content: Text(
+            'Are you sure you want to delete "${wardrobe.title}"? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -166,7 +167,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
     if (confirmed == true && mounted) {
       final provider = context.read<WardrobeProvider>();
-      
+
       // Show loading
       showDialog(
         context: context,
@@ -180,13 +181,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        
+
         if (!mounted) return;
-        
+
         if (provider.errorMessage == null) {
           // Reload wardrobes to update UI
           await provider.loadWardrobes(user.uid);
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -233,7 +234,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             children: [
               // Header with Sign Out button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -254,7 +256,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           onPressed: () {
                             showDialog(
                               context: context,
-                              builder: (context) => const AccountSettingsDialog(),
+                              builder: (context) =>
+                                  const AccountSettingsDialog(),
                             );
                           },
                           tooltip: 'Account Settings',
@@ -276,7 +279,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ],
                 ),
               ),
-              
+
               Expanded(
                 child: AnimatedBuilder(
                   animation: _animationController,
@@ -300,7 +303,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   borderRadius: BorderRadius.circular(30),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 20,
                                       offset: const Offset(0, 10),
                                     ),
@@ -338,11 +342,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               userName != null && userName.isNotEmpty
                                   ? 'You have successfully logged in to your account.'
                                   : 'You have successfully logged in to your account.',
-                              style:
-                                  Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                        fontSize: 16,
-                                      ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 16,
+                                  ),
                               textAlign: TextAlign.center,
                             ),
 
@@ -350,11 +356,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                             Text(
                               'Phone: $phoneNumber',
-                              style:
-                                  Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.8),
-                                        fontSize: 14,
-                                      ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontSize: 14,
+                                  ),
                               textAlign: TextAlign.center,
                             ),
 
@@ -364,7 +372,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             Expanded(
                               child: Consumer<WardrobeProvider>(
                                 builder: (context, provider, child) {
-                                  if (provider.isLoading && provider.wardrobes.isEmpty) {
+                                  if (provider.isLoading &&
+                                      provider.wardrobes.isEmpty) {
                                     return const Center(
                                       child: CircularProgressIndicator(
                                         color: Colors.white,
@@ -403,7 +412,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
                                     foregroundColor: const Color(0xFF7C3AED),
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -430,7 +440,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SuggestionScreen(),
+                                    builder: (context) =>
+                                        const SuggestionScreen(),
                                   ),
                                 );
                               },
@@ -438,8 +449,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               label: const Text('View Suggestions'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white, width: 2),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                side: const BorderSide(
+                                    color: Colors.white, width: 2),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -606,4 +619,3 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 }
-
