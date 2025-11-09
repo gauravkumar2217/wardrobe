@@ -15,6 +15,9 @@ import 'services/notification_service.dart';
 import 'services/suggestion_service.dart';
 import 'services/fcm_token_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'screens/about_screen.dart';
+import 'screens/privacy_policy_screen.dart';
+import 'screens/terms_conditions_screen.dart';
 
 // Global navigator key for navigation from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -214,6 +217,9 @@ class _WardrobeAppState extends State<WardrobeApp> with WidgetsBindingObserver {
         home: const SplashScreen(),
         routes: {
           '/suggestions': (context) => const SuggestionScreen(),
+          '/about': (context) => const AboutScreen(),
+          '/privacy': (context) => const PrivacyPolicyScreen(),
+          '/terms': (context) => const TermsConditionsScreen(),
         },
       ),
     );
