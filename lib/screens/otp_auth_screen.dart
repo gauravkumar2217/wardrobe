@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 import 'welcome_screen.dart';
+import '../services/fcm_token_service.dart';
 
 class OTPAuthScreen extends StatefulWidget {
   const OTPAuthScreen({super.key});
@@ -114,7 +115,17 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
         phoneNumber: '+91${_phoneController.text}',
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
-          await FirebaseAuth.instance.signInWithCredential(credential);
+          final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+          
+          // Save FCM token for the newly logged in user
+          if (userCredential.user != null) {
+            try {
+              await FCMTokenService.saveTokenForCurrentUser();
+            } catch (e) {
+              debugPrint('Failed to save FCM token after auto-verification: $e');
+            }
+          }
+          
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -213,6 +224,14 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
 
       // Check if sign in was successful
       if (userCredential.user != null) {
+        // Save FCM token for the newly logged in user
+        try {
+          await FCMTokenService.saveTokenForCurrentUser();
+        } catch (e) {
+          // Log error but don't block login
+          debugPrint('Failed to save FCM token after login: $e');
+        }
+
         if (mounted) {
           // Show success message before navigation
           _showSuccessSnackBar('Login successful! Redirecting...');

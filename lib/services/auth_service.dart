@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'fcm_token_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -17,6 +19,15 @@ class AuthService {
 
   /// Sign out user
   static Future<void> signOut() async {
+    // Deactivate FCM token before signing out
+    // This ensures push notifications won't be sent to logged out users
+    try {
+      await FCMTokenService.deactivateTokenForCurrentUser();
+    } catch (e) {
+      // Log error but don't block sign out
+      debugPrint('Failed to deactivate FCM token on sign out: $e');
+    }
+
     await _auth.signOut();
 
     // Clear any stored user data

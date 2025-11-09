@@ -7,6 +7,7 @@ import '../providers/suggestion_provider.dart';
 import '../providers/cloth_provider.dart';
 import '../providers/wardrobe_provider.dart';
 import '../services/cloth_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/suggestion_card.dart';
 import 'wardrobe_detail_screen.dart';
 
@@ -240,6 +241,45 @@ class _SuggestionScreenState extends State<SuggestionScreen> {
                                       backgroundColor: const Color(0xFF7C3AED),
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Test Notification Button (for testing)
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      try {
+                                        await NotificationService.showNotification(
+                                          title: 'Wardrobe',
+                                          body: 'Outfit Suggestion Ready! Check out today\'s outfit suggestion',
+                                        );
+                                        if (!mounted) return;
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Test notification sent!'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (!mounted) return;
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('Failed to send notification: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.notifications_active),
+                                    label: const Text('Test Notification'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF7C3AED),
+                                      side: const BorderSide(color: Color(0xFF7C3AED)),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),

@@ -2,6 +2,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // FCM Tokens Collection: users/{userId}/fcmTokens/{tokenId}
+    // Store FCM tokens for push notifications - only active users receive notifications
+    match /users/{userId}/fcmTokens/{tokenId} {
+      // Allow read if user owns the token
+      allow read: if isOwner(userId);
+      
+      // Allow create if user owns the token and data is valid
+      allow create: if isOwner(userId) &&
+                     request.resource.data.keys().hasAll(['token', 'userId', 'isActive', 'lastActive', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.token is string &&
+                     request.resource.data.token.size() > 0 &&
+                     request.resource.data.userId is string &&
+                     request.resource.data.userId == userId &&
+                     request.resource.data.isActive is bool &&
+                     request.resource.data.lastActive is timestamp &&
+                     request.resource.data.createdAt is timestamp &&
+                     request.resource.data.updatedAt is timestamp;
+      
+      // Allow update if user owns the token (for updating isActive, lastActive, etc.)
+      allow update: if isOwner(userId) &&
+                     (!('token' in request.resource.data) || (request.resource.data.token is string && request.resource.data.token.size() > 0)) &&
+                     (!('userId' in request.resource.data) || (request.resource.data.userId is string && request.resource.data.userId == userId)) &&
+                     (!('isActive' in request.resource.data) || request.resource.data.isActive is bool) &&
+                     (!('lastActive' in request.resource.data) || request.resource.data.lastActive is timestamp) &&
+                     (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+      
+      // Allow delete if user owns the token (for cleanup on app uninstall)
+      allow delete: if isOwner(userId);
+    }
+    
     // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
