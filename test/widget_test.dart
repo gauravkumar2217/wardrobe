@@ -16,6 +16,6 @@ void main() {
 
     // Verify that our app shows the splash screen
     expect(find.text('Wardrobe'), findsOneWidget);
-    expect(find.text('Your Smart Writing Companion'), findsOneWidget);
+    expect(find.text('Your Personal Fashion Assistant'), findsOneWidget);
   });
 }

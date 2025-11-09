@@ -153,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Your Smart Writing Companion',
+                        'Your Personal Fashion Assistant',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.9),
