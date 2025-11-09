@@ -123,6 +123,24 @@
             text-decoration: underline;
         }
         
+        .nav-links {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        
+        .nav-links a {
+            color: #7C3AED;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 500;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        
         @media (max-width: 768px) {
             h1 {
                 font-size: 2em;
@@ -135,6 +153,11 @@
             header {
                 padding: 30px 15px;
                 margin: -15px -15px 30px -15px;
+            }
+            
+            .nav-links a {
+                display: block;
+                margin: 10px 0;
             }
         }
     </style>
@@ -300,6 +323,12 @@
 
             <p style="margin-top: 30px; font-weight: 600; color: #7C3AED;">By using Wardrobe, you agree to this privacy policy.</p>
         </main>
+
+        <div class="nav-links">
+            <a href="index.html">Home</a> |
+            <a href="terms-conditions.html">Terms & Conditions</a> |
+            <a href="delete-account.html">Delete Account</a>
+        </div>
 
         <footer>
             <p>&copy; 2025 Wardrobe App. All rights reserved.</p>
