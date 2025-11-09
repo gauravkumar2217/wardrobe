@@ -2,11 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter/material.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static GlobalKey<NavigatorState>? navigatorKey;
+
+  /// Set navigator key for navigation from notifications
+  static void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    navigatorKey = key;
+  }
 
   /// Initialize notification service
   static Future<void> initialize() async {
@@ -16,7 +23,8 @@ class NotificationService {
     tz.initializeTimeZones();
 
     // Android initialization settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/launcher_icon');
 
     // iOS initialization settings
     const iosSettings = DarwinInitializationSettings(
@@ -40,8 +48,14 @@ class NotificationService {
 
   /// Handle notification tap
   static void _onNotificationTapped(NotificationResponse response) {
-    // Handle notification tap - can navigate to suggestion screen
-    // This will be handled by the app's navigation system
+    if (kDebugMode) {
+      debugPrint('Notification tapped: ${response.id}');
+    }
+
+    // Navigate to suggestion screen when notification is tapped
+    if (navigatorKey?.currentState != null) {
+      navigatorKey!.currentState!.pushNamed('/suggestions');
+    }
   }
 
   /// Schedule daily notification at 7 AM
@@ -66,6 +80,10 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    if (kDebugMode) {
+      debugPrint('Scheduling daily notification for: $scheduledDate');
+    }
+
     const androidDetails = AndroidNotificationDetails(
       'daily_suggestions',
       'Daily Outfit Suggestions',
@@ -73,6 +91,9 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       icon: '@mipmap/launcher_icon',
+      color: Color(0xFF7C3AED), // Wardrobe brand color (purple)
+      colorized: true,
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -90,8 +111,8 @@ class NotificationService {
       // Try exact alarm first (requires permission on Android 12+)
       await _notifications.zonedSchedule(
         0, // Notification ID
-        'Outfit Suggestion Ready!',
-        'Check out today\'s outfit suggestion',
+        'Wardrobe',
+        'Outfit Suggestion Ready! Check out today\'s outfit suggestion',
         scheduledDate,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -99,14 +120,20 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
       );
+      if (kDebugMode) {
+        debugPrint('Daily notification scheduled successfully (exact mode)');
+      }
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to schedule exact notification: $e');
+      }
       // If exact alarms aren't permitted, fall back to inexact scheduling
       // This doesn't require special permission but may be less precise
       try {
         await _notifications.zonedSchedule(
           0, // Notification ID
-          'Outfit Suggestion Ready!',
-          'Check out today\'s outfit suggestion',
+          'Wardrobe',
+          'Outfit Suggestion Ready! Check out today\'s outfit suggestion',
           scheduledDate,
           notificationDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -114,6 +141,10 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
         );
+        if (kDebugMode) {
+          debugPrint(
+              'Daily notification scheduled successfully (inexact mode)');
+        }
       } catch (fallbackError) {
         // If scheduling still fails, log the error but don't crash
         if (kDebugMode) {
@@ -143,6 +174,9 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       icon: '@mipmap/launcher_icon',
+      color: Color(0xFF7C3AED), // Wardrobe brand color (purple)
+      colorized: true,
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -162,28 +196,26 @@ class NotificationService {
   /// Request notification permissions (iOS)
   static Future<bool> requestPermissions() async {
     await initialize();
-    
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    
+
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
     if (android != null) {
       android.requestNotificationsPermission();
     }
 
-    final ios = _notifications
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
-    
+    final ios = _notifications.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+
     if (ios != null) {
       return await ios.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      ) ?? false;
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
     }
 
     return true;
   }
 }
-
