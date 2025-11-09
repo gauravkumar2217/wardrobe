@@ -53,18 +53,28 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (user != null) {
-      // User is already logged in, go to welcome screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      );
-    } else {
-      // User not logged in, show OTP authentication screen
+      if (user != null) {
+        // User is already logged in, go to welcome screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        );
+      } else {
+        // User not logged in, show OTP authentication screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OTPAuthScreen()),
+        );
+      }
+    } catch (e) {
+      // If Firebase Auth fails, go to OTP screen anyway
+      debugPrint('Error checking auth status: $e');
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const OTPAuthScreen()),

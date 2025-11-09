@@ -41,6 +41,25 @@ dependencies:
   crypto: ^3.0.3
   provider: ^6.1.1
   intl: ^0.19.0
+  
+  # Notifications
+  flutter_local_notifications: ^17.0.0
+  firebase_messaging: ^14.7.0
+  timezone: ^0.9.2
+  
+  # Image Processing
+  flutter_image_compress: ^2.0.0
+  
+  # AI & ML (will be added later)
+  # google_generative_ai: ^0.2.0
+  # openai_dart: ^2.0.0
+  
+  # Offline Support
+  sqflite: ^2.3.0
+  connectivity_plus: ^5.0.0
+  
+  # Payments (Phase 6)
+  # in_app_purchase: ^3.1.11
 
 dev_dependencies:
   flutter_test:

@@ -195,7 +195,7 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
 
                             // Season Dropdown
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedSeason,
+                              value: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),

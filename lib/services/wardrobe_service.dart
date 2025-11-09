@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/wardrobe.dart';
+import 'analytics_service.dart';
+import 'subscription_service.dart';
 
 class WardrobeService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -35,14 +37,13 @@ class WardrobeService {
     try {
       final wardrobesRef = _firestore.collection(_wardrobesPath(userId));
       
-      // Use transaction to enforce max 2 limit
-      String? newWardrobeId;
-      
-      // First check count before transaction
+      // Check wardrobe limit based on subscription
       final currentSnapshot = await wardrobesRef.limit(3).get();
-      
-      if (currentSnapshot.docs.length >= 2) {
-        throw Exception('Maximum 2 wardrobes allowed on free plan');
+      final currentCount = currentSnapshot.docs.length;
+
+      final canCreate = await SubscriptionService.canCreateWardrobe(userId, currentCount);
+      if (!canCreate) {
+        throw Exception('Wardrobe limit reached. Upgrade to Pro for unlimited wardrobes.');
       }
 
       // Create new wardrobe
@@ -58,9 +59,12 @@ class WardrobeService {
       };
 
       final docRef = await wardrobesRef.add(wardrobeData);
-      newWardrobeId = docRef.id;
+      final wardrobeId = docRef.id;
 
-      return newWardrobeId;
+      // Log analytics event
+      await AnalyticsService.logWardrobeCreated(wardrobeId);
+
+      return wardrobeId;
     } catch (e) {
       throw Exception('Failed to create wardrobe: $e');
     }

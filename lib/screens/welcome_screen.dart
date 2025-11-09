@@ -6,9 +6,11 @@ import '../models/wardrobe.dart';
 import '../models/user_profile.dart';
 import '../services/user_service.dart';
 import '../widgets/profile_completion_modal.dart';
+import '../widgets/account_settings_dialog.dart';
 import 'create_wardrobe_screen.dart';
 import 'wardrobe_detail_screen.dart';
-import 'otp_auth_screen.dart';
+import 'suggestion_screen.dart';
+import 'chat_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -111,28 +113,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     ));
 
     _animationController.forward();
-  }
-
-  Future<void> _signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const OTPAuthScreen()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _deleteWardrobe(Wardrobe wardrobe) async {
@@ -240,10 +220,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.logout, color: Colors.white),
-                      onPressed: _signOut,
-                      tooltip: 'Sign Out',
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.settings, color: Colors.white),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const AccountSettingsDialog(),
+                            );
+                          },
+                          tooltip: 'Account Settings',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chat, color: Colors.white),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ChatScreen(),
+                              ),
+                            );
+                          },
+                          tooltip: 'Chat Assistant',
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -392,6 +394,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   ),
                                 );
                               },
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Suggestions Button
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SuggestionScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.lightbulb_outline),
+                              label: const Text('View Suggestions'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white, width: 2),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
 
                             const SizedBox(height: 12),

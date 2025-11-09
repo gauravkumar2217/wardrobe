@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/cloth.dart';
 import '../models/wardrobe.dart';
 import '../providers/cloth_provider.dart';
+import '../services/ai_vision_service.dart';
 
 class AddClothFirstScreen extends StatefulWidget {
   final String wardrobeId;
@@ -24,14 +26,17 @@ class AddClothFirstScreen extends StatefulWidget {
 class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-  
+
   File? _selectedImage;
   String _selectedType = Cloth.types[0];
   String _colorController = '';
-  String _selectedOccasion = Cloth.occasions[0];
+  List<String> _selectedOccasions = [
+    Cloth.occasionOptions[0]
+  ]; // Changed to support multiple
   String _selectedSeason = '';
-  
+
   bool _isUploading = false;
+  bool _isAnalyzing = false;
 
   @override
   void initState() {
@@ -53,9 +58,58 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
         setState(() {
           _selectedImage = File(image.path);
         });
+
+        // Auto-analyze image with AI
+        _analyzeImage(File(image.path));
       }
     } catch (e) {
       _showErrorSnackBar('Failed to pick image: ${e.toString()}');
+    }
+  }
+
+  Future<void> _analyzeImage(File imageFile) async {
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    try {
+      final metadata = await AIVisionService.analyzeImage(imageFile);
+
+      if (mounted) {
+        setState(() {
+          // Update form fields with AI-detected values
+          if (Cloth.types.contains(metadata.type)) {
+            _selectedType = metadata.type;
+          }
+          _colorController = metadata.color;
+          if (Cloth.occasionOptions.contains(metadata.occasion)) {
+            _selectedOccasions = [metadata.occasion];
+          }
+          _isAnalyzing = false;
+        });
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'AI detected: ${metadata.type}, ${metadata.color}, ${metadata.occasion} '
+              '(Confidence: ${(metadata.confidence * 100).toStringAsFixed(0)}%)',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+        // Silently fail - user can still fill manually
+        if (kDebugMode) {
+          print('AI analysis failed: $e');
+        }
+      }
     }
   }
 
@@ -90,19 +144,47 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
   }
 
   Future<void> _saveCloth() async {
+    if (kDebugMode) {
+      debugPrint('AddClothScreen: Starting save process');
+    }
+
     if (!_formKey.currentState!.validate()) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Form validation failed');
+      }
       return;
     }
 
     if (_selectedImage == null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: No image selected');
+      }
       _showErrorSnackBar('Please select an image');
+      return;
+    }
+
+    if (_selectedOccasions.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: No occasions selected');
+      }
+      _showErrorSnackBar('Please select at least one occasion');
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: User not authenticated');
+      }
       _showErrorSnackBar('User not authenticated');
       return;
+    }
+
+    if (kDebugMode) {
+      debugPrint('AddClothScreen: User ID: ${user.uid}');
+      debugPrint('AddClothScreen: Wardrobe ID: ${widget.wardrobeId}');
+      debugPrint('AddClothScreen: Image path: ${_selectedImage?.path}');
+      debugPrint('AddClothScreen: Type: $_selectedType, Color: ${_colorController.trim()}, Occasions: $_selectedOccasions, Season: $_selectedSeason');
     }
 
     setState(() {
@@ -112,21 +194,36 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
     final clothProvider = context.read<ClothProvider>();
 
     try {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Calling ClothProvider.addCloth');
+      }
+
       final clothId = await clothProvider.addCloth(
         user.uid,
         widget.wardrobeId,
         _selectedImage,
         _selectedType,
         _colorController.trim(),
-        _selectedOccasion,
+        _selectedOccasions,
         _selectedSeason,
       );
 
-      if (mounted && clothId != null) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: ClothProvider.addCloth returned: $clothId');
+        debugPrint('AddClothScreen: Error message: ${clothProvider.errorMessage}');
+      }
+
+      if (!mounted) return;
+
+      if (clothId != null) {
         setState(() {
           _isUploading = false;
         });
-        
+
+        if (kDebugMode) {
+          debugPrint('AddClothScreen: Cloth added successfully with ID: $clothId');
+        }
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -134,16 +231,25 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Navigate back to wardrobe detail screen (will refresh automatically via stream)
         Navigator.of(context).pop();
-      } else if (mounted && clothProvider.errorMessage != null) {
+      } else {
         setState(() {
           _isUploading = false;
         });
-        _showErrorSnackBar(clothProvider.errorMessage!);
+
+        final errorMsg = clothProvider.errorMessage ?? 'Unknown error occurred';
+        if (kDebugMode) {
+          debugPrint('AddClothScreen: Failed to add cloth - $errorMsg');
+        }
+        _showErrorSnackBar(errorMsg);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AddClothScreen: Exception caught: $e');
+        debugPrint('AddClothScreen: Stack trace: $stackTrace');
+      }
       if (mounted) {
         setState(() {
           _isUploading = false;
@@ -235,15 +341,55 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                   ),
                                 ),
                                 child: _selectedImage != null
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.file(
-                                          _selectedImage!,
-                                          fit: BoxFit.cover,
-                                        ),
+                                    ? Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Image.file(
+                                              _selectedImage!,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                            ),
+                                          ),
+                                          if (_isAnalyzing)
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.5),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Center(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    CircularProgressIndicator(
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                              Color>(
+                                                        Colors.white,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Text(
+                                                      'Analyzing with AI...',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       )
                                     : const Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             Icons.add_photo_alternate,
@@ -267,7 +413,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Type Dropdown
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedType,
+                              value: _selectedType,
                               decoration: InputDecoration(
                                 labelText: 'Type *',
                                 prefixIcon: const Icon(Icons.checkroom),
@@ -315,36 +461,92 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             const SizedBox(height: 24),
 
-                            // Occasion Dropdown
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedOccasion,
-                              decoration: InputDecoration(
-                                labelText: 'Occasion',
-                                prefixIcon: const Icon(Icons.event),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            // Occasions Multi-Select
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.event, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Occasions (Select Multiple)',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              items: Cloth.occasions.map((occasion) {
-                                return DropdownMenuItem(
-                                  value: occasion,
-                                  child: Text(occasion),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedOccasion = value;
-                                  });
-                                }
-                              },
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children:
+                                      Cloth.occasionOptions.map((occasion) {
+                                    final isSelected =
+                                        _selectedOccasions.contains(occasion);
+                                    return FilterChip(
+                                      label: Text(occasion),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          if (selected) {
+                                            if (!_selectedOccasions
+                                                .contains(occasion)) {
+                                              _selectedOccasions.add(occasion);
+                                            }
+                                          } else {
+                                            _selectedOccasions.remove(occasion);
+                                            // Ensure at least one occasion is selected
+                                            if (_selectedOccasions.isEmpty) {
+                                              _selectedOccasions = [
+                                                Cloth.occasionOptions[0]
+                                              ];
+                                            }
+                                          }
+                                        });
+                                      },
+                                      selectedColor: const Color(0xFF7C3AED)
+                                          .withValues(alpha: 0.2),
+                                      checkmarkColor: const Color(0xFF7C3AED),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? const Color(0xFF7C3AED)
+                                            : Colors.grey[700],
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                      side: BorderSide(
+                                        color: isSelected
+                                            ? const Color(0xFF7C3AED)
+                                            : Colors.grey[300]!,
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                if (_selectedOccasions.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      'Please select at least one occasion',
+                                      style: TextStyle(
+                                        color: Colors.red[400],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
 
                             const SizedBox(height: 24),
 
                             // Season Dropdown (pre-filled from wardrobe)
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedSeason,
+                              value: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),
@@ -375,7 +577,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF7C3AED),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -387,7 +590,8 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
                                           Colors.white,
                                         ),
                                       ),
