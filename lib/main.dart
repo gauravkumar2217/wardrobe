@@ -28,8 +28,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint('Handling background message: ${message.messageId}');
-  // You can handle background messages here
-  // For example, update local notifications or sync data
+  debugPrint('Background message data: ${message.data}');
+  debugPrint('Background message notification: ${message.notification?.title}');
+  
+  // Background messages are automatically shown as notifications
+  // No need to manually show them here
+  // The system will display the notification automatically
 }
 
 void main() async {
@@ -72,17 +76,30 @@ void main() async {
             firebaseMessagingBackgroundHandler);
 
         // Set up foreground message handler
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
           debugPrint('Received foreground message: ${message.messageId}');
-          // Handle foreground messages here
-          // You can show local notifications or update UI
+          debugPrint('Message data: ${message.data}');
+          debugPrint('Message notification: ${message.notification?.title}');
+          
+          // Show local notification when app is in foreground
+          if (message.notification != null) {
+            await NotificationService.showNotification(
+              title: message.notification!.title ?? 'Wardrobe',
+              body: message.notification!.body ?? 'New notification',
+              id: message.hashCode,
+            );
+          }
         });
 
         // Handle notification taps when app is in background
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
           debugPrint('Notification opened app: ${message.messageId}');
-          // Navigate to appropriate screen based on notification data
-          // This is handled via navigatorKey in NotificationService
+          debugPrint('Message data: ${message.data}');
+          
+          // Navigate to suggestions screen if it's a daily suggestion notification
+          if (message.data['type'] == 'daily_suggestion' && navigatorKey.currentState != null) {
+            navigatorKey.currentState!.pushNamed('/suggestions');
+          }
         });
 
         // Check if app was opened from a notification
@@ -91,7 +108,16 @@ void main() async {
         if (initialMessage != null) {
           debugPrint(
               'App opened from notification: ${initialMessage.messageId}');
-          // Handle initial notification
+          debugPrint('Initial message data: ${initialMessage.data}');
+          
+          // Navigate to suggestions screen if it's a daily suggestion notification
+          // Note: This will be handled after the app is fully initialized
+          Future.delayed(const Duration(seconds: 1), () {
+            if (initialMessage.data['type'] == 'daily_suggestion' && 
+                navigatorKey.currentState != null) {
+              navigatorKey.currentState!.pushNamed('/suggestions');
+            }
+          });
         }
 
         // Check if user is logged in and save FCM token
