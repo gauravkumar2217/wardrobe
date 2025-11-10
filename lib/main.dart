@@ -30,7 +30,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling background message: ${message.messageId}');
   debugPrint('Background message data: ${message.data}');
   debugPrint('Background message notification: ${message.notification?.title}');
-  
+
   // Background messages are automatically shown as notifications
   // No need to manually show them here
   // The system will display the notification automatically
@@ -80,7 +80,7 @@ void main() async {
           debugPrint('Received foreground message: ${message.messageId}');
           debugPrint('Message data: ${message.data}');
           debugPrint('Message notification: ${message.notification?.title}');
-          
+
           // Show local notification when app is in foreground
           if (message.notification != null) {
             await NotificationService.showNotification(
@@ -95,9 +95,10 @@ void main() async {
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
           debugPrint('Notification opened app: ${message.messageId}');
           debugPrint('Message data: ${message.data}');
-          
+
           // Navigate to suggestions screen if it's a daily suggestion notification
-          if (message.data['type'] == 'daily_suggestion' && navigatorKey.currentState != null) {
+          if (message.data['type'] == 'daily_suggestion' &&
+              navigatorKey.currentState != null) {
             navigatorKey.currentState!.pushNamed('/suggestions');
           }
         });
@@ -109,11 +110,11 @@ void main() async {
           debugPrint(
               'App opened from notification: ${initialMessage.messageId}');
           debugPrint('Initial message data: ${initialMessage.data}');
-          
+
           // Navigate to suggestions screen if it's a daily suggestion notification
           // Note: This will be handled after the app is fully initialized
           Future.delayed(const Duration(seconds: 1), () {
-            if (initialMessage.data['type'] == 'daily_suggestion' && 
+            if (initialMessage.data['type'] == 'daily_suggestion' &&
                 navigatorKey.currentState != null) {
               navigatorKey.currentState!.pushNamed('/suggestions');
             }
