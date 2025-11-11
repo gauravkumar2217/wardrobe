@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -43,7 +44,41 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
+    // Create notification channels for Android
+    await _createNotificationChannels();
+
     _initialized = true;
+  }
+
+  /// Create notification channels for Android
+  static Future<void> _createNotificationChannels() async {
+    // Channel for daily suggestions
+    const dailyChannel = AndroidNotificationChannel(
+      'daily_suggestions',
+      'Daily Outfit Suggestions',
+      description: 'Get daily outfit suggestions at 7 AM',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    // Channel for FCM push notifications
+    const fcmChannel = AndroidNotificationChannel(
+      'wardrobe_notifications',
+      'Wardrobe Notifications',
+      description: 'Push notifications from Wardrobe',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (android != null) {
+      await android.createNotificationChannel(dailyChannel);
+      await android.createNotificationChannel(fcmChannel);
+    }
   }
 
   /// Handle notification tap
@@ -193,7 +228,7 @@ class NotificationService {
     await _notifications.show(id, title, body, notificationDetails);
   }
 
-  /// Request notification permissions (iOS)
+  /// Request notification permissions
   static Future<bool> requestPermissions() async {
     await initialize();
 
@@ -201,7 +236,8 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
 
     if (android != null) {
-      android.requestNotificationsPermission();
+      // Request notification permission (Android 13+)
+      await android.requestNotificationsPermission();
     }
 
     final ios = _notifications.resolvePlatformSpecificImplementation<
@@ -217,5 +253,72 @@ class NotificationService {
     }
 
     return true;
+  }
+
+  /// Check if exact alarm permission is granted (Android 12+)
+  /// Returns true if permission is granted or not needed (Android < 12)
+  static Future<bool> canScheduleExactAlarms() async {
+    try {
+      const platform = MethodChannel('com.wardrobe_chat.app/notifications');
+      final bool? result = await platform.invokeMethod('canScheduleExactAlarms');
+      return result ?? false;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error checking exact alarm permission: $e');
+      }
+      // If method doesn't exist or fails, assume permission is available
+      // (for older Android versions or if native code isn't set up)
+      return true;
+    }
+  }
+
+  /// Request exact alarm permission (Android 12+)
+  /// Opens system settings for the user to grant permission
+  static Future<bool> requestExactAlarmPermission() async {
+    try {
+      const platform = MethodChannel('com.wardrobe_chat.app/notifications');
+      final bool? result = await platform.invokeMethod('requestExactAlarmPermission');
+      return result ?? false;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error requesting exact alarm permission: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Show notification from FCM message
+  static Future<void> showFCMNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+    int id = 999,
+  }) async {
+    await initialize();
+
+    const androidDetails = AndroidNotificationDetails(
+      'wardrobe_notifications',
+      'Wardrobe Notifications',
+      channelDescription: 'Push notifications from Wardrobe',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/launcher_icon',
+      color: Color(0xFF7C3AED), // Wardrobe brand color (purple)
+      colorized: true,
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(id, title, body, notificationDetails);
   }
 }

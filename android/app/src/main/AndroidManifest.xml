@@ -3,8 +3,10 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     
     <!-- Permissions for notifications and alarms -->
+    <!-- SCHEDULE_EXACT_ALARM: Used for daily outfit suggestion notifications (non-core feature) -->
+    <!-- This permission requires runtime request on Android 12+ (API 31+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <!-- POST_NOTIFICATIONS: Required for showing notifications on Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
     <!-- Storage permissions for image handling (Android 12 and below) -->
@@ -42,5 +44,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        
+        <!-- Firebase Cloud Messaging default notification channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="wardrobe_notifications" />
+        
+        <!-- Firebase Cloud Messaging default notification icon -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/launcher_icon" />
+        
+        <!-- Firebase Cloud Messaging default notification color -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/transparent" />
     </application>
 </manifest>

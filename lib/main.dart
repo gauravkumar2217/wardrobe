@@ -74,8 +74,17 @@ void main() async {
         // Set up foreground message handler
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
           debugPrint('Received foreground message: ${message.messageId}');
-          // Handle foreground messages here
-          // You can show local notifications or update UI
+          debugPrint('Message data: ${message.data}');
+          debugPrint('Message notification: ${message.notification?.title}');
+          
+          // Show local notification when app is in foreground
+          if (message.notification != null) {
+            NotificationService.showFCMNotification(
+              title: message.notification!.title ?? 'Wardrobe',
+              body: message.notification!.body ?? '',
+              data: message.data,
+            );
+          }
         });
 
         // Handle notification taps when app is in background
