@@ -153,7 +153,7 @@ class _NotificationScheduleScreenState
             Text('Time: $timeString'),
             Text('Repeat: $repeatText'),
             if (!schedule.isActive)
-              Text(
+              const Text(
                 'Inactive',
                 style: TextStyle(
                   color: Colors.red,
@@ -351,6 +351,7 @@ class _NotificationScheduleScreenState
             FilledButton(
               onPressed: () async {
                 if (isRepeat && selectedWeekdays.isEmpty) {
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Please select at least one day for repeat'),
@@ -359,6 +360,8 @@ class _NotificationScheduleScreenState
                   return;
                 }
 
+                if (!mounted) return;
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
 
                 final now = DateTime.now();
@@ -375,28 +378,26 @@ class _NotificationScheduleScreenState
 
                 try {
                   await NotificationScheduleService.saveSchedule(newSchedule);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isEditing
-                              ? 'Schedule updated successfully'
-                              : 'Schedule created successfully',
-                        ),
-                        backgroundColor: Colors.green,
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isEditing
+                            ? 'Schedule updated successfully'
+                            : 'Schedule created successfully',
                       ),
-                    );
-                  }
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                   _loadSchedules();
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to save schedule: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to save schedule: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               child: Text(isEditing ? 'Update' : 'Create'),
@@ -439,27 +440,27 @@ class _NotificationScheduleScreenState
           ),
           FilledButton(
             onPressed: () async {
+              if (!mounted) return;
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               try {
                 await NotificationScheduleService.deleteSchedule(schedule.id);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Schedule deleted successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Schedule deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
                 _loadSchedules();
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete schedule: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to delete schedule: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
