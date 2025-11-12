@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Internet permission for Firebase and network requests -->
     <uses-permission android:name="android.permission.INTERNET"/>
     
@@ -6,6 +7,10 @@
     <!-- SCHEDULE_EXACT_ALARM: Used for daily outfit suggestion notifications (non-core feature) -->
     <!-- This permission requires runtime request on Android 12+ (API 31+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    
+    <!-- Explicitly remove USE_EXACT_ALARM - only for system apps (calendar/alarm clock) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove"/>
+    
     <!-- POST_NOTIFICATIONS: Required for showing notifications on Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
