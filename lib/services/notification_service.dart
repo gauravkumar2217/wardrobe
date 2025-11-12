@@ -159,6 +159,171 @@ class NotificationService {
     await _notifications.cancel(0);
   }
 
+  /// Cancel a scheduled notification by ID
+  static Future<void> cancelScheduledNotification(int id) async {
+    await _notifications.cancel(id);
+  }
+
+  /// Schedule a weekly notification (repeats on specific weekday)
+  static Future<void> scheduleWeeklyNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int weekday, // 1 = Monday, 7 = Sunday
+    required int hour,
+    required int minute,
+    String? occasion,
+  }) async {
+    await initialize();
+
+    // Get next occurrence of the weekday
+    final now = DateTime.now();
+    var scheduledDate = _getNextWeekday(now, weekday, hour, minute);
+
+    if (kDebugMode) {
+      debugPrint('Scheduling weekly notification for weekday $weekday at $hour:$minute');
+      debugPrint('Next scheduled date: $scheduledDate');
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'scheduled_suggestions',
+      'Scheduled Outfit Suggestions',
+      channelDescription: 'Notifications for scheduled outfit suggestions',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/launcher_icon',
+      color: Color(0xFF7C3AED),
+      colorized: true,
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+      if (kDebugMode) {
+        debugPrint('Weekly notification scheduled successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to schedule weekly notification: $e');
+      }
+    }
+  }
+
+  /// Schedule a one-time notification
+  static Future<void> scheduleOneTimeNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    String? occasion,
+  }) async {
+    await initialize();
+
+    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+
+    if (kDebugMode) {
+      debugPrint('Scheduling one-time notification for: $tzScheduledDate');
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'scheduled_suggestions',
+      'Scheduled Outfit Suggestions',
+      channelDescription: 'Notifications for scheduled outfit suggestions',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/launcher_icon',
+      color: Color(0xFF7C3AED),
+      colorized: true,
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      if (kDebugMode) {
+        debugPrint('One-time notification scheduled successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to schedule one-time notification: $e');
+      }
+    }
+  }
+
+  /// Get next occurrence of a weekday at specified time
+  static tz.TZDateTime _getNextWeekday(
+    DateTime now,
+    int weekday,
+    int hour,
+    int minute,
+  ) {
+    final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
+    var daysUntil = weekday - currentWeekday;
+
+    // If weekday has passed this week, schedule for next week
+    if (daysUntil < 0) {
+      daysUntil += 7;
+    }
+
+    // If it's the same day but time has passed, schedule for next week
+    if (daysUntil == 0) {
+      final scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
+      if (scheduledTime.isBefore(now)) {
+        daysUntil = 7;
+      }
+    }
+
+    final scheduledDate = now.add(Duration(days: daysUntil));
+    return tz.TZDateTime(
+      tz.local,
+      scheduledDate.year,
+      scheduledDate.month,
+      scheduledDate.day,
+      hour,
+      minute,
+    );
+  }
+
   /// Show immediate notification (for testing)
   static Future<void> showNotification({
     required String title,

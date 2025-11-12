@@ -5,6 +5,7 @@ import '../screens/otp_auth_screen.dart';
 import '../screens/about_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/terms_conditions_screen.dart';
+import '../screens/notification_schedule_screen.dart';
 
 class AccountSettingsDialog extends StatelessWidget {
   const AccountSettingsDialog({super.key});
@@ -61,6 +62,22 @@ class AccountSettingsDialog extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const TermsConditionsScreen(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            // Notification Schedules
+            ListTile(
+              leading: const Icon(Icons.notifications_active, color: Colors.purple),
+              title: const Text('Notification Schedules'),
+              subtitle: const Text('Schedule outfit notifications'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationScheduleScreen(),
                   ),
                 );
               },
