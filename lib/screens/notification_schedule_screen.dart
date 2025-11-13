@@ -256,7 +256,7 @@ class _NotificationScheduleScreenState
               children: [
                 // Occasion dropdown
                 DropdownButtonFormField<String>(
-                  value: selectedOccasion,
+                  initialValue: selectedOccasion,
                   decoration: const InputDecoration(
                     labelText: 'Occasion',
                     border: OutlineInputBorder(),

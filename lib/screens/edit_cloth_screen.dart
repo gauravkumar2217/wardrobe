@@ -166,7 +166,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
                             // Type Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedType,
+                              initialValue: _selectedType,
                               decoration: InputDecoration(
                                 labelText: 'Type',
                                 prefixIcon: const Icon(Icons.checkroom),
@@ -294,7 +294,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
                             // Season Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedSeason,
+                              initialValue: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),
