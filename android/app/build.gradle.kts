@@ -63,8 +63,16 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
-            isShrinkResources = false // Must be false when minifyEnabled is false
+            // Enable R8/ProGuard for code shrinking and obfuscation
+            isMinifyEnabled = true
+            isShrinkResources = true
+            
+            // Use ProGuard rules
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            
             // Only use signing config if keystore file exists
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
@@ -72,7 +80,7 @@ android {
         }
         getByName("debug") {
             isMinifyEnabled = false
-            isShrinkResources = false // Must be false when minifyEnabled is false
+            isShrinkResources = false
         }
     }
 }
