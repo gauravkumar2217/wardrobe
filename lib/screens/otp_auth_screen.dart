@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 import 'welcome_screen.dart';
 import '../services/fcm_token_service.dart';
@@ -17,6 +18,10 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  // Configure Google Sign-In with web client ID from Firebase
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   bool _isLoading = false;
   bool _isOTPSent = false;
@@ -24,6 +29,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   int _resendTimer = 0;
   bool _isManualInput = false; // Track if user is manually entering OTP
   DateTime? _lastManualInputTime; // Track when user last typed manually
+  bool _isGoogleSignInLoading = false;
 
   @override
   void initState() {
@@ -287,6 +293,89 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
 
       // Debug print for development
       debugPrint('OTP Verification Error: $e');
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isGoogleSignInLoading = true;
+    });
+
+    try {
+      // Trigger the Google Sign-In flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        setState(() {
+          _isGoogleSignInLoading = false;
+        });
+        return;
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Check if sign in was successful
+      if (userCredential.user != null) {
+        // Save FCM token for the newly logged in user
+        try {
+          await FCMTokenService.saveTokenForCurrentUser();
+        } catch (e) {
+          debugPrint('Failed to save FCM token after Google sign-in: $e');
+        }
+
+        if (mounted) {
+          setState(() {
+            _isGoogleSignInLoading = false;
+          });
+
+          // Show success message
+          _showSuccessSnackBar('Login successful! Redirecting...');
+
+          // Add a small delay to ensure the success message is visible
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Check mounted again after async operation
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            );
+          }
+        }
+      } else {
+        throw Exception('Authentication failed - no user returned');
+      }
+    } catch (e) {
+      setState(() {
+        _isGoogleSignInLoading = false;
+      });
+
+      String errorMessage = 'Failed to sign in with Google. Please try again.';
+      if (e.toString().contains('network_error')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (e.toString().contains('sign_in_canceled')) {
+        errorMessage = 'Sign-in was canceled.';
+        return; // Don't show error for user cancellation
+      } else if (e.toString().contains('sign_in_failed') || e.toString().contains('ApiException: 10')) {
+        errorMessage = 'Google Sign-In configuration error. Please ensure:\n'
+            '1. SHA-1 fingerprint is added to Firebase Console\n'
+            '2. Google Sign-In is enabled in Firebase Authentication\n'
+            '3. OAuth client is properly configured';
+      }
+
+      _showErrorSnackBar(errorMessage);
+      debugPrint('Google Sign-In Error: $e');
     }
   }
 
@@ -623,6 +712,86 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // OR Divider
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          thickness: 1,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          thickness: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Google Sign-In Button
+                  OutlinedButton.icon(
+                    onPressed: _isGoogleSignInLoading || _isLoading ? null : _signInWithGoogle,
+                    icon: _isGoogleSignInLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/images/google_logo.png',
+                            width: 20,
+                            height: 20,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.g_mobiledata,
+                                color: Colors.white,
+                                size: 24,
+                              );
+                            },
+                          ),
+                    label: Text(
+                      _isGoogleSignInLoading
+                          ? 'Signing in...'
+                          : 'Continue with Google',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 40),

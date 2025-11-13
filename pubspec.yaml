@@ -21,6 +21,9 @@ dependencies:
   firebase_analytics: ^10.7.4
   firebase_app_check: ^0.2.1+2
   
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+  
   # SMS & HTTP Services
   http: ^1.1.0
   

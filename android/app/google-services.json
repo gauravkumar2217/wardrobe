@@ -12,7 +12,36 @@
           "package_name": "com.wardrobe_chat.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "352478951229-4gdaj781g8gv525c0it3p4ac0er1jfkd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "1dae191eba2f9570d7e48951a4b383971a662c64"
+          }
+        },
+        {
+          "client_id": "352478951229-5lve5bhsrsqttge5fdlb6lgougbdlbpf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "c8fa0b67b98b5619d4c604553ff0f2fb82a43185"
+          }
+        },
+        {
+          "client_id": "352478951229-c5ab6q7phqkn4fovcloif2uep8n0lvho.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "9cb66541774c43863ba1ae1f8b0cf69d96345952"
+          }
+        },
+        {
+          "client_id": "352478951229-7fimh8nnqpqe9q3fbveaojaj0722fa0f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCLwI3rLvp3PXO_QlA1r2e5fJ99zFiAj7Y"
@@ -20,7 +49,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "352478951229-7fimh8nnqpqe9q3fbveaojaj0722fa0f.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "352478951229-13cr81q4t1qs4j7jt93n4m43jtc36pe8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wardrobe-chat.app"
+              }
+            }
+          ]
         }
       }
     }

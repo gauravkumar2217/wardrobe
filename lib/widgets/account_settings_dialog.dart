@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/account_deletion_service.dart';
+import '../services/auth_service.dart';
 import '../screens/otp_auth_screen.dart';
 import '../screens/about_screen.dart';
 import '../screens/privacy_policy_screen.dart';
@@ -129,13 +130,51 @@ class AccountSettingsDialog extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await FirebaseAuth.instance.signOut();
+              Navigator.pop(context); // Close confirmation dialog
+              
+              // Show loading indicator
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login',
-                  (route) => false,
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
                 );
+              }
+              
+              try {
+                // Use AuthService.signOut() for proper cleanup
+                await AuthService.signOut();
+                
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Close loading dialog
+                  // Navigate to OTP Auth Screen and remove all previous routes
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const OTPAuthScreen(),
+                    ),
+                    (route) => false,
+                  );
+                  
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Logged out successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Close loading dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to logout: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Logout'),
