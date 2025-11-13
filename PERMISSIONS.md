@@ -11,13 +11,9 @@ This document explains all permissions used by the Wardrobe app and why they are
 
 ### SCHEDULE_EXACT_ALARM
 - **Purpose**: Schedule daily outfit suggestion notifications at specific times
-- **Why**: Allows the app to send notifications at 7 AM daily for outfit suggestions
+- **Why**: Allows the app to send local notifications at 7 AM daily for outfit suggestions
 - **When Requested**: Requested at runtime on Android 12+ (API 31+)
-
-### USE_EXACT_ALARM
-- **Purpose**: Use exact alarms for scheduled notifications
-- **Why**: Ensures notifications are delivered at the exact scheduled time
-- **When Requested**: Requested at runtime on Android 12+ (API 31+)
+- **Note**: This permission is used for local notifications. For push notifications, use Cloud Functions (see CLOUD_FUNCTIONS_SETUP.md)
 
 ### POST_NOTIFICATIONS
 - **Purpose**: Display push notifications and local notifications

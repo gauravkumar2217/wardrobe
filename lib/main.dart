@@ -14,6 +14,7 @@ import 'providers/chat_provider.dart';
 import 'services/notification_service.dart';
 import 'services/suggestion_service.dart';
 import 'services/fcm_token_service.dart';
+import 'services/notification_schedule_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/about_screen.dart';
 import 'screens/privacy_policy_screen.dart';
@@ -28,97 +29,141 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint('Handling background message: ${message.messageId}');
-  // You can handle background messages here
-  // For example, update local notifications or sync data
+  debugPrint('Background message data: ${message.data}');
+  debugPrint('Background message notification: ${message.notification?.title}');
+
+  // Background messages are automatically shown as notifications
+  // No need to manually show them here
+  // The system will display the notification automatically
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase first (critical)
   try {
-    // Initialize Firebase with platform-specific options
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('✅ Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Firebase initialization failed: $e');
+    // Continue anyway - app should still work
+  }
 
-    // Use Play Integrity for production builds, debug provider for development
-    // Disable App Check in debug mode to avoid authentication errors
-    if (kReleaseMode) {
-      try {
-        await FirebaseAppCheck.instance.activate(
-          androidProvider: AndroidProvider.playIntegrity,
-          appleProvider: AppleProvider.appAttest,
-        );
-      } catch (e) {
-        debugPrint('Firebase App Check initialization failed: $e');
-      }
-    }
+  // Initialize App Check (non-blocking, only in release)
+  if (kReleaseMode) {
+    FirebaseAppCheck.instance
+        .activate(
+      androidProvider: AndroidProvider.playIntegrity,
+      appleProvider: AppleProvider.appAttest,
+    )
+        .catchError((e) {
+      debugPrint('Firebase App Check initialization failed: $e');
+    });
+  }
 
-    // Initialize notification service
+  // Start the app immediately - don't wait for services
+  runApp(const WardrobeApp());
+
+  // Initialize services in background (non-blocking)
+  _initializeServicesInBackground();
+}
+
+/// Initialize services in background without blocking app startup
+Future<void> _initializeServicesInBackground() async {
+  try {
+    // Initialize notification service with timeout
+    await NotificationService.initialize().timeout(const Duration(seconds: 10),
+        onTimeout: () {
+      debugPrint('⚠️ Notification service initialization timed out');
+    });
+    NotificationService.setNavigatorKey(navigatorKey);
+
+    // Request permissions (non-blocking)
+    NotificationService.requestPermissions().catchError((e) {
+      debugPrint('Failed to request notification permissions: $e');
+      return false;
+    });
+
+    // Schedule daily notification (non-blocking)
+    NotificationService.scheduleDailySuggestionNotification().catchError((e) {
+      debugPrint('Failed to schedule daily notification: $e');
+    });
+
+    // Initialize FCM token service with timeout
     try {
-      await NotificationService.initialize();
-      await NotificationService.requestPermissions();
-      // Set navigator key for notification navigation
-      NotificationService.setNavigatorKey(navigatorKey);
+      await FCMTokenService.initialize().timeout(const Duration(seconds: 10),
+          onTimeout: () {
+        debugPrint('⚠️ FCM token service initialization timed out');
+      });
 
-      // Schedule daily notification
-      await NotificationService.scheduleDailySuggestionNotification();
+      // Set up background message handler
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-      // Initialize FCM token service
-      try {
-        await FCMTokenService.initialize();
+      // Set up foreground message handler
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        debugPrint('Received foreground message: ${message.messageId}');
+        if (message.notification != null) {
+          await NotificationService.showNotification(
+            title: message.notification!.title ?? 'Wardrobe',
+            body: message.notification!.body ?? 'New notification',
+            id: message.hashCode,
+          );
+        }
+      });
 
-        // Set up background message handler
-        FirebaseMessaging.onBackgroundMessage(
-            firebaseMessagingBackgroundHandler);
+      // Handle notification taps when app is in background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('Notification opened app: ${message.messageId}');
+        if (message.data['type'] == 'daily_suggestion' &&
+            navigatorKey.currentState != null) {
+          navigatorKey.currentState!.pushNamed('/suggestions');
+        }
+      });
 
-        // Set up foreground message handler
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          debugPrint('Received foreground message: ${message.messageId}');
-          // Handle foreground messages here
-          // You can show local notifications or update UI
-        });
-
-        // Handle notification taps when app is in background
-        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-          debugPrint('Notification opened app: ${message.messageId}');
-          // Navigate to appropriate screen based on notification data
-          // This is handled via navigatorKey in NotificationService
-        });
-
-        // Check if app was opened from a notification
-        final initialMessage =
-            await FirebaseMessaging.instance.getInitialMessage();
+      // Check if app was opened from a notification (non-blocking)
+      FirebaseMessaging.instance.getInitialMessage().then((initialMessage) {
         if (initialMessage != null) {
           debugPrint(
               'App opened from notification: ${initialMessage.messageId}');
-          // Handle initial notification
+          Future.delayed(const Duration(seconds: 2), () {
+            if (initialMessage.data['type'] == 'daily_suggestion' &&
+                navigatorKey.currentState != null) {
+              navigatorKey.currentState!.pushNamed('/suggestions');
+            }
+          });
         }
+      }).catchError((e) {
+        debugPrint('Failed to get initial message: $e');
+      });
 
-        // Check if user is logged in and save FCM token
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          // Save FCM token for existing logged in user
-          await FCMTokenService.saveTokenForCurrentUser();
+      // Check if user is logged in and initialize user-specific services
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Save FCM token (non-blocking)
+        FCMTokenService.saveTokenForCurrentUser().catchError((e) {
+          debugPrint('Failed to save FCM token: $e');
+        });
 
-          // Auto-generate today's suggestion if it doesn't exist
-          try {
-            await SuggestionService.autoGenerateDailySuggestion(user.uid);
-          } catch (e) {
-            debugPrint('Failed to auto-generate suggestion: $e');
-          }
-        }
-      } catch (e) {
-        debugPrint('FCM token service initialization failed: $e');
+        // Auto-generate today's suggestion (non-blocking)
+        SuggestionService.autoGenerateDailySuggestion(user.uid).catchError((e) {
+          debugPrint('Failed to auto-generate suggestion: $e');
+          return null;
+        });
+
+        // Reschedule all user notification schedules (non-blocking)
+        NotificationScheduleService.rescheduleAllNotifications()
+            .catchError((e) {
+          debugPrint('Failed to reschedule notifications: $e');
+        });
       }
     } catch (e) {
-      debugPrint('Notification service initialization failed: $e');
+      debugPrint('FCM token service initialization failed: $e');
     }
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
-    // Continue anyway - Firebase might work later
+    debugPrint('Service initialization failed: $e');
+    // App continues to work even if services fail
   }
-
-  runApp(const WardrobeApp());
 }
 
 class WardrobeApp extends StatefulWidget {

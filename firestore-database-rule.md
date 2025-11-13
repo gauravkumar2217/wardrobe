@@ -2,6 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Notification Schedules Collection: users/{userId}/notificationSchedules/{scheduleId}
+    // Store user notification schedules for outfit suggestions
+    match /users/{userId}/notificationSchedules/{scheduleId} {
+      // Allow read if user owns the schedule
+      allow read: if isOwner(userId);
+      
+      // Allow create if user owns the schedule and data is valid
+      allow create: if isOwner(userId) &&
+                     request.resource.data.keys().hasAll(['occasion', 'hour', 'minute', 'isRepeat', 'weekdays', 'isActive', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.occasion is string &&
+                     request.resource.data.hour is int &&
+                     request.resource.data.minute is int &&
+                     request.resource.data.isRepeat is bool &&
+                     request.resource.data.weekdays is list &&
+                     request.resource.data.isActive is bool &&
+                     request.resource.data.createdAt is timestamp &&
+                     request.resource.data.updatedAt is timestamp;
+      
+      // Allow update if user owns the schedule
+      allow update: if isOwner(userId);
+      
+      // Allow delete if user owns the schedule
+      allow delete: if isOwner(userId);
+    }
+    
     // FCM Tokens Collection: users/{userId}/fcmTokens/{tokenId}
     // Store FCM tokens for push notifications - only active users receive notifications
     match /users/{userId}/fcmTokens/{tokenId} {

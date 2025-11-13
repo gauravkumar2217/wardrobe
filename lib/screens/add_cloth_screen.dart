@@ -413,7 +413,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Type Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedType,
+                              initialValue: _selectedType,
                               decoration: InputDecoration(
                                 labelText: 'Type *',
                                 prefixIcon: const Icon(Icons.checkroom),
@@ -546,7 +546,7 @@ class _AddClothFirstScreenState extends State<AddClothFirstScreen> {
 
                             // Season Dropdown (pre-filled from wardrobe)
                             DropdownButtonFormField<String>(
-                              value: _selectedSeason,
+                              initialValue: _selectedSeason,
                               decoration: InputDecoration(
                                 labelText: 'Season',
                                 prefixIcon: const Icon(Icons.wb_sunny),

@@ -1,27 +1,83 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Internet permission for Firebase and network requests -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- ============================================ -->
+    <!-- PERMISSIONS - All permissions are justified -->
+    <!-- ============================================ -->
+    
+    <!-- INTERNET: Required for Firebase services (Auth, Firestore, Storage, Analytics, Messaging) -->
     <uses-permission android:name="android.permission.INTERNET"/>
     
-    <!-- Permissions for notifications and alarms -->
+    <!-- ============================================ -->
+    <!-- NOTIFICATION PERMISSIONS -->
+    <!-- ============================================ -->
+    
+    <!-- SCHEDULE_EXACT_ALARM: Used for user-scheduled outfit suggestion notifications -->
+    <!-- This is a non-core feature - users can schedule notifications via Settings -->
+    <!-- This permission requires runtime request on Android 12+ (API 31+) -->
+    <!-- Note: USE_EXACT_ALARM is explicitly removed below (only for system alarm/calendar apps) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    
+    <!-- Explicitly remove USE_EXACT_ALARM - only for system apps (calendar/alarm clock) -->
+    <!-- This ensures Google Play compliance - our app is not an alarm clock app -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove"/>
+    
+    <!-- POST_NOTIFICATIONS: Required for showing notifications on Android 13+ (API 33+) -->
+    <!-- Used for push notifications and scheduled outfit suggestions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
-    <!-- Storage permissions for image handling (Android 12 and below) -->
+    <!-- ============================================ -->
+    <!-- STORAGE PERMISSIONS -->
+    <!-- ============================================ -->
+    
+    <!-- READ_EXTERNAL_STORAGE: Required for selecting images from gallery (Android 12 and below) -->
+    <!-- On Android 13+, uses scoped storage via image_picker plugin -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    
+    <!-- WRITE_EXTERNAL_STORAGE: Required for saving compressed images (Android 12 and below) -->
+    <!-- On Android 13+, uses scoped storage via image_picker plugin -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     
-    <!-- Camera permission for image capture -->
+    <!-- ============================================ -->
+    <!-- MEDIA PERMISSIONS -->
+    <!-- ============================================ -->
+    
+    <!-- CAMERA: Required for capturing photos of clothing items -->
+    <!-- Core feature: Users can take photos to add clothes to their wardrobe -->
     <uses-permission android:name="android.permission.CAMERA"/>
     
-    <!-- Phone permission for authentication (optional, used by Firebase Auth) -->
+    <!-- ============================================ -->
+    <!-- AUTHENTICATION PERMISSIONS -->
+    <!-- ============================================ -->
+    
+    <!-- READ_PHONE_STATE: Used by Firebase Auth for phone number verification (Android 12 and below) -->
+    <!-- Optional: Only used if user chooses phone authentication -->
+    <!-- On Android 13+, phone state access is restricted -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" android:maxSdkVersion="32"/>
+    
+    <!-- ============================================ -->
+    <!-- ADVERTISING ID REMOVAL -->
+    <!-- ============================================ -->
+    <!-- 
+    IMPORTANT: This app does NOT use Advertising ID.
+    - No advertising SDKs are included (no google_mobile_ads, admob, etc.)
+    - AD_ID permission may be merged from Firebase/Google Play Services dependencies
+    - Explicitly remove it to ensure Google Play compliance
+    - Declaration must be made in Google Play Console: "No, my app does not use advertising ID"
+    -->
+    <!-- Explicitly remove AD_ID permission - merged from dependencies but not used -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
     
     <application
         android:label="Wardrobe"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="false">
+        
+        <!-- ============================================ -->
+        <!-- MAIN ACTIVITY -->
+        <!-- ============================================ -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -39,8 +95,42 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- ============================================ -->
+        <!-- FLUTTER CONFIGURATION -->
+        <!-- ============================================ -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        
+        <!-- ============================================ -->
+        <!-- FIREBASE CLOUD MESSAGING CONFIGURATION -->
+        <!-- ============================================ -->
+        
+        <!-- Default notification channel for FCM push notifications -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="wardrobe_notifications" />
+        
+        <!-- Default notification icon for FCM (uses app launcher icon) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/launcher_icon" />
+        
+        <!-- Default notification color (transparent - uses system default) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/transparent" />
+        
+        <!-- ============================================ -->
+        <!-- GOOGLE PLAY STORE COMPLIANCE -->
+        <!-- ============================================ -->
+        <!-- 
+        This app is compliant with Google Play Store policies:
+        - No advertising ID usage (no ad SDKs included)
+        - No USE_EXACT_ALARM permission (removed explicitly)
+        - All permissions are justified and documented
+        - Privacy policy and terms available
+        - Data safety information provided
+        -->
     </application>
 </manifest>
