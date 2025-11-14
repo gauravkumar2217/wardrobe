@@ -19,8 +19,12 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
   final _otpController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   // Configure Google Sign-In with web client ID from Firebase
+  // Note: For Android, the web client ID is optional but recommended for better compatibility
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    // Server client ID from Firebase Console (OAuth 2.0 Client ID for Web application)
+    // Get this from: Firebase Console > Authentication > Sign-in method > Google > Web client ID
+    // If not provided, Google Sign-In will use the default client ID from google-services.json
   );
 
   bool _isLoading = false;
@@ -302,6 +306,9 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
     });
 
     try {
+      // First, sign out any existing Google account to ensure fresh sign-in
+      await _googleSignIn.signOut();
+
       // Trigger the Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
@@ -314,7 +321,34 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
       }
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      // Wrap in try-catch to handle type casting errors
+      GoogleSignInAuthentication googleAuth;
+      try {
+        googleAuth = await googleUser.authentication;
+      } catch (e) {
+        // Handle type casting error - retry with error handling
+        debugPrint('Error getting authentication: $e');
+        // Try to get authentication again
+        try {
+          googleAuth = await googleUser.authentication;
+        } catch (retryError) {
+          setState(() {
+            _isGoogleSignInLoading = false;
+          });
+          _showErrorSnackBar('Failed to authenticate with Google. Please try again.');
+          debugPrint('Google Sign-In Authentication Error: $retryError');
+          return;
+        }
+      }
+
+      // Validate that we have the required tokens
+      if (googleAuth.accessToken == null && googleAuth.idToken == null) {
+        setState(() {
+          _isGoogleSignInLoading = false;
+        });
+        _showErrorSnackBar('Failed to get authentication tokens. Please try again.');
+        return;
+      }
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -362,16 +396,29 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
       });
 
       String errorMessage = 'Failed to sign in with Google. Please try again.';
-      if (e.toString().contains('network_error')) {
+      
+      // Handle specific error types
+      final errorString = e.toString().toLowerCase();
+      
+      if (errorString.contains('network') || errorString.contains('internet')) {
         errorMessage = 'Network error. Please check your internet connection.';
-      } else if (e.toString().contains('sign_in_canceled')) {
-        errorMessage = 'Sign-in was canceled.';
-        return; // Don't show error for user cancellation
-      } else if (e.toString().contains('sign_in_failed') || e.toString().contains('ApiException: 10')) {
+      } else if (errorString.contains('cancel') || errorString.contains('sign_in_canceled')) {
+        // User canceled - don't show error
+        return;
+      } else if (errorString.contains('sign_in_failed') || 
+                 errorString.contains('apiexception: 10') ||
+                 errorString.contains('developer_error')) {
         errorMessage = 'Google Sign-In configuration error. Please ensure:\n'
             '1. SHA-1 fingerprint is added to Firebase Console\n'
             '2. Google Sign-In is enabled in Firebase Authentication\n'
             '3. OAuth client is properly configured';
+      } else if (errorString.contains('type') && errorString.contains('cast')) {
+        // Type casting error - this is a known issue with google_sign_in package
+        errorMessage = 'Sign-in error occurred. Please try again or use phone authentication.';
+        debugPrint('Type casting error in Google Sign-In: $e');
+      } else if (errorString.contains('invalid_credential') || 
+                 errorString.contains('account-exists-with-different-credential')) {
+        errorMessage = 'This account is already registered with a different sign-in method.';
       }
 
       _showErrorSnackBar(errorMessage);

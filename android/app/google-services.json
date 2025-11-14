@@ -14,23 +14,7 @@
       },
       "oauth_client": [
         {
-          "client_id": "352478951229-4gdaj781g8gv525c0it3p4ac0er1jfkd.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.wardrobe_chat.app",
-            "certificate_hash": "1dae191eba2f9570d7e48951a4b383971a662c64"
-          }
-        },
-        {
-          "client_id": "352478951229-5lve5bhsrsqttge5fdlb6lgougbdlbpf.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.wardrobe_chat.app",
-            "certificate_hash": "c8fa0b67b98b5619d4c604553ff0f2fb82a43185"
-          }
-        },
-        {
-          "client_id": "352478951229-c5ab6q7phqkn4fovcloif2uep8n0lvho.apps.googleusercontent.com",
+          "client_id": "352478951229-58c2o4mtkpee39mjrh9k0c8fvqkvqr9l.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.wardrobe_chat.app",
@@ -38,7 +22,23 @@
           }
         },
         {
-          "client_id": "352478951229-7fimh8nnqpqe9q3fbveaojaj0722fa0f.apps.googleusercontent.com",
+          "client_id": "352478951229-7jke5f8597i2mv79p9lak6cr9qdgd74c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "9800f9ab794d4764b911d0b3cc11c1204f5e1553"
+          }
+        },
+        {
+          "client_id": "352478951229-864kg6t3utgvdg5svffmkg76daq49emi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "c8fa0b67b98b5619d4c604553ff0f2fb82a43185"
+          }
+        },
+        {
+          "client_id": "352478951229-s290v6rj8jpnelcv6prjmpeb4i818p3l.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -51,15 +51,8 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "352478951229-7fimh8nnqpqe9q3fbveaojaj0722fa0f.apps.googleusercontent.com",
+              "client_id": "352478951229-s290v6rj8jpnelcv6prjmpeb4i818p3l.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "352478951229-13cr81q4t1qs4j7jt93n4m43jtc36pe8.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.wardrobe-chat.app"
-              }
             }
           ]
         }
