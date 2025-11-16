@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "352478951229-4758ercjuucm9l2rjlkf6g5k7qrputs0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe_chat.app",
+            "certificate_hash": "a1cd833600429d7beb94da7b20c066660ce64207"
+          }
+        },
+        {
           "client_id": "352478951229-58c2o4mtkpee39mjrh9k0c8fvqkvqr9l.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
