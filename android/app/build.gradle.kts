@@ -68,15 +68,15 @@ android {
             isShrinkResources = false
             
             // Use ProGuard rules
-            //proguardFiles(
-            //    getDefaultProguardFile("proguard-android-optimize.txt"),
-            //    "proguard-rules.pro"
-            //)
+            proguardFiles(
+               getDefaultProguardFile("proguard-android-optimize.txt"),
+               "proguard-rules.pro"
+            )
             
             // Only use signing config if keystore file exists
-            //signingConfig = if (keystorePropertiesFile.exists()) {
-            //    signingConfigs.getByName("release")
-            //} else null
+            signingConfig = if (keystorePropertiesFile.exists()) {
+               signingConfigs.getByName("release")
+            } else null
             
         }
         getByName("debug") {
