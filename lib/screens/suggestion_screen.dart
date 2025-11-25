@@ -248,44 +248,48 @@ class _SuggestionScreenState extends State<SuggestionScreen> {
                                   ),
                                   const SizedBox(height: 24),
 
-                                  // Test Notification Button (for testing)
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final messenger = ScaffoldMessenger.of(context);
-                                      try {
-                                        await NotificationService.showNotification(
-                                          title: 'Wardrobe',
-                                          body: 'Outfit Suggestion Ready! Check out today\'s outfit suggestion',
-                                        );
-                                        if (!mounted) return;
-                                        messenger.showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Test notification sent!'),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
-                                      } catch (e) {
-                                        if (!mounted) return;
-                                        messenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to send notification: $e'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(Icons.notifications_active),
-                                    label: const Text('Test Notification'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF7C3AED),
-                                      side: const BorderSide(color: Color(0xFF7C3AED)),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                  // Test Notification Button (for testing - developer only)
+                                  if (user.phoneNumber != null && 
+                                      user.phoneNumber!.replaceAll(RegExp(r'[^\d]'), '').endsWith('9899204201'))
+                                    OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final messenger = ScaffoldMessenger.of(context);
+                                        try {
+                                          await NotificationService.showNotification(
+                                            title: 'Wardrobe',
+                                            body: 'Outfit Suggestion Ready! Check out today\'s outfit suggestion',
+                                          );
+                                          if (!mounted) return;
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Test notification sent!'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to send notification: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(Icons.notifications_active),
+                                      label: const Text('Test Notification'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: const Color(0xFF7C3AED),
+                                        side: const BorderSide(color: Color(0xFF7C3AED)),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 24),
+                                  if (user.phoneNumber != null && 
+                                      user.phoneNumber!.replaceAll(RegExp(r'[^\d]'), '').endsWith('9899204201'))
+                                    const SizedBox(height: 24),
 
                                   // Today's Suggestion
                                   if (suggestionProvider.todaySuggestion != null) ...[

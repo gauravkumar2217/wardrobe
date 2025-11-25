@@ -2,6 +2,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // ============================================
+    // AUTHENTICATION SUPPORT
+    // ============================================
+    // These rules support multiple authentication methods:
+    // 1. Phone Number Authentication (OTP verification)
+    // 2. Google Sign-In Authentication (OAuth)
+    // 
+    // Both methods use Firebase Authentication and provide a unified user ID (uid)
+    // The isOwner() function works for both authentication providers
+    
+    // ============================================
+    // NOTIFICATION SCHEDULES
+    // ============================================
     // Notification Schedules Collection: users/{userId}/notificationSchedules/{scheduleId}
     // Store user notification schedules for outfit suggestions
     match /users/{userId}/notificationSchedules/{scheduleId} {
@@ -27,8 +40,12 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
     
+    // ============================================
+    // FCM TOKENS
+    // ============================================
     // FCM Tokens Collection: users/{userId}/fcmTokens/{tokenId}
     // Store FCM tokens for push notifications - only active users receive notifications
+    // Works for both Phone and Google-authenticated users
     match /users/{userId}/fcmTokens/{tokenId} {
       // Allow read if user owns the token
       allow read: if isOwner(userId);
@@ -57,14 +74,37 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
     
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
     // Helper function to check if user is authenticated
+    // Works for both Phone and Google Sign-In authentication
     function isAuthenticated() {
       return request.auth != null;
     }
     
     // Helper function to check if user owns the resource
+    // Works for both Phone and Google Sign-In authentication
+    // Firebase Auth provides a unified uid regardless of authentication provider
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to validate user profile data
+    // Supports both Phone and Google-authenticated users
+    function isValidUserProfile(data) {
+      return (!('name' in data) || data.name is string) &&
+             (!('displayName' in data) || data.displayName is string) &&
+             (!('email' in data) || data.email is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('gender' in data) || data.gender is string) &&
+             (!('birthday' in data) || data.birthday is string) &&
+             (!('plan' in data) || data.plan is map) &&
+             // Allow provider-specific fields
+             (!('providerId' in data) || data.providerId is string) &&
+             (!('providerData' in data) || data.providerData is list);
     }
     
     // Helper function to validate wardrobe data
@@ -119,29 +159,34 @@ service cloud.firestore {
              data.timestamp is timestamp;
     }
     
+    // ============================================
+    // USER PROFILES
+    // ============================================
     // User Profile Document: users/{userId}
+    // Supports both Phone and Google Sign-In authenticated users
+    // Google users may have: email, displayName, photoURL
+    // Phone users may have: phoneNumber
     match /users/{userId} {
       // Allow read if user owns the profile
       allow read: if isOwner(userId);
       
       // Allow create if user owns the profile and data is valid
-      allow create: if isOwner(userId) &&
-                     (!('name' in request.resource.data) || request.resource.data.name is string) &&
-                     (!('gender' in request.resource.data) || request.resource.data.gender is string) &&
-                     (!('birthday' in request.resource.data) || request.resource.data.birthday is string) &&
-                     (!('plan' in request.resource.data) || request.resource.data.plan is map);
+      // Supports fields from both Phone and Google authentication
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
       
       // Allow update if user owns the profile (merge allowed)
-      allow update: if isOwner(userId) &&
-                     (!('name' in request.resource.data) || request.resource.data.name is string) &&
-                     (!('gender' in request.resource.data) || request.resource.data.gender is string) &&
-                     (!('birthday' in request.resource.data) || request.resource.data.birthday is string) &&
-                     (!('plan' in request.resource.data) || request.resource.data.plan is map);
+      // Supports updating profile fields from both authentication methods
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
       
       // Allow delete if user owns the profile
+      // Works for both Phone and Google-authenticated users
       allow delete: if isOwner(userId);
       
+      // ============================================
+      // WARDROBES
+      // ============================================
       // Wardrobes Subcollection: users/{userId}/wardrobes/{wardrobeId}
+      // Works for both Phone and Google-authenticated users
       match /wardrobes/{wardrobeId} {
         // Allow read if user owns the wardrobe
         allow read: if isOwner(userId);
@@ -187,7 +232,11 @@ service cloud.firestore {
         }
       }
       
+      // ============================================
+      // SUGGESTIONS
+      // ============================================
       // Suggestions Collection: users/{userId}/suggestions/{suggestionId}
+      // Works for both Phone and Google-authenticated users
       match /suggestions/{suggestionId} {
         // Allow read if user owns the suggestion
         allow read: if isOwner(userId);
@@ -204,7 +253,11 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
       
+      // ============================================
+      // CHATS
+      // ============================================
       // Chats Collection: users/{userId}/chats/{chatId}
+      // Works for both Phone and Google-authenticated users
       match /chats/{chatId} {
         // Allow read if user owns the chat
         allow read: if isOwner(userId);

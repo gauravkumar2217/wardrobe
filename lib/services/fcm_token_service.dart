@@ -130,12 +130,26 @@ class FCMTokenService {
       return;
     }
 
+    // Use the overloaded method with explicit user ID and token
+    await deactivateToken(user.uid, _currentToken!);
+  }
+
+  /// Mark FCM token as inactive by user ID and token (for logout after sign out)
+  /// This allows deactivating tokens even after the user has been signed out
+  static Future<void> deactivateToken(String userId, String token) async {
+    if (userId.isEmpty || token.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('Cannot deactivate FCM token: Invalid userId or token');
+      }
+      return;
+    }
+
     try {
       await _firestore
           .collection('users')
-          .doc(user.uid)
+          .doc(userId)
           .collection('fcmTokens')
-          .doc(_currentToken!)
+          .doc(token)
           .update({
         'isActive': false,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -143,12 +157,13 @@ class FCMTokenService {
       });
 
       if (kDebugMode) {
-        debugPrint('FCM token deactivated for user: ${user.uid}');
+        debugPrint('FCM token deactivated for user: $userId');
       }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Failed to deactivate FCM token: $e');
       }
+      // Don't throw - this is not critical for logout
     }
   }
 
