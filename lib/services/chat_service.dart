@@ -124,6 +124,8 @@ class ChatService {
     String? text,
     String? imageUrl,
     String? clothId,
+    String? clothOwnerId,
+    String? clothWardrobeId,
   }) async {
     try {
       if (text == null && imageUrl == null && clothId == null) {
@@ -138,6 +140,8 @@ class ChatService {
         if (text != null) 'text': text,
         if (imageUrl != null) 'imageUrl': imageUrl,
         if (clothId != null) 'clothId': clothId,
+        if (clothOwnerId != null) 'clothOwnerId': clothOwnerId,
+        if (clothWardrobeId != null) 'clothWardrobeId': clothWardrobeId,
         'createdAt': Timestamp.fromDate(now),
         'seenBy': [userId],
       };

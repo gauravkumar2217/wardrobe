@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/cloth.dart';
+import '../providers/wardrobe_provider.dart';
+import '../providers/cloth_provider.dart';
+import '../providers/auth_provider.dart';
 
 /// Fullscreen swipeable cloth card widget
-class ClothCard extends StatelessWidget {
+class ClothCard extends StatefulWidget {
   final Cloth cloth;
   final VoidCallback? onLike;
   final VoidCallback? onComment;
@@ -11,6 +15,7 @@ class ClothCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final bool isLiked;
   final bool isOwner;
+  final bool showBackButton;
 
   const ClothCard({
     super.key,
@@ -22,7 +27,77 @@ class ClothCard extends StatelessWidget {
     this.onEdit,
     this.isLiked = false,
     this.isOwner = false,
+    this.showBackButton = false,
   });
+
+  @override
+  State<ClothCard> createState() => _ClothCardState();
+}
+
+class _ClothCardState extends State<ClothCard> {
+  String? _wardrobeName;
+  String? _wearHistorySummary;
+  bool _isLoadingImage = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Get wardrobe name
+    final wardrobe = wardrobeProvider.getWardrobeById(widget.cloth.wardrobeId);
+    if (wardrobe != null) {
+      setState(() {
+        _wardrobeName = wardrobe.name;
+      });
+    }
+    
+    // Get wear history summary (only for owner)
+    if (widget.isOwner && authProvider.user != null) {
+      try {
+        final summary = await clothProvider.getWearHistorySummary(
+          userId: authProvider.user!.uid,
+          wardrobeId: widget.cloth.wardrobeId,
+          clothId: widget.cloth.id,
+        );
+        setState(() {
+          _wearHistorySummary = summary;
+        });
+      } catch (e) {
+        setState(() {
+          _wearHistorySummary = 'Wear history unavailable';
+        });
+      }
+    }
+  }
+  
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else {
+      final years = (difference.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,15 +106,35 @@ class ClothCard extends StatelessWidget {
       height: double.infinity,
       decoration: BoxDecoration(
         color: Colors.black,
-        image: cloth.imageUrl.isNotEmpty
+        image: widget.cloth.imageUrl.isNotEmpty
             ? DecorationImage(
-                image: NetworkImage(cloth.imageUrl),
+                image: NetworkImage(widget.cloth.imageUrl),
                 fit: BoxFit.cover,
+                onError: (_, __) {
+                  setState(() {
+                    _isLoadingImage = false;
+                  });
+                },
               )
             : null,
       ),
       child: Stack(
         children: [
+          // Loading indicator for image
+          if (_isLoadingImage && widget.cloth.imageUrl.isNotEmpty)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          // Back button (if needed)
+          if (widget.showBackButton)
+            Positioned(
+              top: 16,
+              left: 16,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
           // Right side interaction panel
           Positioned(
             right: 16,
@@ -49,30 +144,34 @@ class ClothCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ActionButton(
-                  icon: isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: '${cloth.likesCount}',
-                  color: isLiked ? Colors.red : Colors.white,
-                  onTap: onLike,
+                  icon: widget.isLiked ? Icons.favorite : Icons.favorite_border,
+                  label: '${widget.cloth.likesCount}',
+                  color: widget.isLiked ? Colors.red : Colors.white,
+                  onTap: widget.onLike,
                 ),
                 const SizedBox(height: 24),
                 _ActionButton(
                   icon: Icons.comment,
-                  label: '${cloth.commentsCount}',
-                  onTap: onComment,
+                  label: '${widget.cloth.commentsCount}',
+                  onTap: widget.onComment,
                 ),
                 const SizedBox(height: 24),
-                if (isOwner) ...[
-                  _ActionButton(
-                    icon: Icons.share,
-                    label: 'Share',
-                    onTap: onShare,
-                  ),
-                  const SizedBox(height: 24),
-                  _ActionButton(
-                    icon: Icons.check_circle_outline,
-                    label: 'Worn',
-                    onTap: onMarkWorn,
-                  ),
+                if (widget.isOwner) ...[
+                  if (widget.onShare != null) ...[
+                    _ActionButton(
+                      icon: Icons.share,
+                      label: 'Share',
+                      onTap: widget.onShare,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (widget.onMarkWorn != null) ...[
+                    _ActionButton(
+                      icon: Icons.check_circle_outline,
+                      label: 'Worn',
+                      onTap: widget.onMarkWorn,
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -89,9 +188,11 @@ class ClothCard extends StatelessWidget {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withOpacity(0.8),
+                    Colors.black.withOpacity(0.9),
+                    Colors.black.withOpacity(0.7),
                     Colors.black.withOpacity(0.0),
                   ],
+                  stops: const [0.0, 0.3, 1.0],
                 ),
               ),
               child: Column(
@@ -99,7 +200,7 @@ class ClothCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    cloth.clothType,
+                    widget.cloth.clothType,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -108,17 +209,18 @@ class ClothCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${cloth.category} • ${cloth.season}',
+                    '${widget.cloth.category} • ${widget.cloth.season}',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                     ),
                   ),
-                  if (cloth.occasions.isNotEmpty) ...[
+                  if (widget.cloth.occasions.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 4,
-                      children: cloth.occasions.map((occasion) {
+                      runSpacing: 4,
+                      children: widget.cloth.occasions.map((occasion) {
                         return Chip(
                           label: Text(
                             occasion,
@@ -126,15 +228,17 @@ class ClothCard extends StatelessWidget {
                           ),
                           backgroundColor: Colors.white.withOpacity(0.2),
                           labelStyle: const TextStyle(color: Colors.white),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                         );
                       }).toList(),
                     ),
                   ],
-                  if (cloth.colorTags.colors.isNotEmpty) ...[
+                  if (widget.cloth.colorTags.colors.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 4,
-                      children: cloth.colorTags.colors.map((color) {
+                      runSpacing: 4,
+                      children: widget.cloth.colorTags.colors.map((color) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -155,18 +259,69 @@ class ClothCard extends StatelessWidget {
                       }).toList(),
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  // Wardrobe name
+                  if (_wardrobeName != null) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.inventory_2, size: 16, color: Colors.white70),
+                        const SizedBox(width: 4),
+                        Text(
+                          _wardrobeName!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  // Added date
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Added ${_formatDate(widget.cloth.createdAt)}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Wear history (only for owner)
+                  if (widget.isOwner && _wearHistorySummary != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle, size: 16, color: Colors.white70),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _wearHistorySummary!,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
           // Edit button (owner only)
-          if (isOwner && onEdit != null)
+          if (widget.isOwner && widget.onEdit != null)
             Positioned(
               top: 16,
               right: 16,
               child: IconButton(
                 icon: const Icon(Icons.edit, color: Colors.white),
-                onPressed: onEdit,
+                onPressed: widget.onEdit,
               ),
             ),
         ],

@@ -465,4 +465,27 @@ class ClothService {
             .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
             .toList());
   }
+
+  /// Get wear history for cloth
+  static Future<List<WearHistoryEntry>> getWearHistory({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(userId, wardrobeId))
+          .doc(clothId)
+          .collection('wearHistory')
+          .orderBy('wornAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => WearHistoryEntry.fromJson(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to get wear history: $e');
+      return [];
+    }
+  }
 }

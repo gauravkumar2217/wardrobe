@@ -71,18 +71,23 @@ class ChatBubble extends StatelessWidget {
                       ),
                     ),
                   if (message.isClothShare && message.clothId != null)
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.checkroom, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Cloth shared'),
-                        ],
+                    InkWell(
+                      onTap: () {
+                        // Navigation will be handled by parent (ChatDetailScreen)
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.checkroom, size: 20),
+                            const SizedBox(width: 8),
+                            const Text('Cloth shared'),
+                          ],
+                        ),
                       ),
                     ),
                 ],

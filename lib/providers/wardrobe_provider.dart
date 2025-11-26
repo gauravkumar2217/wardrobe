@@ -132,6 +132,15 @@ class WardrobeProvider with ChangeNotifier {
     }
   }
 
+  /// Get wardrobe by ID
+  Wardrobe? getWardrobeById(String wardrobeId) {
+    try {
+      return _wardrobes.firstWhere((w) => w.id == wardrobeId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Clear error
   void clearError() {
     _errorMessage = null;

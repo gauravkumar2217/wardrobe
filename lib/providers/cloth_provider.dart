@@ -75,6 +75,24 @@ class ClothProvider with ChangeNotifier {
     });
   }
 
+  /// Get cloth by ID
+  Future<Cloth?> getClothById({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      return await ClothService.getCloth(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+    } catch (e) {
+      debugPrint('Error getting cloth: $e');
+      return null;
+    }
+  }
+
   /// Add cloth
   Future<String?> addCloth({
     required String userId,
@@ -230,9 +248,104 @@ class ClothProvider with ChangeNotifier {
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
+      // Refresh the cloth to update likes count
+      await loadClothes(userId: ownerId, wardrobeId: wardrobeId);
     } catch (e) {
       _errorMessage = 'Failed to unlike cloth: ${e.toString()}';
       notifyListeners();
+    }
+  }
+
+  /// Check if cloth is liked by user
+  Future<bool> isLiked({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      return await ClothService.hasLiked(
+        userId: userId,
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+    } catch (e) {
+      debugPrint('Failed to check like status: $e');
+      return false;
+    }
+  }
+
+  /// Toggle like status
+  Future<void> toggleLike({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final isCurrentlyLiked = await isLiked(
+        userId: userId,
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+
+      if (isCurrentlyLiked) {
+        await unlikeCloth(
+          userId: userId,
+          ownerId: ownerId,
+          wardrobeId: wardrobeId,
+          clothId: clothId,
+        );
+      } else {
+        await likeCloth(
+          userId: userId,
+          ownerId: ownerId,
+          wardrobeId: wardrobeId,
+          clothId: clothId,
+        );
+        // Refresh the cloth to update likes count
+        await loadClothes(userId: ownerId, wardrobeId: wardrobeId);
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to toggle like: ${e.toString()}';
+      notifyListeners();
+    }
+  }
+
+  /// Get wear history summary for cloth
+  Future<String> getWearHistorySummary({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final history = await ClothService.getWearHistory(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+
+      if (history.isEmpty) {
+        return 'Never worn';
+      }
+
+      final count = history.length;
+      final lastWorn = history.first.wornAt;
+      final now = DateTime.now();
+      final daysSince = now.difference(lastWorn).inDays;
+
+      if (daysSince == 0) {
+        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn today';
+      } else if (daysSince == 1) {
+        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn yesterday';
+      } else {
+        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn $daysSince days ago';
+      }
+    } catch (e) {
+      debugPrint('Failed to get wear history: $e');
+      return 'Wear history unavailable';
     }
   }
 

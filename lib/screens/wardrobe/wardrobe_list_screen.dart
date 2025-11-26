@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/navigation_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import 'create_wardrobe_screen.dart';
-import '../home/home_screen.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -54,49 +54,98 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
       ),
       body: wardrobeProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : wardrobeProvider.wardrobes.isEmpty
+          : wardrobeProvider.errorMessage != null
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.inventory_2, size: 64, color: Colors.grey),
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      const Text('No wardrobes yet', style: TextStyle(fontSize: 18)),
-                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          wardrobeProvider.errorMessage!,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
-                          ).then((_) => _loadWardrobes());
+                          wardrobeProvider.clearError();
+                          _loadWardrobes();
                         },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Create Wardrobe'),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: wardrobeProvider.wardrobes.length,
-                  itemBuilder: (context, index) {
-                    final wardrobe = wardrobeProvider.wardrobes[index];
-                    return WardrobeCard(
-                      wardrobe: wardrobe,
-                      onTap: () {
-                        // Set selected wardrobe and navigate to home
-                        wardrobeProvider.setSelectedWardrobe(wardrobe);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const HomeScreen()),
-                        );
+              : wardrobeProvider.wardrobes.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.inventory_2, size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No wardrobes yet',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Create your first wardrobe to organize your clothes!',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
+                              ).then((_) => _loadWardrobes());
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Wardrobe'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C3AED),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        _loadWardrobes();
+                        await Future.delayed(const Duration(milliseconds: 500));
                       },
-                      onDelete: () {
-                        _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
-                      },
-                    );
-                  },
-                ),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: wardrobeProvider.wardrobes.length,
+                        itemBuilder: (context, index) {
+                          final wardrobe = wardrobeProvider.wardrobes[index];
+                          return WardrobeCard(
+                            wardrobe: wardrobe,
+                            onTap: () {
+                              // Set selected wardrobe and navigate to home
+                              wardrobeProvider.setSelectedWardrobe(wardrobe);
+                              // Switch to Home tab in main navigation
+                              final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+                              navigationProvider.navigateToHome();
+                            },
+                            onDelete: () {
+                              _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
+                            },
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 
@@ -123,9 +172,21 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
       final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
       await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Wardrobe deleted')),
-        );
+        if (wardrobeProvider.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(wardrobeProvider.errorMessage!),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Wardrobe deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }

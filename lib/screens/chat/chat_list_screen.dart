@@ -41,18 +41,59 @@ class _ChatListScreenState extends State<ChatListScreen> {
       ),
       body: chatProvider.isLoading && chatProvider.chats.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : chatProvider.chats.isEmpty
+          : chatProvider.errorMessage != null
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      const Text('No chats yet', style: TextStyle(fontSize: 18)),
+                      Text(
+                        chatProvider.errorMessage!,
+                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          chatProvider.clearError();
+                          _loadChats();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 )
-              : ListView.builder(
+              : chatProvider.chats.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No chats yet',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Start a conversation with a friend!',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        _loadChats();
+                        await Future.delayed(const Duration(milliseconds: 500));
+                      },
+                      child: ListView.builder(
                   padding: const EdgeInsets.all(8),
                   itemCount: chatProvider.chats.length,
                   itemBuilder: (context, index) {
@@ -84,6 +125,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     );
                   },
                 ),
+                    ),
     );
   }
 

@@ -4,6 +4,7 @@ import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/chat_bubble.dart';
+import '../cloth/cloth_detail_screen.dart';
 
 /// Chat detail screen for a specific chat
 class ChatDetailScreen extends StatefulWidget {
@@ -61,6 +62,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  Future<void> _handleClothTap(ChatMessage message) async {
+    if (message.clothId == null) return;
+
+    // Navigate to cloth detail screen if we have all required data
+    if (message.clothOwnerId != null && message.clothWardrobeId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ClothDetailScreen(
+            clothId: message.clothId!,
+            ownerId: message.clothOwnerId!,
+            wardrobeId: message.clothWardrobeId!,
+            isShared: true, // Mark as shared since it came from DM
+          ),
+        ),
+      );
+    } else {
+      // Fallback: show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to view cloth: missing information'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
@@ -75,9 +105,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       text: _messageController.text.trim(),
     );
 
-    if (success && mounted) {
-      _messageController.clear();
-      _scrollToBottom();
+    if (mounted) {
+      if (success) {
+        _messageController.clear();
+        _scrollToBottom();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(chatProvider.errorMessage ?? 'Failed to send message'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -98,17 +137,70 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           Expanded(
             child: chatProvider.isLoading && chatProvider.messages.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : chatProvider.messages.isEmpty
-                    ? const Center(child: Text('No messages yet'))
-                    : ListView.builder(
+                : chatProvider.errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                chatProvider.errorMessage!,
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                chatProvider.clearError();
+                                _loadMessages();
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7C3AED),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : chatProvider.messages.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No messages yet',
+                                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Start the conversation!',
+                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16),
                         itemCount: chatProvider.messages.length,
                         itemBuilder: (context, index) {
                           final message = chatProvider.messages[index];
-                          return ChatBubble(
-                            message: message,
-                            currentUserId: authProvider.user?.uid ?? '',
+                          return GestureDetector(
+                            onTap: message.isClothShare && message.clothId != null
+                                ? () => _handleClothTap(message)
+                                : null,
+                            child: ChatBubble(
+                              message: message,
+                              currentUserId: authProvider.user?.uid ?? '',
+                            ),
                           );
                         },
                       ),

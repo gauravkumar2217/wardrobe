@@ -75,6 +75,8 @@ class ChatMessage {
   final String? text;
   final String? imageUrl;
   final String? clothId; // When sharing a cloth
+  final String? clothOwnerId; // Owner of the shared cloth
+  final String? clothWardrobeId; // Wardrobe ID of the shared cloth
   final DateTime createdAt;
   final List<String> seenBy;
 
@@ -84,6 +86,8 @@ class ChatMessage {
     this.text,
     this.imageUrl,
     this.clothId,
+    this.clothOwnerId,
+    this.clothWardrobeId,
     required this.createdAt,
     List<String>? seenBy,
   }) : seenBy = seenBy ?? [];
@@ -95,6 +99,8 @@ class ChatMessage {
       text: json['text'] as String?,
       imageUrl: json['imageUrl'] as String?,
       clothId: json['clothId'] as String?,
+      clothOwnerId: json['clothOwnerId'] as String?,
+      clothWardrobeId: json['clothWardrobeId'] as String?,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       seenBy: json['seenBy'] != null
           ? List<String>.from(json['seenBy'])
@@ -108,6 +114,8 @@ class ChatMessage {
       if (text != null) 'text': text,
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (clothId != null) 'clothId': clothId,
+      if (clothOwnerId != null) 'clothOwnerId': clothOwnerId,
+      if (clothWardrobeId != null) 'clothWardrobeId': clothWardrobeId,
       'createdAt': Timestamp.fromDate(createdAt),
       'seenBy': seenBy,
     };
