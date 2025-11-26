@@ -171,22 +171,21 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     if (confirmed == true) {
       final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
       await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
-      if (mounted) {
-        if (wardrobeProvider.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(wardrobeProvider.errorMessage!),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Wardrobe deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+      if (!context.mounted) return;
+      if (wardrobeProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(wardrobeProvider.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wardrobe deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     }
   }

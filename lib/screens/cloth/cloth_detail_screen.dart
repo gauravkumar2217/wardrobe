@@ -298,7 +298,9 @@ class _ShareDialog extends StatelessWidget {
                         userId1: userId,
                         userId2: friendId,
                       );
-                      Navigator.pop(context, chatId);
+                      if (context.mounted) {
+                        Navigator.pop(context, chatId);
+                      }
                     },
                   );
                 },

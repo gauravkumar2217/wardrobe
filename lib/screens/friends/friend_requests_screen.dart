@@ -203,18 +203,18 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                       ),
                     )
                   : friendProvider.incomingRequests.isEmpty
-                      ? Center(
+                      ? const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-                              const SizedBox(height: 16),
-                              const Text(
+                              Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text(
                                 'No incoming requests',
                                 style: TextStyle(fontSize: 18, color: Colors.grey),
                               ),
-                              const SizedBox(height: 8),
-                              const Text(
+                              SizedBox(height: 8),
+                              Text(
                                 'When someone sends you a friend request, it will appear here',
                                 style: TextStyle(fontSize: 14, color: Colors.grey),
                                 textAlign: TextAlign.center,
@@ -281,18 +281,18 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
           friendProvider.isLoading && friendProvider.outgoingRequests.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : friendProvider.outgoingRequests.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.send_outlined, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text(
+                          Icon(Icons.send_outlined, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
                             'No outgoing requests',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8),
+                          Text(
                             'Friend requests you send will appear here',
                             style: TextStyle(fontSize: 14, color: Colors.grey),
                             textAlign: TextAlign.center,

@@ -53,7 +53,7 @@ class NotificationItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: _getColor().withOpacity(0.2),
+        backgroundColor: _getColor().withValues(alpha: 0.2),
         child: Icon(_getIcon(), color: _getColor()),
       ),
       title: Text(

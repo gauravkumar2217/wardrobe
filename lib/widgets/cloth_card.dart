@@ -188,9 +188,9 @@ class _ClothCardState extends State<ClothCard> {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withOpacity(0.9),
-                    Colors.black.withOpacity(0.7),
-                    Colors.black.withOpacity(0.0),
+                    Colors.black.withValues(alpha: 0.9),
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.black.withValues(alpha: 0.0),
                   ],
                   stops: const [0.0, 0.3, 1.0],
                 ),
@@ -226,7 +226,7 @@ class _ClothCardState extends State<ClothCard> {
                             occasion,
                             style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                           labelStyle: const TextStyle(color: Colors.white),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         );
@@ -245,7 +245,7 @@ class _ClothCardState extends State<ClothCard> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(

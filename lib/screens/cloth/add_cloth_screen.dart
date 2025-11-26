@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/cloth.dart';
@@ -29,7 +28,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
   String? _selectedClothType;
   String _selectedPrimaryColor = '';
   String? _selectedSecondaryColor;
-  List<String> _selectedColors = [];
+  final List<String> _selectedColors = [];
   String? _selectedSeason;
   String? _selectedPlacement;
   String? _selectedCategory;

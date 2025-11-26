@@ -336,8 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.0),
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
@@ -369,8 +369,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: wardrobeProvider.selectedWardrobe != null
-                              ? Colors.purple.withOpacity(0.8)
-                              : Colors.white.withOpacity(0.2),
+                              ? Colors.purple.withValues(alpha: 0.8)
+                              : Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -434,7 +434,6 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // If wardrobe selected, use it; otherwise show dialog to select
           String? wardrobeId = wardrobeProvider.selectedWardrobe?.id;
-          
           if (wardrobeId == null) {
             wardrobeId = await showDialog<String>(
               context: context,
@@ -444,14 +443,17 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
           
-          if (wardrobeId != null && mounted) {
-            await Navigator.push(
-              context,
+          if (wardrobeId != null) {
+            if (!mounted) return;
+            final navigator = Navigator.of(context);
+            await navigator.push(
               MaterialPageRoute(
                 builder: (_) => AddClothScreen(wardrobeId: wardrobeId!),
               ),
             );
-            await _loadClothes();
+            if (mounted) {
+              await _loadClothes();
+            }
           }
         },
         backgroundColor: const Color(0xFF7C3AED),
@@ -490,7 +492,9 @@ class _ShareDialog extends StatelessWidget {
                         userId1: userId,
                         userId2: friendId,
                       );
-                      Navigator.pop(context, chatId);
+                      if (context.mounted) {
+                        Navigator.pop(context, chatId);
+                      }
                     },
                   );
                 },

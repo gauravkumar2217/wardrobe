@@ -240,18 +240,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 )
               : notificationProvider.notifications.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text(
+                          Icon(Icons.notifications_none, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
                             'No notifications',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8),
+                          Text(
                             'You\'re all caught up!',
                             style: TextStyle(fontSize: 14, color: Colors.grey),
                             textAlign: TextAlign.center,

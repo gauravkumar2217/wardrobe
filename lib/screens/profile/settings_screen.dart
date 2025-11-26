@@ -163,7 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               children: [
                 // Account section
-                _SectionHeader(title: 'Account'),
+                const _SectionHeader(title: 'Account'),
                 ListTile(
                   leading: const Icon(Icons.person, color: Color(0xFF7C3AED)),
                   title: const Text('Edit Profile'),
@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Notifications section
-                _SectionHeader(title: 'Notifications'),
+                const _SectionHeader(title: 'Notifications'),
                 if (_notificationSettings != null) ...[
                   SwitchListTile(
                     secondary: const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
@@ -324,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
                 const SizedBox(height: 16),
                 // Privacy section
-                _SectionHeader(title: 'Privacy'),
+                const _SectionHeader(title: 'Privacy'),
                 if (_privacySettings != null) ...[
                   ListTile(
                     leading: const Icon(Icons.visibility, color: Color(0xFF7C3AED)),
@@ -362,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
                 const SizedBox(height: 16),
                 // About section
-                _SectionHeader(title: 'About'),
+                const _SectionHeader(title: 'About'),
                 ListTile(
                   leading: const Icon(Icons.privacy_tip, color: Color(0xFF7C3AED)),
                   title: const Text('Privacy Policy'),
@@ -392,7 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Danger Zone
-                _SectionHeader(title: 'Danger Zone', color: Colors.red),
+                const _SectionHeader(title: 'Danger Zone', color: Colors.red),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
                   title: const Text('Logout', style: TextStyle(color: Colors.red)),
@@ -415,9 +415,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     );
 
-                    if (confirmed == true && mounted) {
+                    if (confirmed == true) {
                       await authProvider.signOut();
-                      if (mounted) {
+                      if (context.mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(builder: (_) => const LoginScreen()),

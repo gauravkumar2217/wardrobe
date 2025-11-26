@@ -70,18 +70,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   ),
                 )
               : chatProvider.chats.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text(
+                          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
                             'No chats yet',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8),
+                          Text(
                             'Start a conversation with a friend!',
                             style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
