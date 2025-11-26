@@ -24,7 +24,8 @@ class AuthProvider with ChangeNotifier {
     if (_isInitialized) return;
 
     _isLoading = true;
-    notifyListeners();
+    // Defer notifyListeners to avoid calling during build phase
+    Future.microtask(() => notifyListeners());
 
     try {
       _user = AuthService.getCurrentUser();
@@ -48,7 +49,8 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       _isInitialized = true;
-      notifyListeners();
+      // Defer notifyListeners to avoid calling during build phase
+      Future.microtask(() => notifyListeners());
     }
   }
 
@@ -112,6 +114,22 @@ class AuthProvider with ChangeNotifier {
       _errorMessage = null;
       return true;
     } catch (e) {
+      final errorStr = e.toString();
+      
+      // Check if this is a special success indicator (user authenticated but can't return credential)
+      if (errorStr.contains('GOOGLE_SIGNIN_SUCCESS_USER_AUTHENTICATED')) {
+        // User is already authenticated - check Firebase auth state
+        final currentUser = AuthService.getCurrentUser();
+        if (currentUser != null) {
+          _user = currentUser;
+          await _loadUserProfile(_user!.uid);
+          _errorMessage = null;
+          _isLoading = false;
+          notifyListeners();
+          return true; // Success - user is authenticated
+        }
+      }
+      
       _errorMessage = 'Failed to sign in with Google: $e';
       return false;
     } finally {

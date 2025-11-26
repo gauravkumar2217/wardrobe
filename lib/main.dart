@@ -43,8 +43,47 @@ void main() async {
       FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.debug,
         appleProvider: AppleProvider.debug,
-      ).then((_) {
+      ).then((_) async {
         debugPrint('✅ App Check initialized in DEBUG mode');
+        
+        // Get and print debug token for Firebase Console
+        // Wait a moment for App Check to fully initialize
+        Future.delayed(const Duration(seconds: 2), () async {
+          try {
+            final tokenResult = await FirebaseAppCheck.instance.getToken();
+            if (tokenResult != null) {
+              // tokenResult is already a String (the token itself)
+              final tokenString = tokenResult;
+              debugPrint('');
+              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint('🔑 APP CHECK DEBUG TOKEN (Copy this to Firebase Console)');
+              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint('');
+              debugPrint(tokenString);
+              debugPrint('');
+              debugPrint('📋 Instructions:');
+              debugPrint('1. Go to Firebase Console → App Check');
+              debugPrint('2. Click on your Android app');
+              debugPrint('3. Click "Manage debug tokens"');
+              debugPrint('4. Click "Add debug token"');
+              debugPrint('5. Paste the token above');
+              debugPrint('6. Click "Save"');
+              debugPrint('');
+              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint('');
+              debugPrint('💡 Note: Debug token may also appear in Android Logcat');
+              debugPrint('   Filter by "AppCheck" or "DebugAppCheckProvider"');
+              debugPrint('');
+            } else {
+              debugPrint('⚠️ App Check token is null');
+              debugPrint('   Check Android Logcat for debug token');
+            }
+          } catch (tokenError) {
+            debugPrint('⚠️ Failed to get App Check debug token: $tokenError');
+            debugPrint('   Check Android Logcat for debug token');
+            debugPrint('   Filter by "AppCheck" or "DebugAppCheckProvider"');
+          }
+        });
       }).catchError((e) {
         debugPrint('⚠️ App Check debug initialization failed: $e');
       });
