@@ -1,168 +1,242 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import '../models/chat_message.dart';
-import '../services/ai_chat_service.dart';
+import '../models/chat.dart';
+import '../services/chat_service.dart';
 
+/// Chat provider for managing chats and messages
 class ChatProvider with ChangeNotifier {
+  List<Chat> _chats = [];
   List<ChatMessage> _messages = [];
+  Chat? _currentChat;
   bool _isLoading = false;
   String? _errorMessage;
-  String? _currentChatId;
 
+  List<Chat> get chats => _chats;
   List<ChatMessage> get messages => _messages;
+  Chat? get currentChat => _currentChat;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get currentChatId => _currentChatId;
 
-  /// Send a message and get AI response
-  Future<void> sendMessage(String userId, String userMessage) async {
-    if (userMessage.trim().isEmpty) return;
-
+  /// Load chats for a user
+  Future<void> loadChats(String userId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Add user message
-      final userMsg = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: 'user',
-        content: userMessage.trim(),
-        timestamp: DateTime.now(),
-      );
-      _messages.add(userMsg);
-      notifyListeners();
-
-      // Save user message to Firestore
-      await _saveMessage(userId, userMsg);
-
-      // Get AI response
-      final aiResponse = await AIChatService.getResponse(
-        userMessage,
-        _messages.where((m) => m.id != userMsg.id).toList(),
-        userId,
-      );
-
-      // Add AI response
-      final aiMsg = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: DateTime.now(),
-      );
-      _messages.add(aiMsg);
-      notifyListeners();
-
-      // Save AI message to Firestore
-      await _saveMessage(userId, aiMsg);
-
+      _chats = await ChatService.getUserChats(userId);
       _errorMessage = null;
     } catch (e) {
-      // Extract user-friendly error message
-      String errorMsg = e.toString();
-      if (errorMsg.contains('Exception: ')) {
-        errorMsg = errorMsg.replaceFirst('Exception: ', '');
-      }
-      _errorMessage = errorMsg;
-      
-      // Add error message as assistant message for better UX
-      final errorMsgObj = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: 'assistant',
-        content: 'Sorry, I\'m unable to respond right now. $errorMsg',
-        timestamp: DateTime.now(),
-      );
-      _messages.add(errorMsgObj);
-      
-      if (kDebugMode) {
-        debugPrint('Chat error: $e');
-      }
+      _errorMessage = 'Failed to load chats: ${e.toString()}';
+      debugPrint('Error loading chats: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Load chat history from Firestore
-  Future<void> loadChatHistory(String userId, {String? chatId}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final chatIdToUse = chatId ?? _currentChatId ?? _getOrCreateChatId(userId);
-      _currentChatId = chatIdToUse;
-
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users/$userId/chats/$chatIdToUse/messages')
-          .orderBy('timestamp', descending: false)
-          .get();
-
-      _messages = snapshot.docs
-          .map((doc) => ChatMessage.fromJson(doc.data(), doc.id))
-          .toList();
-
+  /// Watch chats for real-time updates
+  void watchChats(String userId) {
+    ChatService.watchUserChats(userId).listen((chats) {
+      _chats = chats;
       _errorMessage = null;
-    } catch (e) {
-      _errorMessage = 'Failed to load chat history: ${e.toString()}';
-      if (kDebugMode) {
-        debugPrint('Error loading chat: $e');
-      }
-    } finally {
-      _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  /// Watch chat messages for real-time updates
-  void watchChat(String userId, {String? chatId}) {
-    final chatIdToUse = chatId ?? _currentChatId ?? _getOrCreateChatId(userId);
-    _currentChatId = chatIdToUse;
-
-    FirebaseFirestore.instance
-        .collection('users/$userId/chats/$chatIdToUse/messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .listen((snapshot) {
-      _messages = snapshot.docs
-          .map((doc) => ChatMessage.fromJson(doc.data(), doc.id))
-          .toList();
+    }).onError((error) {
+      _errorMessage = 'Failed to watch chats: ${error.toString()}';
       notifyListeners();
     });
   }
 
-  /// Save message to Firestore
-  Future<void> _saveMessage(String userId, ChatMessage message) async {
-    final chatId = _currentChatId ?? _getOrCreateChatId(userId);
-    _currentChatId = chatId;
+  /// Get or create chat between two users
+  Future<String> getOrCreateChat({
+    required String userId1,
+    required String userId2,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
-    await FirebaseFirestore.instance
-        .collection('users/$userId/chats/$chatId/messages')
-        .doc(message.id)
-        .set(message.toJson());
-
-    // Update chat metadata
-    await FirebaseFirestore.instance
-        .collection('users/$userId/chats')
-        .doc(chatId)
-        .set({
-      'updatedAt': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  /// Get or create a chat ID
-  String _getOrCreateChatId(String userId) {
-    if (_currentChatId != null) {
-      return _currentChatId!;
+    try {
+      final chatId = await ChatService.getOrCreateChat(
+        userId1: userId1,
+        userId2: userId2,
+      );
+      _errorMessage = null;
+      return chatId;
+    } catch (e) {
+      _errorMessage = 'Failed to create/get chat: ${e.toString()}';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
-  /// Clear messages
-  void clearMessages() {
-    _messages = [];
-    _currentChatId = null;
+  /// Load messages for a chat
+  Future<void> loadMessages({
+    required String userId,
+    required String chatId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _currentChat = await ChatService.getChat(userId: userId, chatId: chatId);
+      _messages = await ChatService.getMessages(
+        userId: userId,
+        chatId: chatId,
+      );
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = 'Failed to load messages: ${e.toString()}';
+      debugPrint('Error loading messages: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Watch messages for real-time updates
+  void watchMessages({
+    required String userId,
+    required String chatId,
+  }) {
+    ChatService.watchMessages(userId: userId, chatId: chatId).listen((messages) {
+      _messages = messages;
+      _errorMessage = null;
+      notifyListeners();
+    }).onError((error) {
+      _errorMessage = 'Failed to watch messages: ${error.toString()}';
+      notifyListeners();
+    });
+  }
+
+  /// Send text message
+  Future<bool> sendTextMessage({
+    required String userId,
+    required String chatId,
+    required String text,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await ChatService.sendMessage(
+        userId: userId,
+        chatId: chatId,
+        text: text,
+      );
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to send message: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Send image message
+  Future<bool> sendImageMessage({
+    required String userId,
+    required String chatId,
+    required String imageUrl,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await ChatService.sendMessage(
+        userId: userId,
+        chatId: chatId,
+        imageUrl: imageUrl,
+      );
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to send image: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Send cloth share message
+  Future<bool> sendClothShare({
+    required String userId,
+    required String chatId,
+    required String clothId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await ChatService.sendMessage(
+        userId: userId,
+        chatId: chatId,
+        clothId: clothId,
+      );
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to share cloth: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Mark messages as seen
+  Future<void> markMessagesAsSeen({
+    required String userId,
+    required String chatId,
+    required List<String> messageIds,
+  }) async {
+    try {
+      await ChatService.markMessagesAsSeen(
+        userId: userId,
+        chatId: chatId,
+        messageIds: messageIds,
+      );
+    } catch (e) {
+      debugPrint('Failed to mark messages as seen: $e');
+    }
+  }
+
+  /// Delete message
+  Future<bool> deleteMessage({
+    required String userId,
+    required String chatId,
+    required String messageId,
+  }) async {
+    try {
+      await ChatService.deleteMessage(
+        userId: userId,
+        chatId: chatId,
+        messageId: messageId,
+      );
+      _messages.removeWhere((m) => m.id == messageId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to delete message: ${e.toString()}';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Set current chat
+  void setCurrentChat(Chat? chat) {
+    _currentChat = chat;
+    if (chat == null) {
+      _messages = [];
+    }
     notifyListeners();
   }
 
@@ -172,4 +246,3 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-

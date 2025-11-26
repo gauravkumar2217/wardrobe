@@ -1,0 +1,413 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // AUTHENTICATION SUPPORT
+    // ============================================
+    // These rules support multiple authentication methods:
+    // 1. Phone Number Authentication (OTP verification)
+    // 2. Google Sign-In Authentication (OAuth)
+    // 3. Email/Password Authentication
+    // 
+    // All methods use Firebase Authentication and provide a unified user ID (uid)
+    // The isOwner() function works for all authentication providers
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Helper function to check if user is authenticated
+    // Works for Phone, Google, and Email authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    // Works for all authentication methods
+    // Firebase Auth provides a unified uid regardless of authentication provider
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if users are friends
+    function isFriend(userId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid));
+    }
+    
+    // Helper function to check if user can read cloth
+    function canReadCloth(clothData) {
+      // Owner can always read
+      return request.auth.uid == clothData.ownerId ||
+             // Public visibility - anyone authenticated can read
+             (isAuthenticated() && clothData.visibility == 'public') ||
+             // Friends visibility - only friends can read
+             (isAuthenticated() && clothData.visibility == 'friends' && isFriend(clothData.ownerId)) ||
+             // Shared with specific users
+             (isAuthenticated() && clothData.sharedWith != null && request.auth.uid in clothData.sharedWith);
+    }
+    
+    // Helper function to validate user profile data
+    function isValidUserProfile(data) {
+      return (!('displayName' in data) || data.displayName is string) &&
+             (!('photoUrl' in data) || data.photoUrl is string) &&
+             (!('email' in data) || data.email is string) &&
+             (!('phone' in data) || data.phone is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('settings' in data) || data.settings is map);
+    }
+    
+    // Helper function to validate wardrobe data
+    function isValidWardrobe(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'location', 'createdAt', 'updatedAt']) &&
+             data.ownerId is string &&
+             data.name is string &&
+             data.name.size() > 0 &&
+             data.location is string &&
+             data.location.size() > 0 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('totalItems' in data) || data.totalItems is int);
+    }
+    
+    // Helper function to validate cloth data
+    function isValidCloth(data) {
+      return data.keys().hasAll(['ownerId', 'wardrobeId', 'imageUrl', 'season', 'placement', 'clothType', 'category', 'occasions', 'colorTags', 'createdAt', 'updatedAt']) &&
+             data.ownerId is string &&
+             data.wardrobeId is string &&
+             data.imageUrl is string &&
+             data.season is string &&
+             data.placement is string &&
+             data.clothType is string &&
+             data.category is string &&
+             data.occasions is list &&
+             data.occasions.size() > 0 &&
+             data.colorTags is map &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('lastWornAt' in data) || data.lastWornAt is timestamp) &&
+             (!('visibility' in data) || data.visibility in ['private', 'friends', 'public']) &&
+             (!('sharedWith' in data) || data.sharedWith is list) &&
+             (!('likesCount' in data) || data.likesCount is int) &&
+             (!('commentsCount' in data) || data.commentsCount is int);
+    }
+    
+    // Helper function to validate friend request data
+    function isValidFriendRequest(data) {
+      return data.keys().hasAll(['fromUserId', 'toUserId', 'status', 'createdAt', 'updatedAt']) &&
+             data.fromUserId is string &&
+             data.toUserId is string &&
+             data.status in ['pending', 'accepted', 'rejected', 'canceled'] &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+    
+    // Helper function to validate chat data
+    function isValidChat(data) {
+      return data.keys().hasAll(['participants', 'createdAt']) &&
+             data.participants is list &&
+             data.participants.size() >= 2 &&
+             (!('lastMessage' in data) || data.lastMessage is string) &&
+             (!('lastMessageAt' in data) || data.lastMessageAt is timestamp) &&
+             (!('isGroup' in data) || data.isGroup is bool) &&
+             data.createdAt is timestamp;
+    }
+    
+    // Helper function to validate message data
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'createdAt']) &&
+             data.senderId is string &&
+             (!('text' in data) || data.text is string) &&
+             (!('imageUrl' in data) || data.imageUrl is string) &&
+             (!('clothId' in data) || data.clothId is string) &&
+             (!('seenBy' in data) || data.seenBy is list) &&
+             data.createdAt is timestamp;
+    }
+    
+    // Helper function to validate notification data
+    function isValidNotification(data) {
+      return data.keys().hasAll(['type', 'title', 'body', 'createdAt', 'read']) &&
+             data.type in ['friend_request', 'friend_accept', 'dm_message', 'cloth_like', 'cloth_comment', 'suggestion'] &&
+             data.title is string &&
+             data.body is string &&
+             (!('data' in data) || data.data is map) &&
+             data.createdAt is timestamp &&
+             data.read is bool;
+    }
+    
+    // Helper function to validate device data
+    function isValidDevice(data) {
+      return data.keys().hasAll(['fcmToken', 'platform', 'isActive', 'lastActiveAt', 'createdAt']) &&
+             data.fcmToken is string &&
+             data.fcmToken.size() > 0 &&
+             data.platform in ['android', 'ios', 'web'] &&
+             data.isActive is bool &&
+             data.lastActiveAt is timestamp &&
+             (!('deviceName' in data) || data.deviceName is string) &&
+             data.createdAt is timestamp;
+    }
+    
+    // ============================================
+    // CONFIG COLLECTION
+    // ============================================
+    // Tag Lists: config/tagLists
+    // Read: All authenticated users
+    // Write: Admin only (configure user IDs in rules)
+    match /config/tagLists {
+      // All authenticated users can read tag lists
+      allow read: if isAuthenticated();
+      
+      // Only admins can write (replace with your admin user IDs)
+      allow write: if isAuthenticated() && 
+                      (request.auth.uid == 'YOUR_ADMIN_USER_ID_1' || 
+                       request.auth.uid == 'YOUR_ADMIN_USER_ID_2' ||
+                       request.auth.token.admin == true);
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    match /users/{userId} {
+      // Allow read if user owns the profile or is a friend (limited fields)
+      allow read: if isOwner(userId) || 
+                     (isAuthenticated() && 
+                      resource.data.keys().hasAll(['displayName', 'photoUrl']));
+      
+      // Allow create if user owns the profile
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      
+      // Allow update if user owns the profile
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      
+      // Allow delete if user owns the profile
+      allow delete: if isOwner(userId);
+      
+      // Friends subcollection: users/{userId}/friends/{friendId}
+      match /friends/{friendId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         request.resource.data.keys().hasAll(['friendId', 'createdAt']) &&
+                         request.resource.data.friendId == friendId &&
+                         request.resource.data.friendId is string &&
+                         request.resource.data.createdAt is timestamp;
+        allow delete: if isOwner(userId);
+      }
+      
+      // Notifications subcollection: users/{userId}/notifications/{notificationId}
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidNotification(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) ||
+                          isValidNotification(request.resource.data));
+        allow delete: if isOwner(userId);
+      }
+      
+      // Devices subcollection: users/{userId}/devices/{deviceId}
+      match /devices/{deviceId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDevice(request.resource.data);
+        allow update: if isOwner(userId) && isValidDevice(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      // FCM Tokens subcollection: users/{userId}/fcmTokens/{tokenId}
+      match /fcmTokens/{tokenId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         request.resource.data.keys().hasAll(['token', 'userId', 'isActive', 'lastActive', 'createdAt', 'updatedAt']) &&
+                         request.resource.data.token is string &&
+                         request.resource.data.userId == userId;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+      
+      // Wardrobes subcollection: users/{userId}/wardrobes/{wardrobeId}
+      match /wardrobes/{wardrobeId} {
+        // Allow read if user owns the wardrobe or is a friend (if visibility allows)
+        allow read: if isOwner(userId) || 
+                       (isAuthenticated() && 
+                        resource.data.ownerId == userId &&
+                        (resource.data.visibility == 'public' || 
+                         (resource.data.visibility == 'friends' && isFriend(userId))));
+        
+        allow create: if isOwner(userId) && isValidWardrobe(request.resource.data);
+        allow update: if isOwner(userId) && isValidWardrobe(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Clothes subcollection: users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
+        match /clothes/{clothId} {
+          // Allow read based on cloth visibility
+          allow read: if canReadCloth(resource.data);
+          
+          allow create: if isOwner(userId) && isValidCloth(request.resource.data);
+          allow update: if isOwner(userId) && 
+                           (!('likesCount' in request.resource.data) && 
+                            !('commentsCount' in request.resource.data)) &&
+                           isValidCloth(request.resource.data);
+          allow delete: if isOwner(userId);
+          
+          // Wear history subcollection: clothes/{clothId}/wearHistory/{entryId}
+          match /wearHistory/{entryId} {
+            allow read: if isOwner(userId);
+            allow create: if isOwner(userId) &&
+                             request.resource.data.keys().hasAll(['userId', 'wornAt', 'source']) &&
+                             request.resource.data.userId == userId &&
+                             request.resource.data.wornAt is timestamp &&
+                             request.resource.data.source in ['manual', 'scheduledSuggestion'];
+            allow delete: if isOwner(userId);
+          }
+          
+          // Likes subcollection: clothes/{clothId}/likes/{likeId}
+          match /likes/{likeId} {
+            // Allow read if user can read the cloth
+            allow read: if canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+            allow create: if isAuthenticated() && 
+                             canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data) &&
+                             likeId == request.auth.uid &&
+                             request.resource.data.keys().hasAll(['userId', 'createdAt']) &&
+                             request.resource.data.userId == request.auth.uid &&
+                             request.resource.data.createdAt is timestamp;
+            allow delete: if isAuthenticated() && likeId == request.auth.uid;
+          }
+          
+          // Comments subcollection: clothes/{clothId}/comments/{commentId}
+          match /comments/{commentId} {
+            // Allow read if user can read the cloth
+            allow read: if canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+            allow create: if isAuthenticated() && 
+                             canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data) &&
+                             request.resource.data.keys().hasAll(['userId', 'text', 'createdAt']) &&
+                             request.resource.data.userId == request.auth.uid &&
+                             request.resource.data.text is string &&
+                             request.resource.data.text.size() > 0 &&
+                             request.resource.data.createdAt is timestamp;
+            allow update: if isAuthenticated() && 
+                             resource.data.userId == request.auth.uid &&
+                             request.resource.data.keys().hasAll(['userId', 'text', 'createdAt', 'updatedAt']) &&
+                             request.resource.data.userId == request.auth.uid &&
+                             request.resource.data.text is string &&
+                             request.resource.data.updatedAt is timestamp;
+            allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+          }
+        }
+      }
+      
+      // Suggestions subcollection: users/{userId}/suggestions/{suggestionId}
+      match /suggestions/{suggestionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         request.resource.data.keys().hasAll(['wardrobeId', 'clothIds', 'createdAt', 'viewed']) &&
+                         request.resource.data.wardrobeId is string &&
+                         request.resource.data.clothIds is list &&
+                         request.resource.data.createdAt is timestamp &&
+                         request.resource.data.viewed is bool;
+        allow update: if isOwner(userId) &&
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewed']) ||
+                          request.resource.data.viewed is bool);
+        allow delete: if isOwner(userId);
+      }
+      
+      // Chats subcollection: users/{userId}/chats/{chatId}
+      match /chats/{chatId} {
+        // Allow read if user is a participant
+        allow read: if isAuthenticated() && 
+                       request.auth.uid in resource.data.participants;
+        
+        allow create: if isAuthenticated() && 
+                         isValidChat(request.resource.data) &&
+                         request.auth.uid in request.resource.data.participants;
+        allow update: if isAuthenticated() && 
+                         request.auth.uid in resource.data.participants &&
+                         isValidChat(request.resource.data);
+        allow delete: if isAuthenticated() && 
+                         request.auth.uid in resource.data.participants;
+        
+        // Messages subcollection: chats/{chatId}/messages/{messageId}
+        match /messages/{messageId} {
+          // Allow read if user is a participant in parent chat
+          allow read: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
+          
+          allow create: if isAuthenticated() && 
+                           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants &&
+                           isValidMessage(request.resource.data) &&
+                           request.resource.data.senderId == request.auth.uid;
+          allow update: if isAuthenticated() && 
+                           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants &&
+                           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) ||
+                            (resource.data.senderId == request.auth.uid && isValidMessage(request.resource.data)));
+          allow delete: if isAuthenticated() && 
+                           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants &&
+                           resource.data.senderId == request.auth.uid;
+        }
+      }
+    }
+    
+    // ============================================
+    // FRIEND REQUESTS COLLECTION
+    // ============================================
+    match /friendRequests/{requestId} {
+      // Allow read if user is sender or receiver
+      allow read: if isAuthenticated() && 
+                     (resource.data.fromUserId == request.auth.uid || 
+                      resource.data.toUserId == request.auth.uid);
+      
+      // Allow create if user is the sender
+      allow create: if isAuthenticated() && 
+                       isValidFriendRequest(request.resource.data) &&
+                       request.resource.data.fromUserId == request.auth.uid &&
+                       request.resource.data.status == 'pending';
+      
+      // Allow update if user is receiver (accept/reject) or sender (cancel)
+      allow update: if isAuthenticated() && 
+                       isValidFriendRequest(request.resource.data) &&
+                       ((resource.data.toUserId == request.auth.uid && 
+                         request.resource.data.status in ['accepted', 'rejected']) ||
+                        (resource.data.fromUserId == request.auth.uid && 
+                         request.resource.data.status == 'canceled'));
+      
+      // Allow delete if user is sender or receiver
+      allow delete: if isAuthenticated() && 
+                       (resource.data.fromUserId == request.auth.uid || 
+                        resource.data.toUserId == request.auth.uid);
+    }
+    
+    // ============================================
+    // CLOTHES COLLECTION (Top-level for queries)
+    // ============================================
+    // Note: Clothes are stored in users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
+    // This top-level collection is for querying across all clothes (if needed)
+    match /clothes/{clothId} {
+      // Allow read based on cloth visibility (requires fetching cloth document)
+      // This is a simplified rule - actual access should be checked via the cloth document
+      allow read: if isAuthenticated();
+      allow write: if false; // Write only through subcollection path
+    }
+    
+    // ============================================
+    // WARDROBES COLLECTION (Top-level for queries)
+    // ============================================
+    // Note: Wardrobes are stored in users/{userId}/wardrobes/{wardrobeId}
+    // This top-level collection is for querying across all wardrobes (if needed)
+    match /wardrobes/{wardrobeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Write only through subcollection path
+    }
+    
+    // ============================================
+    // CHATS COLLECTION (Top-level for queries)
+    // ============================================
+    // Note: Chats are stored in users/{userId}/chats/{chatId}
+    // This top-level collection is for querying across all chats (if needed)
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && 
+                     request.auth.uid in resource.data.participants;
+      allow write: if false; // Write only through subcollection path
+    }
+  }
+}
+

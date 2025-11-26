@@ -1,78 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Wardrobe model with complete structure from app-plan.md
 class Wardrobe {
   final String id;
-  final String title;
+  final String ownerId;
+  final String name;
   final String location;
-  final String season;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final int clothCount; // Denormalized count for quick access
+  final int totalItems; // Maintained by Cloud Function
 
   Wardrobe({
     required this.id,
-    required this.title,
+    required this.ownerId,
+    required this.name,
     required this.location,
-    required this.season,
     required this.createdAt,
     required this.updatedAt,
-    this.clothCount = 0,
+    this.totalItems = 0,
   });
 
-  // Convert to JSON for Firestore
-  Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'location': location,
-      'season': season,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-      'clothCount': clothCount,
-    };
-  }
-
-  // Create from Firestore document
   factory Wardrobe.fromJson(Map<String, dynamic> json, String id) {
     return Wardrobe(
       id: id,
-      title: json['title'] as String,
+      ownerId: json['ownerId'] as String,
+      name: json['name'] as String,
       location: json['location'] as String,
-      season: json['season'] as String,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      clothCount: json['clothCount'] as int? ?? 0,
+      totalItems: json['totalItems'] as int? ?? 0,
     );
   }
 
-  // Create a copy with updated fields
+  Map<String, dynamic> toJson() {
+    return {
+      'ownerId': ownerId,
+      'name': name,
+      'location': location,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      // Note: totalItems is managed by Cloud Functions
+    };
+  }
+
   Wardrobe copyWith({
     String? id,
-    String? title,
+    String? ownerId,
+    String? name,
     String? location,
-    String? season,
     DateTime? createdAt,
     DateTime? updatedAt,
-    int? clothCount,
+    int? totalItems,
   }) {
     return Wardrobe(
       id: id ?? this.id,
-      title: title ?? this.title,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
       location: location ?? this.location,
-      season: season ?? this.season,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      clothCount: clothCount ?? this.clothCount,
+      totalItems: totalItems ?? this.totalItems,
     );
   }
-
-  // Season options enum
-  static const List<String> seasons = [
-    'Summer',
-    'Winter',
-    'Spring',
-    'Fall',
-    'All-season',
-    'Custom',
-  ];
 }
-

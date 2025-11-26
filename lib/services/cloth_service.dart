@@ -1,306 +1,468 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import '../models/cloth.dart';
-import '../utils/image_compression.dart';
+import 'storage_service.dart';
 
+/// Cloth service for managing clothes
 class ClothService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  /// Get Firestore path for clothes in a wardrobe
+  /// Get Firestore path for clothes
   static String _clothesPath(String userId, String wardrobeId) {
     return 'users/$userId/wardrobes/$wardrobeId/clothes';
   }
 
-  /// Get Storage path for cloth image
-  static String _storagePath(String userId, String wardrobeId, String clothId) {
-    return 'user_uploads/$userId/wardrobe_$wardrobeId/$clothId.jpg';
-  }
-
-  /// Upload image to Firebase Storage
-  static Future<String> uploadImage(
-    File imageFile,
-    String userId,
-    String wardrobeId,
-    String clothId,
-  ) async {
-    try {
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Starting upload');
-        debugPrint('ClothService.uploadImage: Image file path: ${imageFile.path}');
-        debugPrint('ClothService.uploadImage: Storage path: ${_storagePath(userId, wardrobeId, clothId)}');
-      }
-
-      // Compress image before upload
-      final compressedFile = await ImageCompression.compressImage(imageFile);
-      
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Image compressed. Compressed file: ${compressedFile.path}');
-      }
-
-      final storageRef = _storage.ref().child(_storagePath(userId, wardrobeId, clothId));
-      
-      // Explicitly provide metadata to avoid NullPointerException
-      final metadata = SettableMetadata(
-        contentType: 'image/jpeg',
-        cacheControl: 'max-age=31536000',
-      );
-      
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Starting putFile with metadata');
-      }
-
-      final uploadTask = storageRef.putFile(compressedFile, metadata);
-      
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Waiting for upload to complete...');
-      }
-
-      final snapshot = await uploadTask;
-      
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Upload completed. Bytes transferred: ${snapshot.bytesTransferred}');
-      }
-
-      final imageUrl = await storageRef.getDownloadURL();
-      
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Got download URL: $imageUrl');
-      }
-
-      return imageUrl;
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('ClothService.uploadImage: Error uploading image: $e');
-        debugPrint('ClothService.uploadImage: Stack trace: $stackTrace');
-      }
-      throw Exception('Failed to upload image: $e');
-    }
-  }
-
   /// Add cloth to wardrobe
-  static Future<String> addCloth(
-    String userId,
-    String wardrobeId,
-    File? imageFile,
-    String type,
-    String color,
-    List<String> occasions, // Changed to support multiple occasions
-    String season,
-  ) async {
+  static Future<String> addCloth({
+    required String userId,
+    required String wardrobeId,
+    required File imageFile,
+    required String season,
+    required String placement,
+    required ColorTags colorTags,
+    required String clothType,
+    required String category,
+    required List<String> occasions,
+    String visibility = 'private',
+    AiDetected? aiDetected,
+  }) async {
     try {
-      if (kDebugMode) {
-        debugPrint('ClothService: Starting addCloth');
-        debugPrint('ClothService: User ID: $userId, Wardrobe ID: $wardrobeId');
-        debugPrint('ClothService: Type: $type, Color: $color, Occasions: $occasions, Season: $season');
-        debugPrint('ClothService: Occasions list size: ${occasions.length}');
-        debugPrint('ClothService: Image file: ${imageFile?.path ?? "null"}');
-      }
-
       // Validate occasions
       if (occasions.isEmpty) {
         throw Exception('At least one occasion must be selected');
       }
 
-      final clothId = _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc()
-          .id;
+      final clothId = _firestore.collection('clothes').doc().id;
+      final now = DateTime.now();
 
-      if (kDebugMode) {
-        debugPrint('ClothService: Generated cloth ID: $clothId');
-      }
-
-      String imageUrl = '';
-      
-      // Upload image if provided
-      if (imageFile != null) {
-        if (kDebugMode) {
-          debugPrint('ClothService: Starting image upload');
-        }
-        imageUrl = await uploadImage(imageFile, userId, wardrobeId, clothId);
-        if (kDebugMode) {
-          debugPrint('ClothService: Image uploaded successfully. URL: $imageUrl');
-        }
-      }
+      // Upload image
+      final imageUrl = await StorageService.uploadClothImage(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+        imageFile: imageFile,
+      );
 
       // Create cloth document
       final clothData = {
+        'ownerId': userId,
+        'wardrobeId': wardrobeId,
         'imageUrl': imageUrl,
-        'type': type,
-        'color': color,
-        'occasions': occasions, // Store as array
-        'occasion': occasions.isNotEmpty ? occasions.first : 'Other', // Keep for backward compatibility
         'season': season,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastWorn': null,
+        'placement': placement,
+        'colorTags': colorTags.toJson(),
+        'clothType': clothType,
+        'category': category,
+        'occasions': occasions,
+        'visibility': visibility,
+        'likesCount': 0,
+        'commentsCount': 0,
+        'createdAt': Timestamp.fromDate(now),
+        'updatedAt': Timestamp.fromDate(now),
+        if (aiDetected != null) 'aiDetected': aiDetected.toJson(),
       };
 
-      if (kDebugMode) {
-        debugPrint('ClothService: Cloth data to save: $clothData');
-        debugPrint('ClothService: Saving to Firestore path: ${_clothesPath(userId, wardrobeId)}');
-      }
-
+      // Save to subcollection path
       await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)
           .set(clothData);
 
-      if (kDebugMode) {
-        debugPrint('ClothService: Cloth document saved successfully');
-      }
-
-      // Update wardrobe's updatedAt and increment clothCount
-      if (kDebugMode) {
-        debugPrint('ClothService: Updating wardrobe clothCount');
-      }
-
-      await _firestore
-          .collection('users/$userId/wardrobes')
-          .doc(wardrobeId)
-          .update({
-        'updatedAt': FieldValue.serverTimestamp(),
-        'clothCount': FieldValue.increment(1),
-      });
+      // Also save to top-level collection for queries
+      await _firestore.collection('clothes').doc(clothId).set(clothData);
 
       if (kDebugMode) {
-        debugPrint('ClothService: Wardrobe updated successfully');
-        debugPrint('ClothService: addCloth completed successfully. Cloth ID: $clothId');
+        debugPrint('Cloth added successfully: $clothId');
       }
 
       return clothId;
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('ClothService: Error in addCloth: $e');
-        debugPrint('ClothService: Stack trace: $stackTrace');
-      }
-      throw Exception('Failed to add cloth: $e');
+    } catch (e) {
+      debugPrint('Failed to add cloth: $e');
+      rethrow;
+    }
+  }
+
+  /// Get cloth by ID
+  static Future<Cloth?> getCloth({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final doc = await _firestore
+          .collection(_clothesPath(userId, wardrobeId))
+          .doc(clothId)
+          .get();
+
+      if (!doc.exists) return null;
+
+      return Cloth.fromJson(doc.data()!, clothId);
+    } catch (e) {
+      debugPrint('Failed to get cloth: $e');
+      return null;
     }
   }
 
   /// Get all clothes for a wardrobe
-  static Future<List<Cloth>> getClothes(
-    String userId,
-    String wardrobeId,
-  ) async {
+  static Future<List<Cloth>> getClothes({
+    required String userId,
+    required String wardrobeId,
+  }) async {
     try {
       final snapshot = await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
-        return Cloth.fromJson(doc.data(), doc.id);
-      }).toList();
+      return snapshot.docs
+          .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+          .toList();
     } catch (e) {
-      throw Exception('Failed to fetch clothes: $e');
+      debugPrint('Failed to get clothes: $e');
+      return [];
+    }
+  }
+
+  /// Get all clothes for a user (across all wardrobes)
+  static Future<List<Cloth>> getAllUserClothes(String userId) async {
+    try {
+      // Query top-level clothes collection filtered by ownerId
+      final snapshot = await _firestore
+          .collection('clothes')
+          .where('ownerId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to get all user clothes: $e');
+      return [];
     }
   }
 
   /// Update cloth
-  static Future<void> updateCloth(
-    String userId,
-    String wardrobeId,
-    String clothId,
-    Map<String, dynamic> updates,
-  ) async {
+  static Future<void> updateCloth({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+    Map<String, dynamic>? updates,
+    Cloth? cloth,
+    File? newImageFile,
+  }) async {
     try {
-      updates['updatedAt'] = FieldValue.serverTimestamp();
-      
-      await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .update(updates);
+      if (newImageFile != null) {
+        // Upload new image
+        final imageUrl = await StorageService.uploadClothImage(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: clothId,
+          imageFile: newImageFile,
+        );
+        updates ??= {};
+        updates['imageUrl'] = imageUrl;
+      }
+
+      if (cloth != null) {
+        final clothData = cloth.toJson();
+        clothData['updatedAt'] = FieldValue.serverTimestamp();
+        // Don't update likesCount and commentsCount (managed by Cloud Functions)
+        clothData.remove('likesCount');
+        clothData.remove('commentsCount');
+
+        await _firestore
+            .collection(_clothesPath(userId, wardrobeId))
+            .doc(clothId)
+            .update(clothData);
+
+        // Also update top-level collection
+        await _firestore.collection('clothes').doc(clothId).update(clothData);
+      } else if (updates != null) {
+        updates['updatedAt'] = FieldValue.serverTimestamp();
+        // Don't allow updating likesCount and commentsCount
+        updates.remove('likesCount');
+        updates.remove('commentsCount');
+
+        await _firestore
+            .collection(_clothesPath(userId, wardrobeId))
+            .doc(clothId)
+            .update(updates);
+
+        // Also update top-level collection
+        await _firestore.collection('clothes').doc(clothId).update(updates);
+      }
     } catch (e) {
-      throw Exception('Failed to update cloth: $e');
+      debugPrint('Failed to update cloth: $e');
+      rethrow;
     }
   }
 
-  /// Delete cloth and its image
-  static Future<void> deleteCloth(
-    String userId,
-    String wardrobeId,
-    String clothId,
-  ) async {
+  /// Delete cloth
+  static Future<void> deleteCloth({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
     try {
-      // Get cloth to delete its image
-      final clothDoc = await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .get();
+      // Get cloth to delete image
+      final cloth = await getCloth(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
 
-      if (clothDoc.exists) {
-        final cloth = Cloth.fromJson(clothDoc.data()!, clothId);
-        
+      if (cloth != null) {
         // Delete image from Storage
         if (cloth.imageUrl.isNotEmpty) {
           try {
-            final storageRef = _storage.ref().child(
-              _storagePath(userId, wardrobeId, clothId),
+            await StorageService.deleteClothImage(
+              userId: userId,
+              wardrobeId: wardrobeId,
+              clothId: clothId,
+              imageUrl: cloth.imageUrl,
             );
-            await storageRef.delete();
           } catch (e) {
-            // Log error but continue with doc deletion
-            if (kDebugMode) {
-              debugPrint('Failed to delete image: $e');
-            }
+            debugPrint('Failed to delete cloth image: $e');
           }
         }
 
-        // Delete cloth document
+        // Delete from subcollection
         await _firestore
             .collection(_clothesPath(userId, wardrobeId))
             .doc(clothId)
             .delete();
 
-        // Update wardrobe's clothCount
-        await _firestore
-            .collection('users/$userId/wardrobes')
-            .doc(wardrobeId)
-            .update({
-          'updatedAt': FieldValue.serverTimestamp(),
-          'clothCount': FieldValue.increment(-1),
-        });
+        // Delete from top-level collection
+        await _firestore.collection('clothes').doc(clothId).delete();
       }
     } catch (e) {
-      throw Exception('Failed to delete cloth: $e');
+      debugPrint('Failed to delete cloth: $e');
+      rethrow;
     }
   }
 
-  /// Mark cloth as worn
-  static Future<void> markAsWorn(
-    String userId,
-    String wardrobeId,
-    String clothId,
-  ) async {
+  /// Mark cloth as worn today
+  static Future<void> markAsWornToday({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
     try {
+      final now = DateTime.now();
+
+      // Create wear history entry
+      await _firestore
+          .collection(_clothesPath(userId, wardrobeId))
+          .doc(clothId)
+          .collection('wearHistory')
+          .add({
+        'userId': userId,
+        'wornAt': Timestamp.fromDate(now),
+        'source': 'manual',
+      });
+
+      // Update cloth's lastWornAt
       await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)
           .update({
-        'lastWorn': FieldValue.serverTimestamp(),
+        'lastWornAt': Timestamp.fromDate(now),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Also update top-level collection
+      await _firestore.collection('clothes').doc(clothId).update({
+        'lastWornAt': Timestamp.fromDate(now),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      throw Exception('Failed to mark as worn: $e');
+      debugPrint('Failed to mark as worn: $e');
+      rethrow;
+    }
+  }
+
+  /// Like cloth
+  static Future<void> likeCloth({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final now = DateTime.now();
+
+      await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('likes')
+          .doc(userId)
+          .set({
+        'userId': userId,
+        'createdAt': Timestamp.fromDate(now),
+      });
+    } catch (e) {
+      debugPrint('Failed to like cloth: $e');
+      rethrow;
+    }
+  }
+
+  /// Unlike cloth
+  static Future<void> unlikeCloth({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('likes')
+          .doc(userId)
+          .delete();
+    } catch (e) {
+      debugPrint('Failed to unlike cloth: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if user has liked cloth
+  static Future<bool> hasLiked({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final doc = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('likes')
+          .doc(userId)
+          .get();
+
+      return doc.exists;
+    } catch (e) {
+      debugPrint('Failed to check like status: $e');
+      return false;
+    }
+  }
+
+  /// Add comment to cloth
+  static Future<String> addComment({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+    required String text,
+  }) async {
+    try {
+      final commentId = _firestore.collection('comments').doc().id;
+      final now = DateTime.now();
+
+      await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .doc(commentId)
+          .set({
+        'userId': userId,
+        'text': text,
+        'createdAt': Timestamp.fromDate(now),
+      });
+
+      return commentId;
+    } catch (e) {
+      debugPrint('Failed to add comment: $e');
+      rethrow;
+    }
+  }
+
+  /// Get comments for cloth
+  static Future<List<Comment>> getComments({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Comment.fromJson(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to get comments: $e');
+      return [];
+    }
+  }
+
+  /// Delete comment
+  static Future<void> deleteComment({
+    required String userId,
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+    required String commentId,
+  }) async {
+    try {
+      final commentDoc = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .doc(commentId)
+          .get();
+
+      if (!commentDoc.exists) return;
+
+      final comment = Comment.fromJson(commentDoc.data()!, commentId);
+
+      // Only comment author can delete
+      if (comment.userId != userId) {
+        throw Exception('Only comment author can delete');
+      }
+
+      await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .doc(commentId)
+          .delete();
+    } catch (e) {
+      debugPrint('Failed to delete comment: $e');
+      rethrow;
     }
   }
 
   /// Stream clothes for real-time updates
-  static Stream<List<Cloth>> watchClothes(
-    String userId,
-    String wardrobeId,
-  ) {
+  static Stream<List<Cloth>> watchClothes({
+    required String userId,
+    required String wardrobeId,
+  }) {
     return _firestore
         .collection(_clothesPath(userId, wardrobeId))
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
-          .toList();
-    });
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+            .toList());
+  }
+
+  /// Stream all user clothes for real-time updates
+  static Stream<List<Cloth>> watchAllUserClothes(String userId) {
+    return _firestore
+        .collection('clothes')
+        .where('ownerId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+            .toList());
   }
 }
-

@@ -1,0 +1,125 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+// These rules ensure that users can only access their own files
+// Supports Phone, Google, and Email authentication
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ============================================
+    // USER PROFILE IMAGES
+    // ============================================
+    // Path: users/{userId}/profile/{imageName}
+    match /users/{userId}/profile/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow write if user owns the profile image
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user owns the profile image
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // CLOTHING IMAGES
+    // ============================================
+    // Path: users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}/{imageName}
+    match /users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}/{imageName} {
+      // Allow read if user owns the cloth or cloth is public
+      // Note: For friends/shared visibility, check is done in app logic
+      // Storage rules are simplified - owner can always read, others need to check Firestore
+      allow read: if isAuthenticated() && 
+                     (isOwner(userId) || 
+                      (exists(/databases/(default)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
+                       firestore.get(/databases/(default)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data.visibility == 'public'));
+      
+      // Allow write if user owns the clothing image
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 10 * 1024 * 1024 && // 10MB limit per image
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user owns the clothing image
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // WARDROBE COVER IMAGES (if needed)
+    // ============================================
+    // Path: users/{userId}/wardrobes/{wardrobeId}/cover/{imageName}
+    match /users/{userId}/wardrobes/{wardrobeId}/cover/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow write if user owns the wardrobe cover
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user owns the wardrobe cover
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // CHAT IMAGES
+    // ============================================
+    // Path: users/{userId}/chats/{chatId}/messages/{messageId}/images/{imageName}
+    match /users/{userId}/chats/{chatId}/messages/{messageId}/images/{imageName} {
+      // Allow read if user is authenticated and chat exists
+      // Note: Full participant check should be done in app logic
+      allow read: if isAuthenticated() &&
+                     exists(/databases/(default)/documents/users/$(userId)/chats/$(chatId));
+      
+      // Allow write if user is authenticated and chat exists
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isAuthenticated() &&
+                     exists(/databases/(default)/documents/users/$(userId)/chats/$(chatId)) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user is authenticated
+      allow delete: if isAuthenticated();
+    }
+    
+    // ============================================
+    // ALTERNATIVE CHAT IMAGE PATH (if using different structure)
+    // ============================================
+    // Path: chats/{chatId}/messages/{messageId}/images/{imageName}
+    match /chats/{chatId}/messages/{messageId}/images/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow write if user is authenticated
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user is authenticated
+      allow delete: if isAuthenticated();
+    }
+    
+    // ============================================
+    // DENY ALL OTHER PATHS
+    // ============================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

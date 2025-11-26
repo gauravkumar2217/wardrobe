@@ -1,93 +1,23 @@
-import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
-import 'fcm_token_service.dart';
+import 'fcm_service.dart';
 
+/// Authentication service supporting Phone, Google, and Email/Password
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  /// Check if user is currently logged in
-  static Future<bool> isUserLoggedIn() async {
-    final user = _auth.currentUser;
-    return user != null;
-  }
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   /// Get current user
   static User? getCurrentUser() {
     return _auth.currentUser;
   }
 
-  /// Sign out user
-  /// All operations have timeouts to prevent the app from getting stuck
-  static Future<void> signOut() async {
-    // Capture user info BEFORE signing out
-    final user = _auth.currentUser;
-    final userId = user?.uid;
-    final token = FCMTokenService.getCurrentToken();
-
-    // If user is not authenticated and token is not available,
-    // user is already logged out - nothing to do
-    if (user == null && token == null) {
-      debugPrint('User already logged out, skipping sign out operations');
-      return;
-    }
-
-    // Deactivate FCM token before signing out (using captured info)
-    // This ensures push notifications won't be sent to logged out users
-    // Only attempt if we have both userId and token
-    if (userId != null && token != null) {
-      try {
-        await FCMTokenService.deactivateToken(userId, token)
-            .timeout(const Duration(seconds: 3));
-      } on TimeoutException {
-        debugPrint('FCM token deactivation timed out, continuing sign out');
-      } catch (e) {
-        // Log error but don't block sign out
-        debugPrint('Failed to deactivate FCM token on sign out: $e');
-      }
-    } else if (user != null) {
-      // User is authenticated but token not available - try current user method
-      // This handles edge cases where token wasn't initialized
-      try {
-        await FCMTokenService.deactivateTokenForCurrentUser()
-            .timeout(const Duration(seconds: 2));
-      } catch (e) {
-        // This is expected if token is not available - not an error
-        debugPrint('FCM token not available for deactivation (non-critical)');
-      }
-    } else {
-      // User is null but token exists - user already logged out
-      debugPrint('User already logged out, skipping FCM token deactivation');
-    }
-
-    // Sign out from Firebase with timeout (only if user is still authenticated)
-    if (user != null) {
-      try {
-        await _auth.signOut().timeout(const Duration(seconds: 5));
-      } on TimeoutException {
-        debugPrint('Firebase signOut timed out, continuing');
-      } catch (e) {
-        debugPrint('Error during Firebase signOut: $e');
-        // Continue anyway - user should still be signed out
-      }
-    }
-
-    // Clear any stored user data with timeout
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear().timeout(const Duration(seconds: 3));
-    } on TimeoutException {
-      debugPrint('SharedPreferences clear timed out');
-    } catch (e) {
-      debugPrint('Failed to clear SharedPreferences: $e');
-      // Don't block - this is not critical
-    }
-  }
-
-  /// Get user phone number
-  static String? getUserPhoneNumber() {
-    return _auth.currentUser?.phoneNumber;
+  /// Check if user is logged in
+  static bool isUserLoggedIn() {
+    return _auth.currentUser != null;
   }
 
   /// Get user UID
@@ -95,8 +25,215 @@ class AuthService {
     return _auth.currentUser?.uid;
   }
 
+  /// Get user email
+  static String? getUserEmail() {
+    return _auth.currentUser?.email;
+  }
+
+  /// Get user phone number
+  static String? getUserPhoneNumber() {
+    return _auth.currentUser?.phoneNumber;
+  }
+
+  /// Get user display name
+  static String? getUserDisplayName() {
+    return _auth.currentUser?.displayName;
+  }
+
+  /// Get user photo URL
+  static String? getUserPhotoURL() {
+    return _auth.currentUser?.photoURL;
+  }
+
+  /// Sign in with phone number (OTP)
+  static Future<UserCredential> signInWithPhone({
+    required String phoneNumber,
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      // Register FCM token after successful login
+      if (userCredential.user != null) {
+        await FCMService.registerDeviceToken(userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      debugPrint('Phone sign-in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Send OTP to phone number
+  static Future<void> sendOTP({
+    required String phoneNumber,
+    required Function(String verificationId) onCodeSent,
+    required Function(FirebaseAuthException error) onError,
+    Function(PhoneAuthCredential credential)? onVerificationCompleted,
+  }) async {
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: onVerificationCompleted ?? (credential) {},
+        verificationFailed: onError,
+        codeSent: (verificationId, resendToken) {
+          onCodeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (verificationId) {},
+      );
+    } catch (e) {
+      onError(FirebaseAuthException(code: 'unknown', message: e.toString()));
+    }
+  }
+
+  /// Sign in with Google
+  static Future<UserCredential> signInWithGoogle() async {
+    try {
+      // Sign out any existing Google account
+      await _googleSignIn.signOut();
+
+      // Trigger the Google Sign-In flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        throw Exception('Google sign-in was canceled');
+      }
+
+      // Obtain the auth details
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // Validate tokens
+      if (googleAuth.accessToken == null && googleAuth.idToken == null) {
+        throw Exception('Failed to get authentication tokens');
+      }
+
+      // Create credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // Register FCM token after successful login
+      if (userCredential.user != null) {
+        await FCMService.registerDeviceToken(userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      debugPrint('Google sign-in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Sign in with email and password
+  static Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Register FCM token after successful login
+      if (userCredential.user != null) {
+        await FCMService.registerDeviceToken(userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      debugPrint('Email sign-in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Register with email and password
+  static Future<UserCredential> registerWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Register FCM token after successful registration
+      if (userCredential.user != null) {
+        await FCMService.registerDeviceToken(userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      debugPrint('Email registration error: $e');
+      rethrow;
+    }
+  }
+
+  /// Send password reset email
+  static Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      debugPrint('Password reset error: $e');
+      rethrow;
+    }
+  }
+
+  /// Sign out
+  static Future<void> signOut() async {
+    try {
+      final user = _auth.currentUser;
+      
+      // Deactivate FCM token before signing out
+      if (user != null) {
+        await FCMService.deactivateDeviceToken(user.uid);
+      }
+
+      // Sign out from Google if signed in
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.signOut();
+      }
+
+      // Sign out from Firebase
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('Sign out error: $e');
+      rethrow;
+    }
+  }
+
   /// Listen to auth state changes
   static Stream<User?> get authStateChanges {
     return _auth.authStateChanges();
   }
+
+  /// Update user profile
+  static Future<void> updateProfile({
+    String? displayName,
+    String? photoURL,
+  }) async {
+    try {
+      await _auth.currentUser?.updateDisplayName(displayName);
+      await _auth.currentUser?.updatePhotoURL(photoURL);
+      await _auth.currentUser?.reload();
+    } catch (e) {
+      debugPrint('Update profile error: $e');
+      rethrow;
+    }
+  }
 }
+

@@ -2,15 +2,23 @@ import 'package:flutter/foundation.dart';
 import '../models/wardrobe.dart';
 import '../services/wardrobe_service.dart';
 
+/// Wardrobe provider for managing wardrobes state
 class WardrobeProvider with ChangeNotifier {
   List<Wardrobe> _wardrobes = [];
+  Wardrobe? _selectedWardrobe;
   bool _isLoading = false;
   String? _errorMessage;
 
   List<Wardrobe> get wardrobes => _wardrobes;
+  Wardrobe? get selectedWardrobe => _selectedWardrobe;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get hasReachedLimit => _wardrobes.length >= 2;
+
+  /// Set selected wardrobe
+  void setSelectedWardrobe(Wardrobe? wardrobe) {
+    _selectedWardrobe = wardrobe;
+    notifyListeners();
+  }
 
   /// Load wardrobes for a user
   Future<void> loadWardrobes(String userId) async {
@@ -23,9 +31,7 @@ class WardrobeProvider with ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load wardrobes: ${e.toString()}';
-      if (kDebugMode) {
-        print('Error loading wardrobes: $e');
-      }
+      debugPrint('Error loading wardrobes: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -44,56 +50,52 @@ class WardrobeProvider with ChangeNotifier {
     });
   }
 
-  /// Create a new wardrobe
-  Future<String?> createWardrobe(
-    String userId,
-    String title,
-    String location,
-    String season,
-  ) async {
-    if (hasReachedLimit) {
-      _errorMessage = 'Maximum 2 wardrobes allowed on free plan';
-      notifyListeners();
-      return null;
-    }
-
+  /// Create wardrobe
+  Future<String?> createWardrobe({
+    required String userId,
+    required String name,
+    required String location,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final wardrobeId = await WardrobeService.createWardrobe(
-        userId,
-        title,
-        location,
-        season,
+        userId: userId,
+        name: name,
+        location: location,
       );
 
       _errorMessage = null;
-      _isLoading = false;
-      notifyListeners();
-
       return wardrobeId;
     } catch (e) {
       _errorMessage = 'Failed to create wardrobe: ${e.toString()}';
+      return null;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return null;
     }
   }
 
-  /// Update a wardrobe
-  Future<void> updateWardrobe(
-    String userId,
-    String wardrobeId,
-    Map<String, dynamic> updates,
-  ) async {
+  /// Update wardrobe
+  Future<void> updateWardrobe({
+    required String userId,
+    required String wardrobeId,
+    Map<String, dynamic>? updates,
+    Wardrobe? wardrobe,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await WardrobeService.updateWardrobe(userId, wardrobeId, updates);
+      await WardrobeService.updateWardrobe(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        updates: updates,
+        wardrobe: wardrobe,
+      );
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to update wardrobe: ${e.toString()}';
@@ -103,14 +105,24 @@ class WardrobeProvider with ChangeNotifier {
     }
   }
 
-  /// Delete a wardrobe
-  Future<void> deleteWardrobe(String userId, String wardrobeId) async {
+  /// Delete wardrobe
+  Future<void> deleteWardrobe({
+    required String userId,
+    required String wardrobeId,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await WardrobeService.deleteWardrobe(userId, wardrobeId);
+      await WardrobeService.deleteWardrobe(
+        userId: userId,
+        wardrobeId: wardrobeId,
+      );
+      _wardrobes.removeWhere((w) => w.id == wardrobeId);
+      if (_selectedWardrobe?.id == wardrobeId) {
+        _selectedWardrobe = null;
+      }
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to delete wardrobe: ${e.toString()}';
@@ -120,10 +132,9 @@ class WardrobeProvider with ChangeNotifier {
     }
   }
 
-  /// Clear error message
+  /// Clear error
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 }
-

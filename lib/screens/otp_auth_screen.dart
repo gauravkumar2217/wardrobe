@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sms_autofill/sms_autofill.dart';
-import 'welcome_screen.dart';
+import 'home/home_screen.dart';
 import '../services/fcm_token_service.dart';
 
 class OTPAuthScreen extends StatefulWidget {
@@ -145,7 +145,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         },
@@ -261,7 +261,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         }
@@ -293,7 +293,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const WelcomeScreen()),
+                      builder: (context) => const HomeScreen()),
                 );
               }
             });
@@ -537,7 +537,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         }
@@ -587,7 +587,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
             if (mounted) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
               );
             }
           }
