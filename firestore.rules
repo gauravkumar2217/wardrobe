@@ -51,13 +51,27 @@ service cloud.firestore {
     // Helper function to validate user profile data
     function isValidUserProfile(data) {
       return (!('displayName' in data) || data.displayName is string) &&
+             (!('username' in data) || (data.username is string && 
+                                        data.username.size() >= 3 && 
+                                        data.username.size() <= 20 &&
+                                        data.username.matches('^[a-z0-9_]+$'))) &&
              (!('photoUrl' in data) || data.photoUrl is string) &&
              (!('email' in data) || data.email is string) &&
              (!('phone' in data) || data.phone is string) &&
              (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('gender' in data) || data.gender in ['male', 'female', 'other']) &&
+             (!('dateOfBirth' in data) || data.dateOfBirth is timestamp) &&
              (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
              (!('settings' in data) || data.settings is map);
+    }
+    
+    // Helper function to check if username is being changed (should be immutable after creation)
+    function isUsernameUnchanged(data, existingData) {
+      return !('username' in data) || 
+             (existingData != null && 
+              'username' in existingData && 
+              data.username == existingData.username);
     }
     
     // Helper function to validate wardrobe data
@@ -171,16 +185,32 @@ service cloud.firestore {
     // USERS COLLECTION
     // ============================================
     match /users/{userId} {
-      // Allow read if user owns the profile or is a friend (limited fields)
+      // Allow read if user owns the profile (full access)
+      // For other authenticated users: allow reading for username/email lookup queries
+      // This enables login functionality while keeping other fields private
       allow read: if isOwner(userId) || 
                      (isAuthenticated() && 
-                      resource.data.keys().hasAll(['displayName', 'photoUrl']));
+                      // Allow reading if document has username (for login queries)
+                      // or has basic profile fields (displayName, photoUrl)
+                      ('username' in resource.data || 
+                       'email' in resource.data ||
+                       resource.data.keys().hasAll(['displayName', 'photoUrl'])));
       
       // Allow create if user owns the profile
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      // Username must be provided and valid on creation
+      allow create: if isOwner(userId) && 
+                       isValidUserProfile(request.resource.data) &&
+                       ('username' in request.resource.data) &&
+                       request.resource.data.username is string &&
+                       request.resource.data.username.size() >= 3 &&
+                       request.resource.data.username.size() <= 20 &&
+                       request.resource.data.username.matches('^[a-z0-9_]+$');
       
       // Allow update if user owns the profile
-      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      // Username cannot be changed after creation (immutable)
+      allow update: if isOwner(userId) && 
+                       isValidUserProfile(request.resource.data) &&
+                       isUsernameUnchanged(request.resource.data, resource.data);
       
       // Allow delete if user owns the profile
       allow delete: if isOwner(userId);

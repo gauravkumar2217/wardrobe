@@ -138,6 +138,65 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Sign in with username and password
+  Future<bool> signInWithUsername({
+    required String username,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // Look up email from username
+      debugPrint('Attempting to sign in with username: $username');
+      final email = await UserService.getEmailByUsername(username);
+      
+      if (email == null) {
+        _errorMessage = 'Username not found. Please check your username or create an account.';
+        debugPrint('Username lookup failed for: $username');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      debugPrint('Found email for username, attempting sign in: $email');
+
+      // Sign in with email and password
+      final userCredential = await AuthService.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      _user = userCredential.user;
+      if (_user != null) {
+        await _loadUserProfile(_user!.uid);
+      }
+
+      _errorMessage = null;
+      debugPrint('Sign in successful');
+      return true;
+    } catch (e) {
+      final errorStr = e.toString();
+      debugPrint('Sign in error: $errorStr');
+      
+      // Provide more specific error messages
+      if (errorStr.contains('wrong-password') || errorStr.contains('invalid-credential')) {
+        _errorMessage = 'Incorrect password. Please try again.';
+      } else if (errorStr.contains('user-not-found')) {
+        _errorMessage = 'User not found. Please check your username.';
+      } else if (errorStr.contains('index') || errorStr.contains('Index')) {
+        _errorMessage = 'Database configuration error. Please contact support.';
+      } else {
+        _errorMessage = 'Failed to sign in: $e';
+      }
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Sign in with email and password
   Future<bool> signInWithEmail({
     required String email,
