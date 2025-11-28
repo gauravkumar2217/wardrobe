@@ -3,18 +3,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// User Profile model with settings and privacy controls
 class UserProfile {
   final String? displayName;
+  final String? username;
   final String? photoUrl;
   final String? email;
   final String? phone;
+  final String? gender;
+  final DateTime? dateOfBirth;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final UserSettings? settings;
 
   UserProfile({
     this.displayName,
+    this.username,
     this.photoUrl,
     this.email,
     this.phone,
+    this.gender,
+    this.dateOfBirth,
     this.createdAt,
     this.updatedAt,
     this.settings,
@@ -23,9 +29,14 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       displayName: json['displayName'] as String?,
+      username: json['username'] as String?,
       photoUrl: json['photoUrl'] as String?,
       email: json['email'] as String?,
       phone: json['phone'] as String? ?? json['phoneNumber'] as String?,
+      gender: json['gender'] as String?,
+      dateOfBirth: json['dateOfBirth'] != null
+          ? (json['dateOfBirth'] as Timestamp).toDate()
+          : null,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : null,
@@ -41,9 +52,12 @@ class UserProfile {
   Map<String, dynamic> toJson() {
     return {
       if (displayName != null) 'displayName': displayName,
+      if (username != null) 'username': username,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (email != null) 'email': email,
       if (phone != null) 'phone': phone,
+      if (gender != null) 'gender': gender,
+      if (dateOfBirth != null) 'dateOfBirth': Timestamp.fromDate(dateOfBirth!),
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
       if (settings != null) 'settings': settings!.toJson(),
@@ -52,18 +66,24 @@ class UserProfile {
 
   UserProfile copyWith({
     String? displayName,
+    String? username,
     String? photoUrl,
     String? email,
     String? phone,
+    String? gender,
+    DateTime? dateOfBirth,
     DateTime? createdAt,
     DateTime? updatedAt,
     UserSettings? settings,
   }) {
     return UserProfile(
       displayName: displayName ?? this.displayName,
+      username: username ?? this.username,
       photoUrl: photoUrl ?? this.photoUrl,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       settings: settings ?? this.settings,
@@ -71,7 +91,14 @@ class UserProfile {
   }
 
   bool get isComplete {
-    return displayName != null && displayName!.isNotEmpty;
+    return displayName != null && 
+           displayName!.isNotEmpty &&
+           username != null &&
+           username!.isNotEmpty &&
+           phone != null &&
+           phone!.isNotEmpty &&
+           gender != null &&
+           dateOfBirth != null;
   }
 }
 

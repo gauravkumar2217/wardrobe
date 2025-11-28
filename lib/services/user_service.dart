@@ -35,10 +35,22 @@ class UserService {
         profileData['createdAt'] = FieldValue.serverTimestamp();
       }
 
+      debugPrint('Saving profile for user $userId with data: $profileData');
+      debugPrint('Username in profile: ${profileData['username']}');
+
       await _firestore
           .collection('users')
           .doc(userId)
           .set(profileData, SetOptions(merge: true));
+
+      debugPrint('Profile saved successfully for user $userId');
+      
+      // Verify the save by reading it back
+      final savedDoc = await _firestore.collection('users').doc(userId).get();
+      if (savedDoc.exists) {
+        final savedData = savedDoc.data();
+        debugPrint('Verified saved profile - username: ${savedData?['username']}');
+      }
     } catch (e) {
       debugPrint('Failed to create/update user profile: $e');
       rethrow;
@@ -186,5 +198,67 @@ class UserService {
       }
       return UserProfile.fromJson(snapshot.data()!);
     });
+  }
+
+  /// Check if username is available (unique)
+  static Future<bool> isUsernameAvailable(String username) async {
+    try {
+      final normalizedUsername = username.toLowerCase().trim();
+      final query = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: normalizedUsername)
+          .limit(1)
+          .get();
+      
+      return query.docs.isEmpty;
+    } catch (e) {
+      debugPrint('Failed to check username availability: $e');
+      return false;
+    }
+  }
+
+  /// Get user email by username (for login)
+  static Future<String?> getEmailByUsername(String username) async {
+    try {
+      final normalizedUsername = username.toLowerCase().trim();
+      
+      if (normalizedUsername.isEmpty) {
+        debugPrint('Username is empty');
+        return null;
+      }
+      
+      debugPrint('Looking up username: $normalizedUsername');
+      
+      final query = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: normalizedUsername)
+          .limit(1)
+          .get();
+      
+      debugPrint('Query returned ${query.docs.length} documents');
+      
+      if (query.docs.isEmpty) {
+        debugPrint('No user found with username: $normalizedUsername');
+        // Try to find any users with username field for debugging
+        final allUsers = await _firestore
+            .collection('users')
+            .limit(5)
+            .get();
+        debugPrint('Sample users in database: ${allUsers.docs.map((doc) => doc.data()['username']).toList()}');
+        return null;
+      }
+      
+      final data = query.docs.first.data();
+      final email = data['email'] as String?;
+      debugPrint('Found email for username $normalizedUsername: $email');
+      return email;
+    } catch (e) {
+      debugPrint('Failed to get email by username: $e');
+      // Check if it's an index error
+      if (e.toString().contains('index') || e.toString().contains('Index')) {
+        debugPrint('ERROR: Firestore index required for username queries. Please create an index on users collection for username field.');
+      }
+      return null;
+    }
   }
 }

@@ -381,14 +381,39 @@ class AuthService {
         password: password,
       );
 
-      // Register FCM token after successful login
+      // Register FCM token after successful login (non-blocking)
+      // This is done in background to avoid blocking the sign-in flow
       if (userCredential.user != null) {
-        await FCMService.registerDeviceToken(userCredential.user!.uid);
+        FCMService.registerDeviceToken(userCredential.user!.uid).catchError((e) {
+          debugPrint('Failed to register FCM token (non-critical): $e');
+        });
       }
 
       return userCredential;
     } catch (e) {
+      final errorStr = e.toString();
       debugPrint('Email sign-in error: $e');
+      
+      // Handle known type casting error (Firebase Auth plugin issue on Android)
+      // This can occur even when sign-in succeeds - check if user is actually authenticated
+      if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
+        debugPrint('Type casting error detected, checking if user is authenticated...');
+        // Wait a moment for Firebase to update auth state
+        await Future.delayed(const Duration(milliseconds: 300));
+        // Check if sign-in actually succeeded despite the error
+        final currentUser = _auth.currentUser;
+        if (currentUser != null && currentUser.email == email) {
+          debugPrint('User is authenticated despite error. Sign-in succeeded.');
+          // Register FCM token (non-blocking)
+          FCMService.registerDeviceToken(currentUser.uid).catchError((e) {
+            debugPrint('Failed to register FCM token (non-critical): $e');
+          });
+          // Return a UserCredential by getting the user's ID token and creating a credential
+          // Since we can't easily create UserCredential, we'll rethrow the original error
+          // and let the auth_provider handle it (it already checks for authenticated users)
+        }
+      }
+      
       rethrow;
     }
   }

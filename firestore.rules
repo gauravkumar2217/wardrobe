@@ -51,13 +51,27 @@ service cloud.firestore {
     // Helper function to validate user profile data
     function isValidUserProfile(data) {
       return (!('displayName' in data) || data.displayName is string) &&
+             (!('username' in data) || (data.username is string && 
+                                        data.username.size() >= 3 && 
+                                        data.username.size() <= 20 &&
+                                        data.username.matches('^[a-z0-9_]+$'))) &&
              (!('photoUrl' in data) || data.photoUrl is string) &&
              (!('email' in data) || data.email is string) &&
              (!('phone' in data) || data.phone is string) &&
              (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('gender' in data) || data.gender in ['male', 'female', 'other']) &&
+             (!('dateOfBirth' in data) || data.dateOfBirth is timestamp) &&
              (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
              (!('settings' in data) || data.settings is map);
+    }
+    
+    // Helper function to check if username is being changed (should be immutable after creation)
+    function isUsernameUnchanged(data, existingData) {
+      return !('username' in data) || 
+             (existingData != null && 
+              'username' in existingData && 
+              data.username == existingData.username);
     }
     
     // Helper function to validate wardrobe data
@@ -154,11 +168,12 @@ service cloud.firestore {
     // CONFIG COLLECTION
     // ============================================
     // Tag Lists: config/tagLists
-    // Read: All authenticated users
+    // Read: Public (needed for app functionality before authentication)
     // Write: Admin only (configure user IDs in rules)
-    match /config/tagLists {
-      // All authenticated users can read tag lists
-      allow read: if isAuthenticated();
+    match /config/{configId} {
+      // Allow public read for config documents (needed for tagLists before user authentication)
+      // This is safe as config data is non-sensitive app configuration
+      allow read: if true;
       
       // Only admins can write (replace with your admin user IDs)
       allow write: if isAuthenticated() && 
@@ -171,16 +186,39 @@ service cloud.firestore {
     // USERS COLLECTION
     // ============================================
     match /users/{userId} {
-      // Allow read if user owns the profile or is a friend (limited fields)
-      allow read: if isOwner(userId) || 
+      // Allow list queries (for username/email lookups during login)
+      // This allows unauthenticated queries on username field for login functionality
+      allow list: if true; // Allow queries for username lookups (needed before authentication)
+      
+      // Allow read if:
+      // 1. User owns the profile (full access)
+      // 2. Unauthenticated users can read username/email for login queries
+      // 3. Authenticated users can read basic profile info
+      allow get: if isOwner(userId) || 
+                     // Allow unauthenticated reads for username/email (needed for login)
+                     (!isAuthenticated() && 
+                      ('username' in resource.data || 'email' in resource.data)) ||
+                     // Allow authenticated users to read basic profile info
                      (isAuthenticated() && 
-                      resource.data.keys().hasAll(['displayName', 'photoUrl']));
+                      ('username' in resource.data || 
+                       'email' in resource.data ||
+                       resource.data.keys().hasAll(['displayName', 'photoUrl'])));
       
       // Allow create if user owns the profile
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      // Username must be provided and valid on creation
+      allow create: if isOwner(userId) && 
+                       isValidUserProfile(request.resource.data) &&
+                       ('username' in request.resource.data) &&
+                       request.resource.data.username is string &&
+                       request.resource.data.username.size() >= 3 &&
+                       request.resource.data.username.size() <= 20 &&
+                       request.resource.data.username.matches('^[a-z0-9_]+$');
       
       // Allow update if user owns the profile
-      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      // Username cannot be changed after creation (immutable)
+      allow update: if isOwner(userId) && 
+                       isValidUserProfile(request.resource.data) &&
+                       isUsernameUnchanged(request.resource.data, resource.data);
       
       // Allow delete if user owns the profile
       allow delete: if isOwner(userId);
@@ -240,8 +278,11 @@ service cloud.firestore {
         
         // Clothes subcollection: users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
         match /clothes/{clothId} {
+          // Allow list queries for wardrobe owner (needed for deletion and listing)
+          allow list: if isOwner(userId);
+          
           // Allow read based on cloth visibility
-          allow read: if canReadCloth(resource.data);
+          allow get: if canReadCloth(resource.data);
           
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
           allow update: if isOwner(userId) && 
@@ -393,9 +434,19 @@ service cloud.firestore {
     // ============================================
     // Note: Wardrobes are stored in users/{userId}/wardrobes/{wardrobeId}
     // This top-level collection is for querying across all wardrobes (if needed)
+    // Also allows writes to sync with subcollection
     match /wardrobes/{wardrobeId} {
       allow read: if isAuthenticated();
-      allow write: if false; // Write only through subcollection path
+      // Allow write if user owns the wardrobe (ownerId matches authenticated user)
+      allow create: if isAuthenticated() && 
+                      request.resource.data.ownerId == request.auth.uid &&
+                      isValidWardrobe(request.resource.data);
+      allow update: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      isValidWardrobe(request.resource.data);
+      allow delete: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid;
     }
     
     // ============================================

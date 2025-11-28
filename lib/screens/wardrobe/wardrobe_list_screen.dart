@@ -4,6 +4,7 @@ import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../widgets/wardrobe_card.dart';
+import '../../services/wardrobe_service.dart';
 import 'create_wardrobe_screen.dart';
 
 /// Wardrobe list screen
@@ -150,11 +151,52 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
   }
 
   Future<void> _deleteWardrobe(String wardrobeId, String userId) async {
+    // Check if wardrobe has clothes
+    try {
+      final clothesCount = await WardrobeService.getClothesCount(
+        userId: userId,
+        wardrobeId: wardrobeId,
+      );
+
+      if (clothesCount > 0) {
+        // Show warning dialog if wardrobe has clothes
+        if (!context.mounted) return;
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cannot Delete Wardrobe'),
+            content: Text(
+              'This wardrobe contains $clothesCount item(s).\n\n'
+              'You need to arrange your clothes in the right place before removing the wardrobe.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      // If check fails, show error and return
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to check wardrobe: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // If no clothes, show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Wardrobe'),
-        content: const Text('Are you sure you want to delete this wardrobe? All clothes will be deleted.'),
+        content: const Text('Are you sure you want to delete this wardrobe?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
