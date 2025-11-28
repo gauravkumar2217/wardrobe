@@ -278,8 +278,11 @@ service cloud.firestore {
         
         // Clothes subcollection: users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
         match /clothes/{clothId} {
+          // Allow list queries for wardrobe owner (needed for deletion and listing)
+          allow list: if isOwner(userId);
+          
           // Allow read based on cloth visibility
-          allow read: if canReadCloth(resource.data);
+          allow get: if canReadCloth(resource.data);
           
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
           allow update: if isOwner(userId) && 
@@ -431,9 +434,19 @@ service cloud.firestore {
     // ============================================
     // Note: Wardrobes are stored in users/{userId}/wardrobes/{wardrobeId}
     // This top-level collection is for querying across all wardrobes (if needed)
+    // Also allows writes to sync with subcollection
     match /wardrobes/{wardrobeId} {
       allow read: if isAuthenticated();
-      allow write: if false; // Write only through subcollection path
+      // Allow write if user owns the wardrobe (ownerId matches authenticated user)
+      allow create: if isAuthenticated() && 
+                      request.resource.data.ownerId == request.auth.uid &&
+                      isValidWardrobe(request.resource.data);
+      allow update: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      isValidWardrobe(request.resource.data);
+      allow delete: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid;
     }
     
     // ============================================

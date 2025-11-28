@@ -79,7 +79,7 @@ class WardrobeService {
           .get();
 
       return snapshot.docs
-          .map((doc) => Wardrobe.fromJson(doc.data()!, doc.id))
+          .map((doc) => Wardrobe.fromJson(doc.data(), doc.id))
           .toList();
     } catch (e) {
       debugPrint('Failed to get user wardrobes: $e');
@@ -127,25 +127,54 @@ class WardrobeService {
     }
   }
 
-  /// Delete wardrobe
+  /// Get clothes count in wardrobe
+  /// Returns the actual count if needed, or just checks if > 0
+  static Future<int> getClothesCount({
+    required String userId,
+    required String wardrobeId,
+  }) async {
+    try {
+      // First check if there are any clothes at all (efficient)
+      final checkSnapshot = await _firestore
+          .collection(_wardrobesPath(userId))
+          .doc(wardrobeId)
+          .collection('clothes')
+          .limit(1)
+          .get();
+      
+      if (checkSnapshot.docs.isEmpty) {
+        return 0;
+      }
+      
+      // If there are clothes, get the full count
+      final fullSnapshot = await _firestore
+          .collection(_wardrobesPath(userId))
+          .doc(wardrobeId)
+          .collection('clothes')
+          .get();
+      
+      return fullSnapshot.docs.length;
+    } catch (e) {
+      debugPrint('Failed to get clothes count: $e');
+      return 0;
+    }
+  }
+
+  /// Delete wardrobe (only if it has no clothes)
   static Future<void> deleteWardrobe({
     required String userId,
     required String wardrobeId,
   }) async {
     try {
-      // Get all clothes in wardrobe
-      final clothesSnapshot = await _firestore
-          .collection(_wardrobesPath(userId))
-          .doc(wardrobeId)
-          .collection('clothes')
-          .get();
+      // Check if wardrobe has any clothes
+      final clothesCount = await getClothesCount(
+        userId: userId,
+        wardrobeId: wardrobeId,
+      );
 
-      // Delete all clothes (this will trigger Cloud Function to update totalItems)
-      final batch = _firestore.batch();
-      for (var doc in clothesSnapshot.docs) {
-        batch.delete(doc.reference);
+      if (clothesCount > 0) {
+        throw Exception('Wardrobe cannot be deleted because it contains $clothesCount item(s). Please arrange your clothes in the right place before removing the wardrobe.');
       }
-      await batch.commit();
 
       // Delete wardrobe from subcollection
       await _firestore
@@ -168,7 +197,7 @@ class WardrobeService {
         .orderBy('updatedAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Wardrobe.fromJson(doc.data()!, doc.id))
+            .map((doc) => Wardrobe.fromJson(doc.data(), doc.id))
             .toList());
   }
 }
