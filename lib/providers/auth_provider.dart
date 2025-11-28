@@ -163,10 +163,35 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Found email for username, attempting sign in: $email');
 
       // Sign in with email and password
-      final userCredential = await AuthService.signInWithEmail(
-        email: email,
-        password: password,
-      );
+      UserCredential? userCredential;
+      try {
+        userCredential = await AuthService.signInWithEmail(
+          email: email,
+          password: password,
+        );
+      } catch (e) {
+        final errorStr = e.toString();
+        debugPrint('Sign in error: $errorStr');
+        
+        // Handle type casting error - check if user is actually authenticated
+        if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
+          // Wait a moment for Firebase to update auth state
+          await Future.delayed(const Duration(milliseconds: 300));
+          final currentUser = AuthService.getCurrentUser();
+          if (currentUser != null && currentUser.email == email) {
+            // User is authenticated despite the error - proceed with sign-in
+            debugPrint('User authenticated despite error, proceeding with sign-in');
+            _user = currentUser;
+            await _loadUserProfile(_user!.uid);
+            _errorMessage = null;
+            debugPrint('Sign in successful (recovered from error)');
+            return true;
+          }
+        }
+        
+        // Re-throw if it's not a recoverable error
+        rethrow;
+      }
 
       _user = userCredential.user;
       if (_user != null) {
@@ -187,6 +212,8 @@ class AuthProvider with ChangeNotifier {
         _errorMessage = 'User not found. Please check your username.';
       } else if (errorStr.contains('index') || errorStr.contains('Index')) {
         _errorMessage = 'Database configuration error. Please contact support.';
+      } else if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
+        _errorMessage = 'Sign-in encountered a compatibility issue. Please try again.';
       } else {
         _errorMessage = 'Failed to sign in: $e';
       }

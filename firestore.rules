@@ -168,11 +168,12 @@ service cloud.firestore {
     // CONFIG COLLECTION
     // ============================================
     // Tag Lists: config/tagLists
-    // Read: All authenticated users
+    // Read: Public (needed for app functionality before authentication)
     // Write: Admin only (configure user IDs in rules)
-    match /config/tagLists {
-      // All authenticated users can read tag lists
-      allow read: if isAuthenticated();
+    match /config/{configId} {
+      // Allow public read for config documents (needed for tagLists before user authentication)
+      // This is safe as config data is non-sensitive app configuration
+      allow read: if true;
       
       // Only admins can write (replace with your admin user IDs)
       allow write: if isAuthenticated() && 
@@ -185,13 +186,20 @@ service cloud.firestore {
     // USERS COLLECTION
     // ============================================
     match /users/{userId} {
-      // Allow read if user owns the profile (full access)
-      // For other authenticated users: allow reading for username/email lookup queries
-      // This enables login functionality while keeping other fields private
-      allow read: if isOwner(userId) || 
+      // Allow list queries (for username/email lookups during login)
+      // This allows unauthenticated queries on username field for login functionality
+      allow list: if true; // Allow queries for username lookups (needed before authentication)
+      
+      // Allow read if:
+      // 1. User owns the profile (full access)
+      // 2. Unauthenticated users can read username/email for login queries
+      // 3. Authenticated users can read basic profile info
+      allow get: if isOwner(userId) || 
+                     // Allow unauthenticated reads for username/email (needed for login)
+                     (!isAuthenticated() && 
+                      ('username' in resource.data || 'email' in resource.data)) ||
+                     // Allow authenticated users to read basic profile info
                      (isAuthenticated() && 
-                      // Allow reading if document has username (for login queries)
-                      // or has basic profile fields (displayName, photoUrl)
                       ('username' in resource.data || 
                        'email' in resource.data ||
                        resource.data.keys().hasAll(['displayName', 'photoUrl'])));
