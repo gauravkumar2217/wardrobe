@@ -5,8 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_service.dart';
-import '../../services/auth_service.dart';
-import '../main_navigation.dart';
+import 'phone_verification_screen.dart';
 
 /// Profile setup screen for new users
 class ProfileSetupScreen extends StatefulWidget {
@@ -23,12 +22,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
 
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
-  bool _isOTPSent = false;
-  String? _verificationId;
   bool _isCheckingUsername = false;
   bool _isUsernameAvailable = false;
   bool _isLoading = false;
@@ -40,7 +36,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _phoneController.dispose();
-    _otpController.dispose();
     super.dispose();
   }
 
@@ -82,138 +77,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
-  Future<void> _sendOTP() async {
-    if (_phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter phone number')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      String phoneNumber = _phoneController.text.trim();
-      if (!phoneNumber.startsWith('+')) {
-        phoneNumber = '+91$phoneNumber';
-      }
-
-      await AuthService.sendOTP(
-        phoneNumber: phoneNumber,
-        onCodeSent: (verificationId) {
-          if (mounted) {
-            setState(() {
-              _verificationId = verificationId;
-              _isOTPSent = true;
-              _isLoading = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('OTP sent successfully')),
-            );
-          }
-        },
-        onError: (error) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(error.message ?? 'Failed to send OTP')),
-            );
-          }
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
-  }
-
-  bool _isPhoneVerified = false;
-
-  Future<void> _verifyOTP() async {
-    if (_otpController.text.isEmpty || _verificationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter OTP')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      String phoneNumber = _phoneController.text.trim();
-      if (!phoneNumber.startsWith('+')) {
-        phoneNumber = '+91$phoneNumber';
-      }
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
-      
-      if (user == null) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not found. Please sign in again.')),
-          );
-        }
-        return;
-      }
-
-      // Create phone credential
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: _otpController.text.trim(),
-      );
-
-      // Link phone credential to existing account
-      try {
-        await user.linkWithCredential(credential);
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _isPhoneVerified = true;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone verified successfully')),
-          );
-        }
-      } catch (e) {
-        // If phone is already linked or other error, just mark as verified
-        // since we have the verification ID and OTP
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _isPhoneVerified = true;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone verified successfully')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: $e')),
-        );
-      }
-    }
-  }
 
   Future<void> _selectDateOfBirth() async {
     final DateTime? picked = await showDatePicker(
@@ -240,10 +103,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
-    // Check if phone is verified
-    if (!_isPhoneVerified) {
+    // Validate phone number is entered
+    if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please verify your phone number with OTP')),
+        const SnackBar(content: Text('Please enter phone number')),
       );
       return;
     }
@@ -298,12 +161,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
 
     try {
+      // Save profile without phone verification (phone will be verified in next screen)
       await authProvider.updateProfile(profile);
 
       if (mounted) {
+        // Navigate to phone verification screen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          MaterialPageRoute(
+            builder: (_) => PhoneVerificationScreen(
+              phoneNumber: _phoneController.text.trim(),
+              profile: profile,
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -457,16 +327,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Phone number with OTP
+                // Phone number field (verification will be done in next screen)
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Phone Number *',
                     prefixIcon: Icon(Icons.phone),
-                    helperText: 'Include country code (e.g., +91)',
+                    helperText: 'Include country code (e.g., +91). Verification will be done next.',
                   ),
-                  enabled: !_isOTPSent,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter phone number';
@@ -474,59 +343,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     return null;
                   },
                 ),
-                if (!_isOTPSent) ...[
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _sendOTP,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Send OTP'),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter OTP',
-                      prefixIcon: Icon(Icons.sms),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter OTP';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _isLoading ? null : _sendOTP,
-                          child: const Text('Resend OTP'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _verifyOTP,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text('Verify OTP'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
                 const SizedBox(height: 16),
                 // Gender field
                 DropdownButtonFormField<String>(
@@ -590,7 +406,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Complete Profile'),
+                      : const Text('Continue'),
                 ),
               ],
             ),
