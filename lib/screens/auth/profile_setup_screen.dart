@@ -6,7 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_service.dart';
 import '../../services/auth_service.dart';
-import '../home/home_screen.dart';
+import '../main_navigation.dart';
 
 /// Profile setup screen for new users
 class ProfileSetupScreen extends StatefulWidget {
@@ -303,7 +303,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
         );
       }
     } catch (e) {
