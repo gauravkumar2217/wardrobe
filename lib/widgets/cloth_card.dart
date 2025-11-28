@@ -52,7 +52,7 @@ class _ClothCardState extends State<ClothCard> {
     
     // Get wardrobe name
     final wardrobe = wardrobeProvider.getWardrobeById(widget.cloth.wardrobeId);
-    if (wardrobe != null) {
+    if (wardrobe != null && mounted) {
       setState(() {
         _wardrobeName = wardrobe.name;
       });
@@ -66,13 +66,17 @@ class _ClothCardState extends State<ClothCard> {
           wardrobeId: widget.cloth.wardrobeId,
           clothId: widget.cloth.id,
         );
-        setState(() {
-          _wearHistorySummary = summary;
-        });
+        if (mounted) {
+          setState(() {
+            _wearHistorySummary = summary;
+          });
+        }
       } catch (e) {
-        setState(() {
-          _wearHistorySummary = 'Wear history unavailable';
-        });
+        if (mounted) {
+          setState(() {
+            _wearHistorySummary = 'Wear history unavailable';
+          });
+        }
       }
     }
   }
@@ -104,28 +108,57 @@ class _ClothCardState extends State<ClothCard> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.black,
-        image: widget.cloth.imageUrl.isNotEmpty
-            ? DecorationImage(
-                image: NetworkImage(widget.cloth.imageUrl),
-                fit: BoxFit.cover,
-                onError: (_, __) {
-                  setState(() {
-                    _isLoadingImage = false;
-                  });
-                },
-              )
-            : null,
       ),
-      child: Stack(
-        children: [
-          // Loading indicator for image
-          if (_isLoadingImage && widget.cloth.imageUrl.isNotEmpty)
-            const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
-          // Back button (if needed)
+      child: widget.cloth.imageUrl.isNotEmpty
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  widget.cloth.imageUrl,
+                  fit: BoxFit.cover,
+                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                    if (wasSynchronouslyLoaded || frame != null) {
+                      // Image loaded successfully
+                      if (mounted && _isLoadingImage) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _isLoadingImage = false;
+                            });
+                          }
+                        });
+                      }
+                      return child;
+                    }
+                    return child;
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    // Image failed to load
+                    if (mounted) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          setState(() {
+                            _isLoadingImage = false;
+                          });
+                        }
+                      });
+                    }
+                    return Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                      ),
+                    );
+                  },
+                ),
+                // Loading indicator
+                if (_isLoadingImage)
+                  const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                // Back button (if needed)
           if (widget.showBackButton)
             Positioned(
               top: 16,
@@ -226,7 +259,7 @@ class _ClothCardState extends State<ClothCard> {
                             occasion,
                             style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          backgroundColor: Colors.white.withOpacity(0.2),
                           labelStyle: const TextStyle(color: Colors.white),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         );
@@ -324,8 +357,25 @@ class _ClothCardState extends State<ClothCard> {
                 onPressed: widget.onEdit,
               ),
             ),
-        ],
-      ),
+              ],
+            )
+          : Stack(
+              children: [
+                const Center(
+                  child: Icon(Icons.image_not_supported, color: Colors.white54, size: 64),
+                ),
+                // Back button (if needed)
+                if (widget.showBackButton)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }
