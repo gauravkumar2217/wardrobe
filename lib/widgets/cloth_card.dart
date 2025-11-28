@@ -259,7 +259,7 @@ class _ClothCardState extends State<ClothCard> {
                             occasion,
                             style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: const Color.fromARGB(255, 55, 54, 54).withValues(alpha: 0.2),
                           labelStyle: const TextStyle(color: Colors.white),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         );
