@@ -34,8 +34,15 @@ class TagListService {
       if (kDebugMode) {
         debugPrint('✅ Tag lists fetched successfully');
         debugPrint('   Seasons: ${_cachedTagLists!.seasons.length}');
+        debugPrint('   Placements: ${_cachedTagLists!.placements.length}');
         debugPrint('   Cloth Types: ${_cachedTagLists!.clothTypes.length}');
         debugPrint('   Occasions: ${_cachedTagLists!.occasions.length}');
+        debugPrint('   Categories: ${_cachedTagLists!.categories.length}');
+        debugPrint('   Common Colors: ${_cachedTagLists!.commonColors.length}');
+        debugPrint('   Version: ${_cachedTagLists!.version}');
+        if (_cachedTagLists!.lastUpdated != null) {
+          debugPrint('   Last Updated: ${_cachedTagLists!.lastUpdated}');
+        }
       }
 
       return _cachedTagLists!;

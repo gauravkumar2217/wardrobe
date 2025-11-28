@@ -127,6 +127,10 @@ class ClothProvider with ChangeNotifier {
       );
 
       _errorMessage = null;
+      
+      // Refresh clothes list to include the new cloth
+      await loadClothes(userId: userId, wardrobeId: wardrobeId);
+      
       return clothId;
     } catch (e) {
       _errorMessage = 'Failed to add cloth: ${e.toString()}';

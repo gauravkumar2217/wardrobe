@@ -23,7 +23,10 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadFriendRequests();
+    // Defer loading until after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFriendRequests();
+    });
   }
 
   @override

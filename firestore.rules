@@ -354,9 +354,12 @@ service cloud.firestore {
       
       // Chats subcollection: users/{userId}/chats/{chatId}
       match /chats/{chatId} {
+        // Allow list queries for the owner (needed for chat list)
+        allow list: if isOwner(userId);
+        
         // Allow read if user is a participant
-        allow read: if isAuthenticated() && 
-                       request.auth.uid in resource.data.participants;
+        allow get: if isAuthenticated() && 
+                     request.auth.uid in resource.data.participants;
         
         allow create: if isAuthenticated() && 
                          isValidChat(request.resource.data) &&
@@ -422,11 +425,23 @@ service cloud.firestore {
     // ============================================
     // Note: Clothes are stored in users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}
     // This top-level collection is for querying across all clothes (if needed)
+    // Also allows writes to sync with subcollection
     match /clothes/{clothId} {
       // Allow read based on cloth visibility (requires fetching cloth document)
       // This is a simplified rule - actual access should be checked via the cloth document
       allow read: if isAuthenticated();
-      allow write: if false; // Write only through subcollection path
+      // Allow write if user owns the cloth (ownerId matches authenticated user)
+      allow create: if isAuthenticated() && 
+                      request.resource.data.ownerId == request.auth.uid &&
+                      isValidCloth(request.resource.data);
+      allow update: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      (!('likesCount' in request.resource.data) && 
+                       !('commentsCount' in request.resource.data)) &&
+                      isValidCloth(request.resource.data);
+      allow delete: if isAuthenticated() && 
+                      resource.data.ownerId == request.auth.uid;
     }
     
     // ============================================

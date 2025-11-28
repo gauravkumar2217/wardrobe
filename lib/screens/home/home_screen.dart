@@ -31,7 +31,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadClothes();
+    // Defer loading until after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadClothes();
+    });
   }
 
   Future<void> _loadClothes() async {

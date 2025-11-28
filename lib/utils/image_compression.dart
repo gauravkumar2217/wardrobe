@@ -3,11 +3,12 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Image compression utility
 class ImageCompression {
-  /// Compress image to max 5MB
+  /// Compress image to reduce storage costs
+  /// Max 1MB for cloth images to minimize Google Cloud charges
   static Future<File> compressImage(
     File imageFile, {
-    int maxSizeKB = 5000, // 5MB
-    int quality = 85,
+    int maxSizeKB = 1000, // 1MB max to reduce costs
+    int quality = 75, // Reduced quality for smaller file size
   }) async {
     try {
       // Get file size
@@ -19,14 +20,14 @@ class ImageCompression {
         return imageFile;
       }
 
-      // Compress image
+      // Compress image with aggressive settings to reduce file size
       final targetPath = '${imageFile.path}_compressed.jpg';
       final compressedFile = await FlutterImageCompress.compressAndGetFile(
         imageFile.absolute.path,
         targetPath,
         quality: quality,
-        minWidth: 1920,
-        minHeight: 1920,
+        minWidth: 1200, // Reduced from 1920 to save space
+        minHeight: 1200, // Reduced from 1920 to save space
       );
 
       if (compressedFile == null) {

@@ -22,7 +22,10 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFriends();
+    // Defer loading until after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFriends();
+    });
   }
 
   Future<void> _loadFriends() async {
