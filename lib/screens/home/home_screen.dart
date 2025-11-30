@@ -252,6 +252,89 @@ class _HomeScreenState extends State<HomeScreen> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  Future<void> _handleDelete(Cloth cloth) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    
+    if (authProvider.user == null) return;
+    
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Delete Cloth',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this cloth? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) return;
+    
+    try {
+      // Save current page index to navigate after deletion
+      int? currentPage;
+      if (_pageController.hasClients) {
+        currentPage = _pageController.page?.round();
+      }
+      
+      await clothProvider.deleteCloth(
+        userId: authProvider.user!.uid,
+        wardrobeId: cloth.wardrobeId,
+        clothId: cloth.id,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cloth deleted successfully')),
+        );
+        
+        // Navigate to previous cloth or first cloth if deleted was the last one
+        final filteredClothes = wardrobeProvider.selectedWardrobe != null
+            ? clothProvider.clothes.where((c) => c.wardrobeId == wardrobeProvider.selectedWardrobe!.id).toList()
+            : clothProvider.clothes;
+        
+        if (filteredClothes.isNotEmpty && _pageController.hasClients) {
+          // If we deleted the last item, go to the new last item
+          final newIndex = currentPage != null && currentPage < filteredClothes.length
+              ? currentPage
+              : filteredClothes.length - 1;
+          
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_pageController.hasClients) {
+              _pageController.jumpToPage(newIndex);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete cloth: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -378,6 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ).then((_) => _loadClothes());
                                         }
                                       : null,
+                                  onDelete: isOwner ? () => _handleDelete(cloth) : null,
                                 );
                               },
                             );
