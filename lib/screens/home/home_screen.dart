@@ -190,6 +190,45 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleToggleWorn(Cloth cloth) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+    
+    if (authProvider.user == null) return;
+    
+    final wasWornToday = cloth.wornAt != null &&
+        _isSameDay(cloth.wornAt!, DateTime.now());
+    
+    try {
+      await clothProvider.toggleWornStatus(
+        userId: authProvider.user!.uid,
+        wardrobeId: cloth.wardrobeId,
+        cloth: cloth,
+      );
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasWornToday ? 'Removed worn today' : 'Marked as worn today',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update worn status'),
+        ),
+      );
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -300,13 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onComment: () => _handleComment(cloth),
                                   onShare: isOwner ? () => _handleShare(cloth) : null,
                                   onMarkWorn: isOwner
-                                      ? () {
-                                          clothProvider.markAsWornToday(
-                                            userId: authProvider.user!.uid,
-                                            wardrobeId: cloth.wardrobeId,
-                                            clothId: cloth.id,
-                                          );
-                                        }
+                                      ? () => _handleToggleWorn(cloth)
                                       : null,
                                   onEdit: isOwner
                                       ? () {

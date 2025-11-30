@@ -102,11 +102,34 @@ service cloud.firestore {
              data.colorTags is map &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp &&
-             (!('lastWornAt' in data) || data.lastWornAt is timestamp) &&
+             (!('wornAt' in data) || data.wornAt is timestamp) &&
              (!('visibility' in data) || data.visibility in ['private', 'friends', 'public']) &&
              (!('sharedWith' in data) || data.sharedWith is list) &&
              (!('likesCount' in data) || data.likesCount is int) &&
              (!('commentsCount' in data) || data.commentsCount is int);
+    }
+    
+    // Helper function to validate partial cloth update (for lastWornAt updates)
+    function isValidClothPartialUpdate(data) {
+      // Allow updating only lastWornAt and updatedAt fields
+      // updatedAt is typically FieldValue.serverTimestamp() which is handled server-side
+      // We only validate that lastWornAt is a timestamp
+      return data.keys().size() == 2 &&
+             'lastWornAt' in data &&
+             'updatedAt' in data &&
+             data.lastWornAt is timestamp;
+    }
+    
+    // Helper function to check if update is a valid partial or full update
+    function isValidClothUpdate(newData, existingData) {
+      // If update includes only lastWornAt and updatedAt (partial update for wear tracking)
+      // use partial validation - this allows FieldValue.serverTimestamp() for updatedAt
+      // Otherwise, validate as full cloth update
+      return ('lastWornAt' in newData && 
+              'updatedAt' in newData &&
+              newData.keys().size() == 2) 
+             ? isValidClothPartialUpdate(newData)
+             : isValidCloth(newData);
     }
     
     // Helper function to validate friend request data
@@ -285,10 +308,21 @@ service cloud.firestore {
           allow get: if canReadCloth(resource.data);
           
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
+          
+          // Allow partial update for wear tracking (wornAt + updatedAt)
+          // Ensure system fields (likes/comments) are unchanged
           allow update: if isOwner(userId) && 
-                           (!('likesCount' in request.resource.data) && 
-                            !('commentsCount' in request.resource.data)) &&
+                           request.resource.data.likesCount == resource.data.likesCount &&
+                           request.resource.data.commentsCount == resource.data.commentsCount &&
+                           'updatedAt' in request.resource.data &&
+                           (!('wornAt' in request.resource.data) || request.resource.data.wornAt is timestamp);
+          
+          // Allow full cloth updates (e.g., edit cloth details)
+          allow update: if isOwner(userId) &&
+                           request.resource.data.likesCount == resource.data.likesCount &&
+                           request.resource.data.commentsCount == resource.data.commentsCount &&
                            isValidCloth(request.resource.data);
+          
           allow delete: if isOwner(userId);
           
           // Wear history subcollection: clothes/{clothId}/wearHistory/{entryId}
@@ -434,11 +468,20 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                       request.resource.data.ownerId == request.auth.uid &&
                       isValidCloth(request.resource.data);
+      // Allow partial update for wear tracking (requires updatedAt)
       allow update: if isAuthenticated() && 
-                      resource.data.ownerId == request.auth.uid &&
-                      request.resource.data.ownerId == request.auth.uid &&
-                      (!('likesCount' in request.resource.data) && 
-                       !('commentsCount' in request.resource.data)) &&
+                      (!('ownerId' in resource.data) || resource.data.ownerId == request.auth.uid) &&
+                      (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid) &&
+                      request.resource.data.likesCount == resource.data.likesCount &&
+                      request.resource.data.commentsCount == resource.data.commentsCount &&
+                      'updatedAt' in request.resource.data &&
+                      (!('wornAt' in request.resource.data) || request.resource.data.wornAt is timestamp);
+      // Allow full cloth update (all fields required)
+      allow update: if isAuthenticated() && 
+                      (!('ownerId' in resource.data) || resource.data.ownerId == request.auth.uid) &&
+                      (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid) &&
+                      request.resource.data.likesCount == resource.data.likesCount &&
+                      request.resource.data.commentsCount == resource.data.commentsCount &&
                       isValidCloth(request.resource.data);
       allow delete: if isAuthenticated() && 
                       resource.data.ownerId == request.auth.uid;

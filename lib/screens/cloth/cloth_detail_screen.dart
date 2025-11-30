@@ -122,6 +122,50 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     }
   }
 
+  Future<void> _handleToggleWorn() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+
+    if (_cloth == null || authProvider.user == null) return;
+
+    final wasWornToday = _cloth!.wornAt != null &&
+        _isSameDay(_cloth!.wornAt!, DateTime.now());
+
+    try {
+      final newWornAt = await clothProvider.toggleWornStatus(
+        userId: authProvider.user!.uid,
+        wardrobeId: _cloth!.wardrobeId,
+        cloth: _cloth!,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cloth = _cloth!.copyWith(
+          wornAt: newWornAt,
+          updatedAt: DateTime.now(),
+        );
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasWornToday ? 'Removed worn today' : 'Marked as worn today',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update worn status'),
+        ),
+      );
+    }
+  }
+
   Future<void> _handleLike() async {
     if (_cloth == null) return;
 
@@ -206,7 +250,6 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final clothProvider = Provider.of<ClothProvider>(context);
 
     if (_isLoading) {
       return Scaffold(
@@ -253,20 +296,16 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
             );
           },
           onShare: (isOwner && !isShared) ? _handleShare : null,
-          onMarkWorn: (isOwner && !isShared)
-              ? () {
-                  clothProvider.markAsWornToday(
-                    userId: authProvider.user!.uid,
-                    wardrobeId: _cloth!.wardrobeId,
-                    clothId: _cloth!.id,
-                  );
-                }
-              : null,
+          onMarkWorn: (isOwner && !isShared) ? _handleToggleWorn : null,
           onEdit: null, // Edit is handled elsewhere
         ),
       ),
     );
   }
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _ShareDialog extends StatelessWidget {

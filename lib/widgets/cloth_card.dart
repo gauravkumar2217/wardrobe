@@ -38,6 +38,9 @@ class _ClothCardState extends State<ClothCard> {
   String? _wardrobeName;
   String? _wearHistorySummary;
   bool _isLoadingImage = true;
+  bool _isInfoPanelVisible = true; // Default: unhidden
+  bool _isLoadingInfo = false;
+  bool _isWornToday = false;
 
   @override
   void initState() {
@@ -45,11 +48,26 @@ class _ClothCardState extends State<ClothCard> {
     _loadInfo();
   }
 
+  @override
+  void didUpdateWidget(covariant ClothCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cloth.id != widget.cloth.id ||
+        oldWidget.cloth.wornAt != widget.cloth.wornAt) {
+      _loadInfo();
+    }
+  }
+
   Future<void> _loadInfo() async {
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    if (mounted) {
+      setState(() {
+        _isLoadingInfo = true;
+      });
+    }
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     // Get wardrobe name
     final wardrobe = wardrobeProvider.getWardrobeById(widget.cloth.wardrobeId);
     if (wardrobe != null && mounted) {
@@ -57,34 +75,47 @@ class _ClothCardState extends State<ClothCard> {
         _wardrobeName = wardrobe.name;
       });
     }
-    
+
     // Get wear history summary (only for owner)
     if (widget.isOwner && authProvider.user != null) {
       try {
-        final summary = await clothProvider.getWearHistorySummary(
+        final info = await clothProvider.getWearHistoryInfo(
           userId: authProvider.user!.uid,
           wardrobeId: widget.cloth.wardrobeId,
           clothId: widget.cloth.id,
         );
         if (mounted) {
           setState(() {
-            _wearHistorySummary = summary;
+            _wearHistorySummary = info.summary;
+            _isWornToday = info.isWornToday;
           });
         }
       } catch (e) {
         if (mounted) {
           setState(() {
             _wearHistorySummary = 'Wear history unavailable';
+            _isWornToday = false;
           });
         }
       }
+    } else if (mounted) {
+      setState(() {
+        _isWornToday = widget.cloth.wornAt != null &&
+            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingInfo = false;
+      });
     }
   }
-  
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {
@@ -105,6 +136,11 @@ class _ClothCardState extends State<ClothCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isWornToday = widget.isOwner
+        ? _isWornToday
+        : widget.cloth.wornAt != null &&
+            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -118,7 +154,8 @@ class _ClothCardState extends State<ClothCard> {
                 Image.network(
                   widget.cloth.imageUrl,
                   fit: BoxFit.cover,
-                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  frameBuilder:
+                      (context, child, frame, wasSynchronouslyLoaded) {
                     if (wasSynchronouslyLoaded || frame != null) {
                       // Image loaded successfully
                       if (mounted && _isLoadingImage) {
@@ -148,7 +185,8 @@ class _ClothCardState extends State<ClothCard> {
                     return Container(
                       color: Colors.grey[900],
                       child: const Center(
-                        child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                        child: Icon(Icons.broken_image,
+                            color: Colors.white54, size: 64),
                       ),
                     );
                   },
@@ -159,210 +197,260 @@ class _ClothCardState extends State<ClothCard> {
                     child: CircularProgressIndicator(color: Colors.white),
                   ),
                 // Back button (if needed)
-          if (widget.showBackButton)
-            Positioned(
-              top: 16,
-              left: 16,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          // Right side interaction panel
-          Positioned(
-            right: 16,
-            top: 0,
-            bottom: 0,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _ActionButton(
-                  icon: widget.isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: '${widget.cloth.likesCount}',
-                  color: widget.isLiked ? Colors.red : Colors.white,
-                  onTap: widget.onLike,
-                ),
-                const SizedBox(height: 24),
-                _ActionButton(
-                  icon: Icons.comment,
-                  label: '${widget.cloth.commentsCount}',
-                  onTap: widget.onComment,
-                ),
-                const SizedBox(height: 24),
-                if (widget.isOwner) ...[
-                  if (widget.onShare != null) ...[
-                    _ActionButton(
-                      icon: Icons.share,
-                      label: 'Share',
-                      onTap: widget.onShare,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (widget.onMarkWorn != null) ...[
-                    _ActionButton(
-                      icon: Icons.check_circle_outline,
-                      label: 'Worn',
-                      onTap: widget.onMarkWorn,
-                    ),
-                  ],
-                ],
-              ],
-            ),
-          ),
-          // Bottom information panel
-          Positioned(
-            left: 16,
-            right: 80,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.9),
-                    Colors.black.withValues(alpha: 0.7),
-                    Colors.black.withValues(alpha: 0.0),
-                  ],
-                  stops: const [0.0, 0.3, 1.0],
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.cloth.clothType,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                if (widget.showBackButton)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.cloth.category} • ${widget.cloth.season}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  if (widget.cloth.occasions.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: widget.cloth.occasions.map((occasion) {
-                        return Chip(
-                          label: Text(
-                            occasion,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          backgroundColor: const Color.fromARGB(255, 55, 54, 54).withValues(alpha: 0.2),
-                          labelStyle: const TextStyle(color: Colors.white),
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                  if (widget.cloth.colorTags.colors.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: widget.cloth.colorTags.colors.map((color) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            color,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  // Wardrobe name
-                  if (_wardrobeName != null) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.inventory_2, size: 16, color: Colors.white70),
-                        const SizedBox(width: 4),
-                        Text(
-                          _wardrobeName!,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  // Added date
-                  Row(
+                // Right side interaction panel
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Added ${_formatDate(widget.cloth.createdAt)}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                      _ActionButton(
+                        icon: widget.isLiked
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        label: '${widget.cloth.likesCount}',
+                        color: widget.isLiked ? Colors.red : Colors.white,
+                        onTap: widget.onLike,
                       ),
+                      const SizedBox(height: 24),
+                      _ActionButton(
+                        icon: Icons.comment,
+                        label: '${widget.cloth.commentsCount}',
+                        onTap: widget.onComment,
+                      ),
+                      const SizedBox(height: 24),
+                      // Information icon to toggle bottom panel
+                      _ActionButton(
+                        icon: _isInfoPanelVisible
+                            ? Icons.info
+                            : Icons.info_outline,
+                        label: 'Info',
+                        onTap: () {
+                          setState(() {
+                            _isInfoPanelVisible = !_isInfoPanelVisible;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      if (widget.isOwner) ...[
+                        if (widget.onShare != null) ...[
+                          _ActionButton(
+                            icon: Icons.share,
+                            label: 'Share',
+                            onTap: widget.onShare,
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                        if (widget.onEdit != null) ...[
+                          _ActionButton(
+                            icon: Icons.edit,
+                            label: 'Edit',
+                            onTap: widget.onEdit,
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                        if (widget.onMarkWorn != null) ...[
+                          _ActionButton(
+                            icon: isWornToday
+                                ? Icons.check_circle
+                                : Icons.check_circle_outline,
+                            label: isWornToday ? 'Worn Today' : 'Worn',
+                            color:
+                                isWornToday ? Colors.greenAccent : Colors.white,
+                            onTap: widget.onMarkWorn,
+                          ),
+                        ],
+                      ],
                     ],
                   ),
-                  // Wear history (only for owner)
-                  if (widget.isOwner && _wearHistorySummary != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle, size: 16, color: Colors.white70),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            _wearHistorySummary!,
+                ),
+                // Bottom information panel (toggleable)
+                if (_isInfoPanelVisible)
+                  Positioned(
+                    left: 16,
+                    right: 80,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.9),
+                            Colors.black.withValues(alpha: 0.7),
+                            Colors.black.withValues(alpha: 0.0),
+                          ],
+                          stops: const [0.0, 0.3, 1.0],
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.cloth.clothType,
                             style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${widget.cloth.category} • ${widget.cloth.season}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (widget.cloth.occasions.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: widget.cloth.occasions.map((occasion) {
+                                return Chip(
+                                  label: Text(
+                                    occasion,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  backgroundColor:
+                                      const Color.fromARGB(255, 0, 0, 0)
+                                          .withValues(alpha: 0.5),
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                          if (widget.cloth.colorTags.colors.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children:
+                                  widget.cloth.colorTags.colors.map((color) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    color,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          // Wardrobe name
+                          if (_wardrobeName != null) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.inventory_2,
+                                    size: 16, color: Colors.white70),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _wardrobeName!,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          // Added date
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.white70),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Added ${_formatDate(widget.cloth.createdAt)}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Wear history (only for owner)
+                          if (widget.isOwner &&
+                              _wearHistorySummary != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.check_circle,
+                                    size: 16, color: Colors.white70),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _wearHistorySummary!,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else if (widget.isOwner && _isLoadingInfo) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Refreshing wear history...',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          // Edit button (owner only)
-          if (widget.isOwner && widget.onEdit != null)
-            Positioned(
-              top: 16,
-              right: 16,
-              child: IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white),
-                onPressed: widget.onEdit,
-              ),
-            ),
+                  ),
               ],
             )
           : Stack(
               children: [
                 const Center(
-                  child: Icon(Icons.image_not_supported, color: Colors.white54, size: 64),
+                  child: Icon(Icons.image_not_supported,
+                      color: Colors.white54, size: 64),
                 ),
                 // Back button (if needed)
                 if (widget.showBackButton)
@@ -378,6 +466,10 @@ class _ClothCardState extends State<ClothCard> {
             ),
     );
   }
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _ActionButton extends StatelessWidget {
@@ -410,4 +502,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

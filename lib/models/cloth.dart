@@ -15,7 +15,7 @@ class Cloth {
   final AiDetected? aiDetected;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final DateTime? lastWornAt;
+  final DateTime? wornAt; // When the cloth was last worn
   final String visibility; // "private", "friends", "public"
   final List<String>? sharedWith;
   final int likesCount;
@@ -35,7 +35,7 @@ class Cloth {
     this.aiDetected,
     required this.createdAt,
     required this.updatedAt,
-    this.lastWornAt,
+    this.wornAt,
     this.visibility = 'private',
     this.sharedWith,
     this.likesCount = 0,
@@ -53,7 +53,8 @@ class Cloth {
       colorTags: json['colorTags'] != null
           ? ColorTags.fromJson(json['colorTags'] as Map<String, dynamic>)
           : ColorTags(primary: json['color'] as String? ?? 'Unknown'),
-      clothType: json['clothType'] as String? ?? json['type'] as String? ?? 'Other',
+      clothType:
+          json['clothType'] as String? ?? json['type'] as String? ?? 'Other',
       category: json['category'] as String? ?? 'Casual',
       occasions: json['occasions'] != null
           ? List<String>.from(json['occasions'])
@@ -65,9 +66,11 @@ class Cloth {
           : null,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      lastWornAt: json['lastWornAt'] != null
-          ? (json['lastWornAt'] as Timestamp).toDate()
-          : null,
+      wornAt: json['wornAt'] != null
+          ? (json['wornAt'] as Timestamp).toDate()
+          : (json['lastWornAt'] != null
+              ? (json['lastWornAt'] as Timestamp).toDate()
+              : null), // Support legacy lastWornAt field
       visibility: json['visibility'] as String? ?? 'private',
       sharedWith: json['sharedWith'] != null
           ? List<String>.from(json['sharedWith'])
@@ -91,7 +94,7 @@ class Cloth {
       if (aiDetected != null) 'aiDetected': aiDetected!.toJson(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
-      if (lastWornAt != null) 'lastWornAt': Timestamp.fromDate(lastWornAt!),
+      if (wornAt != null) 'wornAt': Timestamp.fromDate(wornAt!),
       'visibility': visibility,
       if (sharedWith != null) 'sharedWith': sharedWith,
       // Note: likesCount and commentsCount are managed by Cloud Functions
@@ -112,7 +115,7 @@ class Cloth {
     AiDetected? aiDetected,
     DateTime? createdAt,
     DateTime? updatedAt,
-    DateTime? lastWornAt,
+    DateTime? wornAt,
     String? visibility,
     List<String>? sharedWith,
     int? likesCount,
@@ -132,7 +135,7 @@ class Cloth {
       aiDetected: aiDetected ?? this.aiDetected,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      lastWornAt: lastWornAt ?? this.lastWornAt,
+      wornAt: wornAt ?? this.wornAt,
       visibility: visibility ?? this.visibility,
       sharedWith: sharedWith ?? this.sharedWith,
       likesCount: likesCount ?? this.likesCount,
@@ -159,9 +162,7 @@ class ColorTags {
     return ColorTags(
       primary: json['primary'] as String,
       secondary: json['secondary'] as String?,
-      colors: json['colors'] != null
-          ? List<String>.from(json['colors'])
-          : null,
+      colors: json['colors'] != null ? List<String>.from(json['colors']) : null,
       isMultiColor: json['isMultiColor'] as bool? ?? false,
     );
   }

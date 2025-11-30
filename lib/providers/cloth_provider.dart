@@ -4,6 +4,20 @@ import '../models/cloth.dart';
 import '../services/cloth_service.dart';
 
 /// Cloth provider for managing clothes state
+class WearHistoryInfo {
+  final String summary;
+  final bool isWornToday;
+  final int totalCount;
+  final DateTime? lastWornAt;
+
+  const WearHistoryInfo({
+    required this.summary,
+    required this.isWornToday,
+    required this.totalCount,
+    required this.lastWornAt,
+  });
+}
+
 class ClothProvider with ChangeNotifier {
   List<Cloth> _clothes = [];
   String? _selectedWardrobeId;
@@ -199,22 +213,41 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
-  /// Mark cloth as worn today
-  Future<void> markAsWornToday({
+  /// Toggle worn status (mark/unmark) for today
+  Future<DateTime?> toggleWornStatus({
     required String userId,
     required String wardrobeId,
-    required String clothId,
+    required Cloth cloth,
   }) async {
+    final now = DateTime.now();
+    final isWornToday =
+        cloth.wornAt != null && _isSameDay(cloth.wornAt!, now);
+
     try {
-      await ClothService.markAsWornToday(
-        userId: userId,
-        wardrobeId: wardrobeId,
-        clothId: clothId,
-      );
+      DateTime? newWornAt;
+      if (isWornToday) {
+        newWornAt = await ClothService.unmarkWornToday(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: cloth.id,
+        );
+      } else {
+        await ClothService.markAsWornToday(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: cloth.id,
+        );
+        newWornAt = now;
+      }
+
+      _updateClothWornAt(cloth.id, newWornAt);
+      _errorMessage = null;
       notifyListeners();
+      return newWornAt;
     } catch (e) {
-      _errorMessage = 'Failed to mark as worn: ${e.toString()}';
+      _errorMessage = 'Failed to update worn status: ${e.toString()}';
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -318,8 +351,8 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
-  /// Get wear history summary for cloth
-  Future<String> getWearHistorySummary({
+  /// Get wear history info for cloth
+  Future<WearHistoryInfo> getWearHistoryInfo({
     required String userId,
     required String wardrobeId,
     required String clothId,
@@ -332,24 +365,46 @@ class ClothProvider with ChangeNotifier {
       );
 
       if (history.isEmpty) {
-        return 'Never worn';
+        return const WearHistoryInfo(
+          summary: 'Never worn',
+          isWornToday: false,
+          totalCount: 0,
+          lastWornAt: null,
+        );
       }
 
       final count = history.length;
       final lastWorn = history.first.wornAt;
       final now = DateTime.now();
       final daysSince = now.difference(lastWorn).inDays;
+      final isToday = _isSameDay(lastWorn, now);
 
+      String summary;
       if (daysSince == 0) {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn today';
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn today';
       } else if (daysSince == 1) {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn yesterday';
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn yesterday';
       } else {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn $daysSince days ago';
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn $daysSince days ago';
       }
+
+      return WearHistoryInfo(
+        summary: summary,
+        isWornToday: isToday,
+        totalCount: count,
+        lastWornAt: lastWorn,
+      );
     } catch (e) {
       debugPrint('Failed to get wear history: $e');
-      return 'Wear history unavailable';
+      return const WearHistoryInfo(
+        summary: 'Wear history unavailable',
+        isWornToday: false,
+        totalCount: 0,
+        lastWornAt: null,
+      );
     }
   }
 
@@ -357,5 +412,20 @@ class ClothProvider with ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _updateClothWornAt(String clothId, DateTime? wornAt) {
+    final index = _clothes.indexWhere((cloth) => cloth.id == clothId);
+    if (index == -1) return;
+
+    final updated = _clothes[index].copyWith(
+      wornAt: wornAt,
+      updatedAt: DateTime.now(),
+    );
+    _clothes[index] = updated;
   }
 }

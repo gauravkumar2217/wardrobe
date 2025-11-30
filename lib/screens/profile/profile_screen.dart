@@ -51,11 +51,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         for (var cloth in clothProvider.clothes) {
           // Get wear history count (simplified - in production, query wearHistory)
-          if (cloth.lastWornAt != null) {
-            // For now, just use lastWornAt as indicator
+          if (cloth.wornAt != null) {
+            // For now, just use wornAt as indicator
             // In production, count wearHistory entries
-            if (mostWorn == null || 
-                cloth.lastWornAt!.isAfter(mostWorn.lastWornAt ?? DateTime(1970))) {
+            if (mostWorn == null ||
+                cloth.wornAt!.isAfter(mostWorn.wornAt ?? DateTime(1970))) {
               mostWorn = cloth;
             }
           }
