@@ -109,16 +109,30 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
 
     if (authProvider.user != null) {
+      // Get like status from Firestore
       final isLiked = await clothProvider.isLiked(
         userId: authProvider.user!.uid,
         ownerId: _cloth!.ownerId,
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      setState(() {
-        _isLiked = isLiked;
-        _likedStatus[_cloth!.id] = isLiked;
-      });
+      
+      // Get actual like count from Firestore
+      final actualCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+          _likedStatus[_cloth!.id] = isLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: actualCount,
+          );
+        });
+      }
     }
   }
 
@@ -174,6 +188,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     if (authProvider.user == null) return;
 
+    // Optimistically update UI
     setState(() {
       _isLiked = !_isLiked;
       _likedStatus[_cloth!.id] = _isLiked;
@@ -186,15 +201,55 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-    } catch (e) {
-      // Revert on error
-      setState(() {
-        _isLiked = !_isLiked;
-        _likedStatus[_cloth!.id] = _isLiked;
-      });
+      
+      // Refresh like status and count from Firestore
+      final updatedIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      final updatedCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
       if (mounted) {
+        setState(() {
+          _isLiked = updatedIsLiked;
+          _likedStatus[_cloth!.id] = updatedIsLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: updatedCount,
+          );
+        });
+      }
+    } catch (e) {
+      // Revert on error and refresh from Firestore
+      final actualIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      final actualCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLiked = actualIsLiked;
+          _likedStatus[_cloth!.id] = actualIsLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: actualCount,
+          );
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${_isLiked ? "unlike" : "like"} cloth')),
+          SnackBar(content: Text('Failed to ${actualIsLiked ? "unlike" : "like"} cloth')),
         );
       }
     }

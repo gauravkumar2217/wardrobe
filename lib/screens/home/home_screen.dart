@@ -105,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     
     if (authProvider.user == null) return;
     
+    // Optimistically update UI
     setState(() {
       _likedStatus[cloth.id] = !(_likedStatus[cloth.id] ?? false);
     });
@@ -117,16 +118,38 @@ class _HomeScreenState extends State<HomeScreen> {
         clothId: cloth.id,
       );
       
-      // Refresh to update likes count
-      await _loadClothes();
-    } catch (e) {
-      // Revert on error
-      setState(() {
-        _likedStatus[cloth.id] = !(_likedStatus[cloth.id] ?? false);
-      });
+      // Refresh like status from Firestore
+      final updatedIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: cloth.ownerId,
+        wardrobeId: cloth.wardrobeId,
+        clothId: cloth.id,
+      );
+      
+      // Update like status from Firestore
+      // Note: clothProvider already updated the likesCount via notifyListeners()
+      // The widget will rebuild automatically since it listens to clothProvider
+      // and the PageView will maintain its position since we're not reloading the list
       if (mounted) {
+        setState(() {
+          _likedStatus[cloth.id] = updatedIsLiked;
+        });
+      }
+    } catch (e) {
+      // Revert on error and refresh from Firestore
+      final actualIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: cloth.ownerId,
+        wardrobeId: cloth.wardrobeId,
+        clothId: cloth.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _likedStatus[cloth.id] = actualIsLiked;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${_likedStatus[cloth.id]! ? "unlike" : "like"} cloth')),
+          SnackBar(content: Text('Failed to ${actualIsLiked ? "unlike" : "like"} cloth')),
         );
       }
     }
@@ -313,6 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             )
                       : PageView.builder(
+                          scrollDirection: Axis.vertical,
                           controller: _pageController,
                           itemCount: filteredClothes.length,
                           onPageChanged: (index) {

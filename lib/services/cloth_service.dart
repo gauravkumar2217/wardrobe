@@ -302,7 +302,8 @@ class ClothService {
 
       // Find today's wear entry
       final todayEntry = await historyRef
-          .where('wornAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
+          .where('wornAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
           .orderBy('wornAt', descending: true)
           .limit(1)
           .get();
@@ -321,7 +322,8 @@ class ClothService {
           );
           return null;
         }
-        final latest = (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
+        final latest =
+            (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
         await _updateWornAtFields(
           userId: userId,
           wardrobeId: wardrobeId,
@@ -390,16 +392,48 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final now = DateTime.now();
-
-      await _firestore
+      final likeRef = _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('likes')
-          .doc(userId)
-          .set({
+          .doc(userId);
+
+      // Check if like already exists
+      final likeDoc = await likeRef.get();
+      if (likeDoc.exists) {
+        // Like already exists, no need to do anything
+        return;
+      }
+
+      final now = DateTime.now();
+
+      // Create like document
+      await likeRef.set({
         'userId': userId,
         'createdAt': Timestamp.fromDate(now),
+      });
+
+      // Update likesCount on subcollection cloth document
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (!clothDoc.exists) {
+        // Cloth doesn't exist, delete the like we just created
+        await likeRef.delete();
+        throw Exception('Cloth not found');
+      }
+
+      await clothRef.update({
+        'likesCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update likesCount on top-level cloth document
+      await _firestore.collection('clothes').doc(clothId).update({
+        'likesCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint('Failed to like cloth: $e');
@@ -415,12 +449,41 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      await _firestore
+      final likeRef = _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('likes')
-          .doc(userId)
-          .delete();
+          .doc(userId);
+
+      // Check if like exists before deleting
+      final likeDoc = await likeRef.get();
+      if (!likeDoc.exists) {
+        // Like doesn't exist, no need to do anything
+        return;
+      }
+
+      // Delete like document
+      await likeRef.delete();
+
+      // Update likesCount on subcollection cloth document
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (clothDoc.exists) {
+        await clothRef.update({
+          'likesCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update likesCount on top-level cloth document
+        await _firestore.collection('clothes').doc(clothId).update({
+          'likesCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      // If cloth doesn't exist, that's okay - the like is already deleted
     } catch (e) {
       debugPrint('Failed to unlike cloth: $e');
       rethrow;
@@ -446,6 +509,26 @@ class ClothService {
     } catch (e) {
       debugPrint('Failed to check like status: $e');
       return false;
+    }
+  }
+
+  /// Get actual like count from Firestore (counts like documents)
+  static Future<int> getLikeCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('likes')
+          .get();
+
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint('Failed to get like count: $e');
+      return 0;
     }
   }
 
@@ -552,7 +635,7 @@ class ClothService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
+            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
             .toList());
   }
 
@@ -564,7 +647,7 @@ class ClothService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
+            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
             .toList());
   }
 
