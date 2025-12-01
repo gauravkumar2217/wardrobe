@@ -544,6 +544,7 @@ class ClothService {
       final commentId = _firestore.collection('comments').doc().id;
       final now = DateTime.now();
 
+      // Create comment document
       await _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
@@ -553,6 +554,35 @@ class ClothService {
         'userId': userId,
         'text': text,
         'createdAt': Timestamp.fromDate(now),
+      });
+
+      // Update commentsCount on subcollection cloth document
+      final clothRef = _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId);
+      
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (!clothDoc.exists) {
+        // Cloth doesn't exist, delete the comment we just created
+        await _firestore
+            .collection(_clothesPath(ownerId, wardrobeId))
+            .doc(clothId)
+            .collection('comments')
+            .doc(commentId)
+            .delete();
+        throw Exception('Cloth not found');
+      }
+
+      await clothRef.update({
+        'commentsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update commentsCount on top-level cloth document
+      await _firestore.collection('clothes').doc(clothId).update({
+        'commentsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       return commentId;
@@ -613,15 +643,57 @@ class ClothService {
         throw Exception('Only comment author can delete');
       }
 
+      // Delete comment document
       await _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('comments')
           .doc(commentId)
           .delete();
+
+      // Update commentsCount on subcollection cloth document
+      final clothRef = _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId);
+      
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (clothDoc.exists) {
+        await clothRef.update({
+          'commentsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update commentsCount on top-level cloth document
+        await _firestore.collection('clothes').doc(clothId).update({
+          'commentsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      // If cloth doesn't exist, that's okay - the comment is already deleted
     } catch (e) {
       debugPrint('Failed to delete comment: $e');
       rethrow;
+    }
+  }
+
+  /// Get actual comment count from Firestore (counts comment documents)
+  static Future<int> getCommentCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .get();
+
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint('Failed to get comment count: $e');
+      return 0;
     }
   }
 

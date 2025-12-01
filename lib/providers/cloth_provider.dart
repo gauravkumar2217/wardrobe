@@ -36,9 +36,12 @@ class ClothProvider with ChangeNotifier {
   }
 
   /// Load clothes for a wardrobe
+  /// Set skipFinalNotify to true to skip the final notifyListeners() call
+  /// (useful when you need to refresh counts before notifying)
   Future<void> loadClothes({
     required String userId,
     String? wardrobeId,
+    bool skipFinalNotify = false,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -59,7 +62,9 @@ class ClothProvider with ChangeNotifier {
       debugPrint('Error loading clothes: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!skipFinalNotify) {
+        notifyListeners();
+      }
     }
   }
 
@@ -358,6 +363,24 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
+  /// Get actual comment count from Firestore
+  Future<int> getCommentCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      return await ClothService.getCommentCount(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+    } catch (e) {
+      debugPrint('Failed to get comment count: $e');
+      return 0;
+    }
+  }
+
   /// Toggle like status
   Future<void> toggleLike({
     required String userId,
@@ -485,5 +508,28 @@ class ClothProvider with ChangeNotifier {
       commentsCount: commentsCount ?? _clothes[index].commentsCount,
     );
     _clothes[index] = updated;
+  }
+
+  /// Update cloth locally (public method for UI to refresh counts)
+  /// Set batchUpdate to true to avoid calling notifyListeners() (caller will handle it)
+  void updateClothLocally({
+    required String clothId,
+    int? likesCount,
+    int? commentsCount,
+    bool batchUpdate = false,
+  }) {
+    _updateClothLocally(
+      clothId,
+      likesCount: likesCount,
+      commentsCount: commentsCount,
+    );
+    if (!batchUpdate) {
+      notifyListeners();
+    }
+  }
+
+  /// Notify listeners (public method for batch updates)
+  void notifyListenersUpdate() {
+    notifyListeners();
   }
 }

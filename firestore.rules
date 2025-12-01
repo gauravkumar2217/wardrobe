@@ -320,6 +320,20 @@ service cloud.firestore {
                            request.resource.data.imageUrl == resource.data.imageUrl &&
                            request.resource.data.likesCount is int;
           
+          // Allow authenticated users to update commentsCount when adding/deleting comments
+          // This allows any authenticated user who can read the cloth to update commentsCount
+          allow update: if isAuthenticated() &&
+                           canReadCloth(resource.data) &&
+                           request.resource.data.likesCount == resource.data.likesCount &&
+                           'updatedAt' in request.resource.data &&
+                           // Only allow updating commentsCount and updatedAt
+                           // Note: FieldValue.increment() may not work with diff(), so we check that
+                           // other critical fields are unchanged
+                           request.resource.data.ownerId == resource.data.ownerId &&
+                           request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                           request.resource.data.imageUrl == resource.data.imageUrl &&
+                           request.resource.data.commentsCount is int;
+          
           // Allow partial update for wear tracking (wornAt + updatedAt)
           // Ensure system fields (likes/comments) are unchanged
           allow update: if isOwner(userId) && 
@@ -507,6 +521,21 @@ service cloud.firestore {
                       request.resource.data.imageUrl == resource.data.imageUrl &&
                       'updatedAt' in request.resource.data &&
                       request.resource.data.likesCount is int &&
+                      // Verify cloth exists and is readable (check subcollection)
+                      exists(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)) &&
+                      canReadCloth(get(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)).data);
+      
+      // Allow authenticated users to update commentsCount when adding/deleting comments
+      // Check if cloth exists and is readable via subcollection path
+      allow update: if isAuthenticated() &&
+                      'ownerId' in resource.data &&
+                      'wardrobeId' in resource.data &&
+                      request.resource.data.likesCount == resource.data.likesCount &&
+                      request.resource.data.ownerId == resource.data.ownerId &&
+                      request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                      request.resource.data.imageUrl == resource.data.imageUrl &&
+                      'updatedAt' in request.resource.data &&
+                      request.resource.data.commentsCount is int &&
                       // Verify cloth exists and is readable (check subcollection)
                       exists(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)) &&
                       canReadCloth(get(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)).data);
