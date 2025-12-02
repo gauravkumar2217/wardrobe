@@ -247,7 +247,10 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SearchUsersScreen()),
-              ).then((_) => _loadFriends());
+              ).then((_) {
+                _loadFriends();
+                _loadFriendRequests();
+              });
             },
           ),
         ],

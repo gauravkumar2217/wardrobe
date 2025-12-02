@@ -19,14 +19,40 @@ class FriendRequest {
   });
 
   factory FriendRequest.fromJson(Map<String, dynamic> json, String id) {
-    return FriendRequest(
-      id: id,
-      fromUserId: json['fromUserId'] as String,
-      toUserId: json['toUserId'] as String,
-      status: json['status'] as String,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-    );
+    try {
+      final fromUserId = json['fromUserId'] as String?;
+      final toUserId = json['toUserId'] as String?;
+      final status = json['status'] as String?;
+      final createdAt = json['createdAt'] as Timestamp?;
+      final updatedAt = json['updatedAt'] as Timestamp?;
+
+      if (fromUserId == null || fromUserId.isEmpty) {
+        throw Exception('fromUserId is missing or empty');
+      }
+      if (toUserId == null || toUserId.isEmpty) {
+        throw Exception('toUserId is missing or empty');
+      }
+      if (status == null || status.isEmpty) {
+        throw Exception('status is missing or empty');
+      }
+      if (createdAt == null) {
+        throw Exception('createdAt is missing');
+      }
+      if (updatedAt == null) {
+        throw Exception('updatedAt is missing');
+      }
+
+      return FriendRequest(
+        id: id,
+        fromUserId: fromUserId,
+        toUserId: toUserId,
+        status: status,
+        createdAt: createdAt.toDate(),
+        updatedAt: updatedAt.toDate(),
+      );
+    } catch (e) {
+      throw Exception('Failed to parse friend request: $e. JSON: $json');
+    }
   }
 
   Map<String, dynamic> toJson() {

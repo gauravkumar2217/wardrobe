@@ -60,6 +60,10 @@ class FriendService {
   /// Accept friend request
   static Future<void> acceptFriendRequest(String requestId) async {
     try {
+      if (requestId.isEmpty) {
+        throw Exception('Friend request ID cannot be empty');
+      }
+
       final requestDoc =
           await _firestore.collection('friendRequests').doc(requestId).get();
 
@@ -67,10 +71,24 @@ class FriendService {
         throw Exception('Friend request not found');
       }
 
-      final request = FriendRequest.fromJson(requestDoc.data()!, requestId);
+      final data = requestDoc.data();
+      if (data == null) {
+        throw Exception('Friend request data is null');
+      }
+
+      final request = FriendRequest.fromJson(data, requestId);
 
       if (request.status != 'pending') {
         throw Exception('Friend request is not pending');
+      }
+
+      // Validate user IDs
+      if (request.fromUserId.isEmpty || request.toUserId.isEmpty) {
+        throw Exception('Invalid friend request: user IDs are empty');
+      }
+
+      if (request.fromUserId == request.toUserId) {
+        throw Exception('Invalid friend request: cannot be friends with yourself');
       }
 
       // Update request status and create friend documents in both users' friends subcollections
@@ -116,6 +134,8 @@ class FriendService {
       await batch.commit();
     } catch (e) {
       debugPrint('Failed to accept friend request: $e');
+      debugPrint('Request ID: $requestId');
+      debugPrint('Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
