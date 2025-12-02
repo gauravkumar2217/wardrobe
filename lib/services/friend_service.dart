@@ -73,18 +73,21 @@ class FriendService {
         throw Exception('Friend request is not pending');
       }
 
-      // Update request status
-      await _firestore.collection('friendRequests').doc(requestId).update({
-        'status': 'accepted',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Create friend documents in both users' friends subcollections
-      // Note: This should be done by Cloud Function, but we'll do it here too
+      // Update request status and create friend documents in both users' friends subcollections
+      // Do everything in a batch to ensure atomicity
       final now = DateTime.now();
       final batch = _firestore.batch();
 
-      // Add to fromUserId's friends
+      // Update request status
+      batch.update(
+        _firestore.collection('friendRequests').doc(requestId),
+        {
+          'status': 'accepted',
+          'updatedAt': Timestamp.fromDate(now),
+        },
+      );
+
+      // Add to fromUserId's friends (sender's friends list)
       batch.set(
         _firestore
             .collection('users')
@@ -97,7 +100,7 @@ class FriendService {
         },
       );
 
-      // Add to toUserId's friends
+      // Add to toUserId's friends (receiver's friends list)
       batch.set(
         _firestore
             .collection('users')

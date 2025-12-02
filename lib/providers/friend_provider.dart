@@ -123,8 +123,22 @@ class FriendProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Get the request to know which users are involved
+      final requestIndex = _incomingRequests.indexWhere((r) => r.id == requestId);
+      if (requestIndex == -1) {
+        throw Exception('Friend request not found in local list');
+      }
+      final request = _incomingRequests[requestIndex];
+      final fromUserId = request.fromUserId;
+      
       await FriendService.acceptFriendRequest(requestId);
-      _incomingRequests.removeWhere((r) => r.id == requestId);
+      _incomingRequests.removeAt(requestIndex);
+      
+      // Add the friend to the friends list immediately
+      if (!_friends.contains(fromUserId)) {
+        _friends.add(fromUserId);
+      }
+      
       _errorMessage = null;
       return true;
     } catch (e) {

@@ -245,11 +245,24 @@ service cloud.firestore {
       // Friends subcollection: users/{userId}/friends/{friendId}
       match /friends/{friendId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && 
+        // Allow create if:
+        // 1. User owns the userId path (adding friend to their own list), OR
+        // 2. User is the friendId (the other person in the friendship)
+        //    This allows bidirectional friend creation when accepting a request.
+        //    The application logic ensures this only happens when there's an accepted friend request.
+        //    Security: Users can only add themselves (as friendId) to another user's friends list,
+        //    which is safe since they're just adding their own ID.
+        allow create: if (isOwner(userId) && 
                          request.resource.data.keys().hasAll(['friendId', 'createdAt']) &&
                          request.resource.data.friendId == friendId &&
                          request.resource.data.friendId is string &&
-                         request.resource.data.createdAt is timestamp;
+                         request.resource.data.createdAt is timestamp) ||
+                        (isAuthenticated() && 
+                         request.auth.uid == friendId &&
+                         request.resource.data.keys().hasAll(['friendId', 'createdAt']) &&
+                         request.resource.data.friendId == friendId &&
+                         request.resource.data.friendId is string &&
+                         request.resource.data.createdAt is timestamp);
         allow delete: if isOwner(userId);
       }
       

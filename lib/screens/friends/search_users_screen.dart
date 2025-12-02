@@ -57,8 +57,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     });
   }
 
-  Future<void> _checkFriendshipAndRequestStatus(String userId) async {
-    if (_requestStatus.containsKey(userId)) return;
+  Future<void> _checkFriendshipAndRequestStatus(String userId, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _requestStatus.containsKey(userId)) return;
 
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -133,11 +133,15 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request accepted')),
         );
-        setState(() {
-          _requestStatus[userId] = 'friends';
-          _friendshipStatus[userId] = true;
-          _requestIds.remove(userId);
-        });
+        
+        // Refresh the status to ensure it shows as friends
+        await _checkFriendshipAndRequestStatus(userId, forceRefresh: true);
+        
+        // Also reload friends list in the provider to ensure sync
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (authProvider.user != null) {
+          await friendProvider.loadFriends(authProvider.user!.uid);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
