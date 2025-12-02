@@ -471,6 +471,10 @@ service cloud.firestore {
     // FRIEND REQUESTS COLLECTION
     // ============================================
     match /friendRequests/{requestId} {
+      // Allow list queries (for querying by toUserId/fromUserId)
+      // User can query for requests where they are sender or receiver
+      allow list: if isAuthenticated();
+      
       // Allow read if user is sender or receiver
       allow read: if isAuthenticated() && 
                      (resource.data.fromUserId == request.auth.uid || 

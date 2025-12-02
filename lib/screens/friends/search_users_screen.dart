@@ -16,6 +16,8 @@ class SearchUsersScreen extends StatefulWidget {
 class _SearchUsersScreenState extends State<SearchUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Map<String, bool> _friendshipStatus = {};
+  final Map<String, String> _requestStatus = {}; // 'none', 'outgoing', 'incoming', 'friends'
+  final Map<String, String?> _requestIds = {}; // Store request IDs for accepting
   bool _isSearching = false;
 
   @override
@@ -40,12 +42,12 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
     await friendProvider.searchUsers(query.trim());
 
-    // Check friendship status for each result
+    // Check friendship and request status for each result
     if (authProvider.user != null) {
       for (var result in friendProvider.searchResults) {
         final userId = result['userId'] as String;
         if (userId != authProvider.user!.uid) {
-          _checkFriendship(userId);
+          _checkFriendshipAndRequestStatus(userId);
         }
       }
     }
@@ -55,22 +57,24 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     });
   }
 
-  Future<void> _checkFriendship(String userId) async {
-    if (_friendshipStatus.containsKey(userId)) return;
+  Future<void> _checkFriendshipAndRequestStatus(String userId) async {
+    if (_requestStatus.containsKey(userId)) return;
 
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     if (authProvider.user == null) return;
 
-    final isFriend = await friendProvider.checkFriendship(
-      authProvider.user!.uid,
-      userId,
+    final result = await friendProvider.checkFriendRequestStatus(
+      userId1: authProvider.user!.uid,
+      userId2: userId,
     );
 
     if (mounted) {
       setState(() {
-        _friendshipStatus[userId] = isFriend;
+        _requestStatus[userId] = result['status'] as String;
+        _requestIds[userId] = result['requestId'] as String?;
+        _friendshipStatus[userId] = result['status'] == 'friends';
       });
     }
   }
@@ -92,11 +96,51 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           const SnackBar(content: Text('Friend request sent')),
         );
         setState(() {
-          _friendshipStatus[userId] = false; // Mark as request sent
+          _requestStatus[userId] = 'outgoing'; // Mark as request sent
+          _friendshipStatus[userId] = false;
+          // Refresh to get the request ID
+          _checkFriendshipAndRequestStatus(userId);
+        });
+      } else {
+        // Check if error is because request already exists
+        if (friendProvider.errorMessage?.contains('already sent') ?? false) {
+          // Refresh status to get the request ID
+          _checkFriendshipAndRequestStatus(userId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to send request')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _acceptFriendRequest(String userId) async {
+    final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+    final requestId = _requestIds[userId];
+
+    if (requestId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request ID not found')),
+      );
+      return;
+    }
+
+    final success = await friendProvider.acceptFriendRequest(requestId);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Friend request accepted')),
+        );
+        setState(() {
+          _requestStatus[userId] = 'friends';
+          _friendshipStatus[userId] = true;
+          _requestIds.remove(userId);
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to send request')),
+          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
         );
       }
     }
@@ -165,6 +209,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                           friendProvider.clearSearchResults();
                           setState(() {
                             _friendshipStatus.clear();
+                            _requestStatus.clear();
+                            _requestIds.clear();
                           });
                         },
                       )
@@ -186,6 +232,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                   friendProvider.clearSearchResults();
                   setState(() {
                     _friendshipStatus.clear();
+                    _requestStatus.clear();
+                    _requestIds.clear();
                   });
                 }
               },
@@ -221,10 +269,45 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                           final photoUrl = result['photoUrl'] as String?;
                           final email = result['email'] as String?;
                           final isCurrentUser = authProvider.user?.uid == userId;
-                          final isFriend = _friendshipStatus[userId] ?? false;
+                          final requestStatus = _requestStatus[userId] ?? 'none';
 
                           if (isCurrentUser) {
                             return const SizedBox.shrink();
+                          }
+
+                          // Determine button text and icon based on status
+                          String buttonText;
+                          IconData buttonIcon;
+                          Color buttonColor;
+                          VoidCallback? buttonAction;
+                          bool isButtonEnabled = true;
+
+                          switch (requestStatus) {
+                            case 'friends':
+                              buttonText = 'Message';
+                              buttonIcon = Icons.chat;
+                              buttonColor = const Color(0xFF7C3AED);
+                              buttonAction = () => _startChat(userId);
+                              break;
+                            case 'outgoing':
+                              buttonText = 'Request Sent';
+                              buttonIcon = Icons.hourglass_empty;
+                              buttonColor = Colors.grey;
+                              buttonAction = null; // Disabled
+                              isButtonEnabled = false;
+                              break;
+                            case 'incoming':
+                              buttonText = 'Accept Request';
+                              buttonIcon = Icons.check;
+                              buttonColor = const Color(0xFF7C3AED);
+                              buttonAction = () => _acceptFriendRequest(userId);
+                              break;
+                            default: // 'none'
+                              buttonText = 'Add Friend';
+                              buttonIcon = Icons.person_add;
+                              buttonColor = const Color(0xFF7C3AED);
+                              buttonAction = () => _sendFriendRequest(userId);
+                              break;
                           }
 
                           return Card(
@@ -247,28 +330,22 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(
-                                email ?? userId.substring(0, 8),
+                                result['username'] != null 
+                                    ? '@${result['username']}'
+                                    : (email ?? result['phone'] ?? userId.substring(0, 8)),
                                 style: TextStyle(color: Colors.grey[600]),
                               ),
-                              trailing: isFriend
-                                  ? ElevatedButton.icon(
-                                      onPressed: () => _startChat(userId),
-                                      icon: const Icon(Icons.chat, size: 18),
-                                      label: const Text('Message'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF7C3AED),
-                                        foregroundColor: Colors.white,
-                                      ),
-                                    )
-                                  : ElevatedButton.icon(
-                                      onPressed: () => _sendFriendRequest(userId),
-                                      icon: const Icon(Icons.person_add, size: 18),
-                                      label: const Text('Add Friend'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF7C3AED),
-                                        foregroundColor: Colors.white,
-                                      ),
-                                    ),
+                              trailing: ElevatedButton.icon(
+                                onPressed: isButtonEnabled ? buttonAction : null,
+                                icon: Icon(buttonIcon, size: 18),
+                                label: Text(buttonText),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: buttonColor,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: Colors.grey[300],
+                                  disabledForegroundColor: Colors.grey[600],
+                                ),
+                              ),
                             ),
                           );
                         },

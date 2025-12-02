@@ -170,7 +170,14 @@ class FriendService {
           .toList();
     } catch (e) {
       debugPrint('Failed to get friend requests: $e');
-      return [];
+      debugPrint('Error type: ${e.runtimeType}');
+      if (e.toString().contains('index')) {
+        debugPrint('NOTE: You may need to create a Firestore composite index for this query.');
+        debugPrint('Collection: friendRequests');
+        debugPrint('Fields: toUserId (ASC), status (ASC), createdAt (DESC) for incoming');
+        debugPrint('Fields: fromUserId (ASC), status (ASC), createdAt (DESC) for outgoing');
+      }
+      rethrow; // Re-throw to let the provider handle it
     }
   }
 
@@ -204,6 +211,59 @@ class FriendService {
     } catch (e) {
       debugPrint('Failed to check friendship: $e');
       return false;
+    }
+  }
+
+  /// Check friend request status between two users
+  /// Returns: 'none', 'outgoing', 'incoming', or 'friends'
+  /// Also returns the request ID if a pending request exists
+  static Future<Map<String, dynamic>> checkFriendRequestStatus({
+    required String userId1,
+    required String userId2,
+  }) async {
+    try {
+      // Check if already friends
+      final isFriend = await checkFriendship(userId1, userId2);
+      if (isFriend) {
+        return {'status': 'friends', 'requestId': null};
+      }
+
+      // Check for outgoing request (userId1 sent to userId2)
+      final outgoingRequest = await _firestore
+          .collection('friendRequests')
+          .where('fromUserId', isEqualTo: userId1)
+          .where('toUserId', isEqualTo: userId2)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (outgoingRequest.docs.isNotEmpty) {
+        return {
+          'status': 'outgoing',
+          'requestId': outgoingRequest.docs.first.id,
+        };
+      }
+
+      // Check for incoming request (userId2 sent to userId1)
+      final incomingRequest = await _firestore
+          .collection('friendRequests')
+          .where('fromUserId', isEqualTo: userId2)
+          .where('toUserId', isEqualTo: userId1)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (incomingRequest.docs.isNotEmpty) {
+        return {
+          'status': 'incoming',
+          'requestId': incomingRequest.docs.first.id,
+        };
+      }
+
+      return {'status': 'none', 'requestId': null};
+    } catch (e) {
+      debugPrint('Failed to check friend request status: $e');
+      return {'status': 'none', 'requestId': null};
     }
   }
 

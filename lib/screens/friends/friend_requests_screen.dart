@@ -15,24 +15,36 @@ class FriendRequestsScreen extends StatefulWidget {
 }
 
 class _FriendRequestsScreenState extends State<FriendRequestsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   final Map<String, UserProfile?> _userProfiles = {};
+  bool _hasLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFriendRequests();
+      _hasLoaded = true;
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reload when app comes back to foreground
+    if (state == AppLifecycleState.resumed && _hasLoaded && mounted) {
+      _loadFriendRequests();
+    }
   }
 
   Future<void> _loadFriendRequests() async {
@@ -74,9 +86,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request accepted')),
         );
-        setState(() {
-          _userProfiles.remove(request.fromUserId);
-        });
+        // Reload requests to update the list
+        _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
@@ -95,9 +106,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request rejected')),
         );
-        setState(() {
-          _userProfiles.remove(request.fromUserId);
-        });
+        // Reload requests to update the list
+        _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to reject request')),
@@ -141,6 +151,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
       return '${date.day}/${date.month}/${date.year}';
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
