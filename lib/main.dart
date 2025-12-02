@@ -47,7 +47,7 @@ void main() async {
       ).then((_) async {
         debugPrint('✅ App Check initialized in DEBUG mode');
         
-        // Get and print debug token for Firebase Console
+        // Verify App Check token is working
         // Wait a moment for App Check to fully initialize
         Future.delayed(const Duration(seconds: 2), () async {
           try {
@@ -57,32 +57,59 @@ void main() async {
               final tokenString = tokenResult;
               debugPrint('');
               debugPrint('═══════════════════════════════════════════════════════');
-              debugPrint('🔑 APP CHECK DEBUG TOKEN (Copy this to Firebase Console)');
+              debugPrint('✅ APP CHECK DEBUG TOKEN VERIFIED');
               debugPrint('═══════════════════════════════════════════════════════');
               debugPrint('');
-              debugPrint(tokenString);
+              debugPrint('Current token: $tokenString');
               debugPrint('');
-              debugPrint('📋 Instructions:');
-              debugPrint('1. Go to Firebase Console → App Check');
-              debugPrint('2. Click on your Android app');
-              debugPrint('3. Click "Manage debug tokens"');
-              debugPrint('4. Click "Add debug token"');
-              debugPrint('5. Paste the token above');
-              debugPrint('6. Click "Save"');
+              debugPrint('Expected token: BECB928B-A405-40BC-B0AA-A2EBC581AB97');
+              debugPrint('');
+              if (tokenString.contains('BECB928B-A405-40BC-B0AA-A2EBC581AB97')) {
+                debugPrint('✅ Token matches! App Check is configured correctly.');
+              } else {
+                debugPrint('⚠️ Token mismatch. Make sure the debug token is added in Firebase Console.');
+                debugPrint('   Go to: Firebase Console → App Check → Your App → Manage debug tokens');
+              }
               debugPrint('');
               debugPrint('═══════════════════════════════════════════════════════');
-              debugPrint('');
-              debugPrint('💡 Note: Debug token may also appear in Android Logcat');
-              debugPrint('   Filter by "AppCheck" or "DebugAppCheckProvider"');
               debugPrint('');
             } else {
               debugPrint('⚠️ App Check token is null');
-              debugPrint('   Check Android Logcat for debug token');
+              debugPrint('   Make sure debug token BECB928B-A405-40BC-B0AA-A2EBC581AB97 is added in Firebase Console');
             }
           } catch (tokenError) {
             debugPrint('⚠️ Failed to get App Check debug token: $tokenError');
-            debugPrint('   Check Android Logcat for debug token');
-            debugPrint('   Filter by "AppCheck" or "DebugAppCheckProvider"');
+            debugPrint('');
+            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint('🔍 ALTERNATIVE: Check Android Logcat for debug token');
+            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint('');
+            debugPrint('To find the debug token:');
+            debugPrint('1. Open Android Studio Logcat');
+            debugPrint('2. Filter by: "AppCheck" or "DebugAppCheckProvider"');
+            debugPrint('3. Look for a line containing "Debug token:"');
+            debugPrint('4. Copy the token value');
+            debugPrint('5. Go to Firebase Console → App Check → Your App');
+            debugPrint('6. Click "Manage debug tokens" → "Add debug token"');
+            debugPrint('7. Paste the token and save');
+            debugPrint('');
+            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint('');
+            
+            // Try one more time after a longer delay
+            Future.delayed(const Duration(seconds: 5), () async {
+              try {
+                final retryToken = await FirebaseAppCheck.instance.getToken();
+                if (retryToken != null) {
+                  debugPrint('');
+                  debugPrint('✅ App Check debug token (retry):');
+                  debugPrint(retryToken);
+                  debugPrint('');
+                }
+              } catch (e) {
+                debugPrint('Retry also failed: $e');
+              }
+            });
           }
         });
       }).catchError((e) {

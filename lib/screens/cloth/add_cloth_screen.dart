@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/cloth.dart';
 import '../../providers/cloth_provider.dart';
+import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../services/tag_list_service.dart';
 
@@ -149,6 +150,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
     });
 
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
 
     try {
       // Create color tags
@@ -182,6 +184,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
         });
 
         if (clothId != null) {
+          // Refresh wardrobe count after adding cloth
+          await wardrobeProvider.refreshWardrobeCount(
+            userId: user.uid,
+            wardrobeId: widget.wardrobeId,
+          );
+          
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cloth added successfully!'),
@@ -383,23 +391,6 @@ class _AddClothScreenState extends State<AddClothScreen> {
                     }).toList(),
                   ),
                 ],
-              ),
-              const SizedBox(height: 24),
-
-              // Visibility
-              DropdownButtonFormField<String>(
-                value: _visibility,
-                decoration: const InputDecoration(
-                  labelText: 'Visibility',
-                  prefixIcon: Icon(Icons.visibility),
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'private', child: Text('Private')),
-                  DropdownMenuItem(value: 'friends', child: Text('Friends Only')),
-                  DropdownMenuItem(value: 'public', child: Text('Public')),
-                ],
-                onChanged: (value) => setState(() => _visibility = value ?? 'private'),
               ),
               const SizedBox(height: 32),
 

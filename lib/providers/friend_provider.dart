@@ -65,9 +65,11 @@ class FriendProvider with ChangeNotifier {
         type: 'outgoing',
       );
       _errorMessage = null;
+      debugPrint('Loaded ${_incomingRequests.length} incoming and ${_outgoingRequests.length} outgoing requests');
     } catch (e) {
       _errorMessage = 'Failed to load friend requests: ${e.toString()}';
       debugPrint('Error loading friend requests: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -225,6 +227,23 @@ class FriendProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to check friendship: $e');
       return false;
+    }
+  }
+
+  /// Check friend request status between two users
+  /// Returns: Map with 'status' ('none', 'outgoing', 'incoming', or 'friends') and 'requestId'
+  Future<Map<String, dynamic>> checkFriendRequestStatus({
+    required String userId1,
+    required String userId2,
+  }) async {
+    try {
+      return await FriendService.checkFriendRequestStatus(
+        userId1: userId1,
+        userId2: userId2,
+      );
+    } catch (e) {
+      debugPrint('Failed to check friend request status: $e');
+      return {'status': 'none', 'requestId': null};
     }
   }
 

@@ -68,10 +68,17 @@ class _CommentScreenState extends State<CommentScreen> {
 
       _commentController.clear();
       
-      // Refresh cloth to update comments count
-      await clothProvider.loadClothes(
-        userId: widget.cloth.ownerId,
+      // Refresh comment count from Firestore
+      final actualCount = await clothProvider.getCommentCount(
+        ownerId: widget.cloth.ownerId,
         wardrobeId: widget.cloth.wardrobeId,
+        clothId: widget.cloth.id,
+      );
+      
+      // Update the cloth in the provider with the actual count
+      clothProvider.updateClothLocally(
+        clothId: widget.cloth.id,
+        commentsCount: actualCount,
       );
 
       // Scroll to bottom
@@ -131,10 +138,17 @@ class _CommentScreenState extends State<CommentScreen> {
           commentId: commentId,
         );
 
-        // Refresh cloth to update comments count
-        await clothProvider.loadClothes(
-          userId: widget.cloth.ownerId,
+        // Refresh comment count from Firestore
+        final actualCount = await clothProvider.getCommentCount(
+          ownerId: widget.cloth.ownerId,
           wardrobeId: widget.cloth.wardrobeId,
+          clothId: widget.cloth.id,
+        );
+        
+        // Update the cloth in the provider with the actual count
+        clothProvider.updateClothLocally(
+          clothId: widget.cloth.id,
+          commentsCount: actualCount,
         );
       } catch (e) {
         if (mounted) {

@@ -141,6 +141,34 @@ class WardrobeProvider with ChangeNotifier {
     }
   }
 
+  /// Refresh wardrobe count (update totalItems from actual clothes count)
+  Future<void> refreshWardrobeCount({
+    required String userId,
+    required String wardrobeId,
+  }) async {
+    try {
+      final count = await WardrobeService.getClothesCount(
+        userId: userId,
+        wardrobeId: wardrobeId,
+      );
+      
+      // Update the wardrobe in the list
+      final index = _wardrobes.indexWhere((w) => w.id == wardrobeId);
+      if (index != -1) {
+        _wardrobes[index] = _wardrobes[index].copyWith(totalItems: count);
+        
+        // Update selected wardrobe if it's the same
+        if (_selectedWardrobe?.id == wardrobeId) {
+          _selectedWardrobe = _wardrobes[index];
+        }
+        
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to refresh wardrobe count: $e');
+    }
+  }
+
   /// Clear error
   void clearError() {
     _errorMessage = null;

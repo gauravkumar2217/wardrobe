@@ -122,33 +122,149 @@ class UserService {
     }
   }
 
-  /// Search users by name, email, or phone
+  /// Search users by name, username, email, or phone
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
       // Note: Firestore doesn't support full-text search natively
       // This is a basic implementation - consider using Algolia or similar for production
       final usersRef = _firestore.collection('users');
+      final normalizedQuery = query.trim().toLowerCase();
       
-      // Search by displayName (prefix match)
-      final nameQuery = await usersRef
-          .where('displayName', isGreaterThanOrEqualTo: query)
-          .where('displayName', isLessThanOrEqualTo: '$query\uf8ff')
-          .limit(20)
-          .get();
-
-      final results = <Map<String, dynamic>>[];
-      
-      for (var doc in nameQuery.docs) {
-        final data = doc.data();
-        results.add({
-          'userId': doc.id,
-          'displayName': data['displayName'] as String?,
-          'photoUrl': data['photoUrl'] as String?,
-          'email': data['email'] as String?,
-        });
+      if (normalizedQuery.isEmpty) {
+        return [];
       }
 
-      return results;
+      final results = <Map<String, dynamic>>[];
+      final seenUserIds = <String>{};
+
+      // Helper function to add result if not already seen
+      void addResult(doc) {
+        if (!seenUserIds.contains(doc.id)) {
+          final data = doc.data();
+          results.add({
+            'userId': doc.id,
+            'displayName': data['displayName'] as String?,
+            'username': data['username'] as String?,
+            'photoUrl': data['photoUrl'] as String?,
+            'email': data['email'] as String?,
+            'phone': data['phone'] as String? ?? data['phoneNumber'] as String?,
+          });
+          seenUserIds.add(doc.id);
+        }
+      }
+
+      // Search by displayName (prefix match)
+      try {
+        final nameQuery = await usersRef
+            .where('displayName', isGreaterThanOrEqualTo: query)
+            .where('displayName', isLessThanOrEqualTo: '$query\uf8ff')
+            .limit(20)
+            .get();
+        
+        for (var doc in nameQuery.docs) {
+          addResult(doc);
+        }
+      } catch (e) {
+        debugPrint('Error searching by displayName: $e');
+      }
+
+      // Search by username (exact match or prefix match)
+      try {
+        // Try exact match first
+        final usernameExactQuery = await usersRef
+            .where('username', isEqualTo: normalizedQuery)
+            .limit(5)
+            .get();
+        
+        for (var doc in usernameExactQuery.docs) {
+          addResult(doc);
+        }
+
+        // Try prefix match for username
+        final usernamePrefixQuery = await usersRef
+            .where('username', isGreaterThanOrEqualTo: normalizedQuery)
+            .where('username', isLessThanOrEqualTo: '$normalizedQuery\uf8ff')
+            .limit(15)
+            .get();
+        
+        for (var doc in usernamePrefixQuery.docs) {
+          addResult(doc);
+        }
+      } catch (e) {
+        debugPrint('Error searching by username: $e');
+        // If index error, try without prefix match
+        try {
+          final usernameExactQuery = await usersRef
+              .where('username', isEqualTo: normalizedQuery)
+              .limit(20)
+              .get();
+          
+          for (var doc in usernameExactQuery.docs) {
+            addResult(doc);
+          }
+        } catch (e2) {
+          debugPrint('Error searching by username (exact only): $e2');
+        }
+      }
+
+      // Search by email (exact match or prefix match)
+      try {
+        final emailQuery = await usersRef
+            .where('email', isGreaterThanOrEqualTo: query.toLowerCase())
+            .where('email', isLessThanOrEqualTo: '${query.toLowerCase()}\uf8ff')
+            .limit(20)
+            .get();
+        
+        for (var doc in emailQuery.docs) {
+          addResult(doc);
+        }
+      } catch (e) {
+        debugPrint('Error searching by email: $e');
+        // Try exact match only
+        try {
+          final emailExactQuery = await usersRef
+              .where('email', isEqualTo: query.toLowerCase())
+              .limit(20)
+              .get();
+          
+          for (var doc in emailExactQuery.docs) {
+            addResult(doc);
+          }
+        } catch (e2) {
+          debugPrint('Error searching by email (exact only): $e2');
+        }
+      }
+
+      // Search by phone (exact match)
+      try {
+        // Try both 'phone' and 'phoneNumber' fields
+        final phoneQuery = await usersRef
+            .where('phone', isEqualTo: query)
+            .limit(20)
+            .get();
+        
+        for (var doc in phoneQuery.docs) {
+          addResult(doc);
+        }
+      } catch (e) {
+        debugPrint('Error searching by phone: $e');
+      }
+
+      try {
+        final phoneNumberQuery = await usersRef
+            .where('phoneNumber', isEqualTo: query)
+            .limit(20)
+            .get();
+        
+        for (var doc in phoneNumberQuery.docs) {
+          addResult(doc);
+        }
+      } catch (e) {
+        debugPrint('Error searching by phoneNumber: $e');
+      }
+
+      // Limit total results to 20
+      return results.take(20).toList();
     } catch (e) {
       debugPrint('Failed to search users: $e');
       return [];

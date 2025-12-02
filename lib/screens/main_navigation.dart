@@ -24,6 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const ChatListScreen(),
     const ProfileScreen(),
   ];
+  int _previousIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +37,16 @@ class _MainNavigationState extends State<MainNavigation> {
         body: Center(child: Text('Please log in')),
       );
     }
+
+    // Refresh home screen when navigating back to it
+    if (navigationProvider.currentIndex == 0 && _previousIndex != 0) {
+      // User navigated back to home screen
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Trigger refresh of counts on home screen
+        // The home screen will handle this via its lifecycle
+      });
+    }
+    _previousIndex = navigationProvider.currentIndex;
 
     return Scaffold(
       body: IndexedStack(

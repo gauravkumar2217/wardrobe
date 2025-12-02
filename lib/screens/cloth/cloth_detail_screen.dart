@@ -109,16 +109,74 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
 
     if (authProvider.user != null) {
+      // Get like status from Firestore
       final isLiked = await clothProvider.isLiked(
         userId: authProvider.user!.uid,
         ownerId: _cloth!.ownerId,
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
+      
+      // Get actual like count from Firestore
+      final actualCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+          _likedStatus[_cloth!.id] = isLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: actualCount,
+          );
+        });
+      }
+    }
+  }
+
+  Future<void> _handleToggleWorn() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+
+    if (_cloth == null || authProvider.user == null) return;
+
+    final wasWornToday = _cloth!.wornAt != null &&
+        _isSameDay(_cloth!.wornAt!, DateTime.now());
+
+    try {
+      final newWornAt = await clothProvider.toggleWornStatus(
+        userId: authProvider.user!.uid,
+        wardrobeId: _cloth!.wardrobeId,
+        cloth: _cloth!,
+      );
+
+      if (!mounted) return;
+
       setState(() {
-        _isLiked = isLiked;
-        _likedStatus[_cloth!.id] = isLiked;
+        _cloth = _cloth!.copyWith(
+          wornAt: newWornAt,
+          updatedAt: DateTime.now(),
+        );
       });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasWornToday ? 'Removed worn today' : 'Marked as worn today',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update worn status'),
+        ),
+      );
     }
   }
 
@@ -130,6 +188,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     if (authProvider.user == null) return;
 
+    // Optimistically update UI
     setState(() {
       _isLiked = !_isLiked;
       _likedStatus[_cloth!.id] = _isLiked;
@@ -142,15 +201,116 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
+      
+      // Refresh like status and count from Firestore
+      final updatedIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      final updatedCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLiked = updatedIsLiked;
+          _likedStatus[_cloth!.id] = updatedIsLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: updatedCount,
+          );
+        });
+      }
     } catch (e) {
-      // Revert on error
-      setState(() {
-        _isLiked = !_isLiked;
-        _likedStatus[_cloth!.id] = _isLiked;
-      });
+      // Revert on error and refresh from Firestore
+      final actualIsLiked = await clothProvider.isLiked(
+        userId: authProvider.user!.uid,
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      final actualCount = await clothProvider.getLikeCount(
+        ownerId: _cloth!.ownerId,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLiked = actualIsLiked;
+          _likedStatus[_cloth!.id] = actualIsLiked;
+          _cloth = _cloth!.copyWith(
+            likesCount: actualCount,
+          );
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to ${actualIsLiked ? "unlike" : "like"} cloth')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDelete() async {
+    if (_cloth == null) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+
+    if (authProvider.user == null) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Delete Cloth',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this cloth? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await clothProvider.deleteCloth(
+        userId: authProvider.user!.uid,
+        wardrobeId: _cloth!.wardrobeId,
+        clothId: _cloth!.id,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${_isLiked ? "unlike" : "like"} cloth')),
+          const SnackBar(content: Text('Cloth deleted successfully')),
+        );
+        Navigator.pop(context); // Go back after deletion
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete cloth: ${e.toString()}')),
         );
       }
     }
@@ -206,7 +366,6 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final clothProvider = Provider.of<ClothProvider>(context);
 
     if (_isLoading) {
       return Scaffold(
@@ -253,20 +412,17 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
             );
           },
           onShare: (isOwner && !isShared) ? _handleShare : null,
-          onMarkWorn: (isOwner && !isShared)
-              ? () {
-                  clothProvider.markAsWornToday(
-                    userId: authProvider.user!.uid,
-                    wardrobeId: _cloth!.wardrobeId,
-                    clothId: _cloth!.id,
-                  );
-                }
-              : null,
+          onMarkWorn: (isOwner && !isShared) ? _handleToggleWorn : null,
           onEdit: null, // Edit is handled elsewhere
+          onDelete: (isOwner && !isShared) ? _handleDelete : null,
         ),
       ),
     );
   }
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _ShareDialog extends StatelessWidget {

@@ -19,7 +19,10 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadWardrobes();
+    // Defer loading until after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWardrobes();
+    });
   }
 
   void _loadWardrobes() {

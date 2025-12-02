@@ -4,6 +4,20 @@ import '../models/cloth.dart';
 import '../services/cloth_service.dart';
 
 /// Cloth provider for managing clothes state
+class WearHistoryInfo {
+  final String summary;
+  final bool isWornToday;
+  final int totalCount;
+  final DateTime? lastWornAt;
+
+  const WearHistoryInfo({
+    required this.summary,
+    required this.isWornToday,
+    required this.totalCount,
+    required this.lastWornAt,
+  });
+}
+
 class ClothProvider with ChangeNotifier {
   List<Cloth> _clothes = [];
   String? _selectedWardrobeId;
@@ -22,9 +36,12 @@ class ClothProvider with ChangeNotifier {
   }
 
   /// Load clothes for a wardrobe
+  /// Set skipFinalNotify to true to skip the final notifyListeners() call
+  /// (useful when you need to refresh counts before notifying)
   Future<void> loadClothes({
     required String userId,
     String? wardrobeId,
+    bool skipFinalNotify = false,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -45,7 +62,9 @@ class ClothProvider with ChangeNotifier {
       debugPrint('Error loading clothes: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!skipFinalNotify) {
+        notifyListeners();
+      }
     }
   }
 
@@ -127,6 +146,10 @@ class ClothProvider with ChangeNotifier {
       );
 
       _errorMessage = null;
+      
+      // Refresh clothes list to include the new cloth
+      await loadClothes(userId: userId, wardrobeId: wardrobeId);
+      
       return clothId;
     } catch (e) {
       _errorMessage = 'Failed to add cloth: ${e.toString()}';
@@ -195,22 +218,44 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
-  /// Mark cloth as worn today
-  Future<void> markAsWornToday({
+  /// Toggle worn status (mark/unmark) for today
+  Future<DateTime?> toggleWornStatus({
     required String userId,
     required String wardrobeId,
-    required String clothId,
+    required Cloth cloth,
   }) async {
+    final now = DateTime.now();
+    final isWornToday =
+        cloth.wornAt != null && _isSameDay(cloth.wornAt!, now);
+
     try {
-      await ClothService.markAsWornToday(
-        userId: userId,
-        wardrobeId: wardrobeId,
-        clothId: clothId,
+      DateTime? newWornAt;
+      if (isWornToday) {
+        newWornAt = await ClothService.unmarkWornToday(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: cloth.id,
+        );
+      } else {
+        await ClothService.markAsWornToday(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: cloth.id,
+        );
+        newWornAt = now;
+      }
+
+      _updateClothLocally(
+        cloth.id,
+        wornAt: newWornAt,
       );
+      _errorMessage = null;
       notifyListeners();
+      return newWornAt;
     } catch (e) {
-      _errorMessage = 'Failed to mark as worn: ${e.toString()}';
+      _errorMessage = 'Failed to update worn status: ${e.toString()}';
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -228,6 +273,19 @@ class ClothProvider with ChangeNotifier {
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
+      
+      // Get actual like count from Firestore
+      final actualCount = await getLikeCount(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+      
+      _updateClothLocally(
+        clothId,
+        likesCount: actualCount,
+      );
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to like cloth: ${e.toString()}';
       notifyListeners();
@@ -248,8 +306,19 @@ class ClothProvider with ChangeNotifier {
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
-      // Refresh the cloth to update likes count
-      await loadClothes(userId: ownerId, wardrobeId: wardrobeId);
+      
+      // Get actual like count from Firestore
+      final actualCount = await getLikeCount(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+      
+      _updateClothLocally(
+        clothId,
+        likesCount: actualCount,
+      );
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to unlike cloth: ${e.toString()}';
       notifyListeners();
@@ -276,6 +345,42 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
+  /// Get actual like count from Firestore
+  Future<int> getLikeCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      return await ClothService.getLikeCount(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+    } catch (e) {
+      debugPrint('Failed to get like count: $e');
+      return 0;
+    }
+  }
+
+  /// Get actual comment count from Firestore
+  Future<int> getCommentCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      return await ClothService.getCommentCount(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+    } catch (e) {
+      debugPrint('Failed to get comment count: $e');
+      return 0;
+    }
+  }
+
   /// Toggle like status
   Future<void> toggleLike({
     required String userId,
@@ -284,6 +389,7 @@ class ClothProvider with ChangeNotifier {
     required String clothId,
   }) async {
     try {
+      // Check if user has currently liked the cloth (check Firestore directly)
       final isCurrentlyLiked = await isLiked(
         userId: userId,
         ownerId: ownerId,
@@ -305,17 +411,19 @@ class ClothProvider with ChangeNotifier {
           wardrobeId: wardrobeId,
           clothId: clothId,
         );
-        // Refresh the cloth to update likes count
-        await loadClothes(userId: ownerId, wardrobeId: wardrobeId);
       }
+      
+      // likeCloth/unlikeCloth already update the count, so we just notify listeners
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to toggle like: ${e.toString()}';
       notifyListeners();
+      rethrow; // Re-throw so UI can handle the error
     }
   }
 
-  /// Get wear history summary for cloth
-  Future<String> getWearHistorySummary({
+  /// Get wear history info for cloth
+  Future<WearHistoryInfo> getWearHistoryInfo({
     required String userId,
     required String wardrobeId,
     required String clothId,
@@ -328,30 +436,100 @@ class ClothProvider with ChangeNotifier {
       );
 
       if (history.isEmpty) {
-        return 'Never worn';
+        return const WearHistoryInfo(
+          summary: 'Never worn',
+          isWornToday: false,
+          totalCount: 0,
+          lastWornAt: null,
+        );
       }
 
       final count = history.length;
       final lastWorn = history.first.wornAt;
       final now = DateTime.now();
-      final daysSince = now.difference(lastWorn).inDays;
+      final normalizedNow = DateTime(now.year, now.month, now.day);
+      final normalizedLast =
+          DateTime(lastWorn.year, lastWorn.month, lastWorn.day);
+      final daysSince = normalizedNow.difference(normalizedLast).inDays;
+      final isToday = daysSince == 0;
 
-      if (daysSince == 0) {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn today';
+      String summary;
+      if (isToday) {
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn today';
       } else if (daysSince == 1) {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn yesterday';
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn yesterday';
       } else {
-        return 'Worn $count ${count == 1 ? 'time' : 'times'}, last worn $daysSince days ago';
+        summary =
+            'Worn $count ${count == 1 ? 'time' : 'times'}, last worn $daysSince days ago';
       }
+
+      return WearHistoryInfo(
+        summary: summary,
+        isWornToday: isToday,
+        totalCount: count,
+        lastWornAt: lastWorn,
+      );
     } catch (e) {
       debugPrint('Failed to get wear history: $e');
-      return 'Wear history unavailable';
+      return const WearHistoryInfo(
+        summary: 'Wear history unavailable',
+        isWornToday: false,
+        totalCount: 0,
+        lastWornAt: null,
+      );
     }
   }
 
   /// Clear error
   void clearError() {
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _updateClothLocally(
+    String clothId, {
+    DateTime? wornAt,
+    int? likesCount,
+    int? commentsCount,
+  }) {
+    final index = _clothes.indexWhere((cloth) => cloth.id == clothId);
+    if (index == -1) return;
+
+    final updated = _clothes[index].copyWith(
+      wornAt: wornAt ?? _clothes[index].wornAt,
+      updatedAt: DateTime.now(),
+      likesCount: likesCount ?? _clothes[index].likesCount,
+      commentsCount: commentsCount ?? _clothes[index].commentsCount,
+    );
+    _clothes[index] = updated;
+  }
+
+  /// Update cloth locally (public method for UI to refresh counts)
+  /// Set batchUpdate to true to avoid calling notifyListeners() (caller will handle it)
+  void updateClothLocally({
+    required String clothId,
+    int? likesCount,
+    int? commentsCount,
+    bool batchUpdate = false,
+  }) {
+    _updateClothLocally(
+      clothId,
+      likesCount: likesCount,
+      commentsCount: commentsCount,
+    );
+    if (!batchUpdate) {
+      notifyListeners();
+    }
+  }
+
+  /// Notify listeners (public method for batch updates)
+  void notifyListenersUpdate() {
     notifyListeners();
   }
 }

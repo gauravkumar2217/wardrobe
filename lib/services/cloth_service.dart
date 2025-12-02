@@ -97,7 +97,10 @@ class ClothService {
 
       if (!doc.exists) return null;
 
-      return Cloth.fromJson(doc.data()!, clothId);
+      final data = doc.data();
+      if (data == null) return null;
+
+      return Cloth.fromJson(data, clothId);
     } catch (e) {
       debugPrint('Failed to get cloth: $e');
       return null;
@@ -116,7 +119,7 @@ class ClothService {
           .get();
 
       return snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
           .toList();
     } catch (e) {
       debugPrint('Failed to get clothes: $e');
@@ -135,7 +138,7 @@ class ClothService {
           .get();
 
       return snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
           .toList();
     } catch (e) {
       debugPrint('Failed to get all user clothes: $e');
@@ -263,24 +266,122 @@ class ClothService {
         'source': 'manual',
       });
 
-      // Update cloth's lastWornAt
+      // Update cloth's wornAt (when worn) and updatedAt (last update time)
       await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)
           .update({
-        'lastWornAt': Timestamp.fromDate(now),
+        'wornAt': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Also update top-level collection
       await _firestore.collection('clothes').doc(clothId).update({
-        'lastWornAt': Timestamp.fromDate(now),
+        'wornAt': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint('Failed to mark as worn: $e');
       rethrow;
     }
+  }
+
+  /// Remove today's worn entry (undo mark as worn)
+  static Future<DateTime?> unmarkWornToday({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final historyRef = _firestore
+          .collection(_clothesPath(userId, wardrobeId))
+          .doc(clothId)
+          .collection('wearHistory');
+
+      // Find today's wear entry
+      final todayEntry = await historyRef
+          .where('wornAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
+          .orderBy('wornAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (todayEntry.docs.isEmpty) {
+        // Nothing to remove, simply return the current latest wornAt
+        final latestSnapshot =
+            await historyRef.orderBy('wornAt', descending: true).limit(1).get();
+        if (latestSnapshot.docs.isEmpty) {
+          // No history at all
+          await _updateWornAtFields(
+            userId: userId,
+            wardrobeId: wardrobeId,
+            clothId: clothId,
+            wornAt: null,
+          );
+          return null;
+        }
+        final latest =
+            (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
+        await _updateWornAtFields(
+          userId: userId,
+          wardrobeId: wardrobeId,
+          clothId: clothId,
+          wornAt: latest,
+        );
+        return latest;
+      }
+
+      // Remove today's entry
+      await todayEntry.docs.first.reference.delete();
+
+      // Determine the new latest wornAt (if any)
+      final latestSnapshot =
+          await historyRef.orderBy('wornAt', descending: true).limit(1).get();
+
+      DateTime? latestWornAt;
+      if (latestSnapshot.docs.isNotEmpty) {
+        latestWornAt =
+            (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
+      }
+
+      await _updateWornAtFields(
+        userId: userId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+        wornAt: latestWornAt,
+      );
+
+      return latestWornAt;
+    } catch (e) {
+      debugPrint('Failed to unmark worn status: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> _updateWornAtFields({
+    required String userId,
+    required String wardrobeId,
+    required String clothId,
+    required DateTime? wornAt,
+  }) async {
+    final updates = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (wornAt != null) {
+      updates['wornAt'] = Timestamp.fromDate(wornAt);
+    } else {
+      updates['wornAt'] = FieldValue.delete();
+    }
+
+    await _firestore
+        .collection(_clothesPath(userId, wardrobeId))
+        .doc(clothId)
+        .update(updates);
+
+    await _firestore.collection('clothes').doc(clothId).update(updates);
   }
 
   /// Like cloth
@@ -291,16 +392,48 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final now = DateTime.now();
-
-      await _firestore
+      final likeRef = _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('likes')
-          .doc(userId)
-          .set({
+          .doc(userId);
+
+      // Check if like already exists
+      final likeDoc = await likeRef.get();
+      if (likeDoc.exists) {
+        // Like already exists, no need to do anything
+        return;
+      }
+
+      final now = DateTime.now();
+
+      // Create like document
+      await likeRef.set({
         'userId': userId,
         'createdAt': Timestamp.fromDate(now),
+      });
+
+      // Update likesCount on subcollection cloth document
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (!clothDoc.exists) {
+        // Cloth doesn't exist, delete the like we just created
+        await likeRef.delete();
+        throw Exception('Cloth not found');
+      }
+
+      await clothRef.update({
+        'likesCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update likesCount on top-level cloth document
+      await _firestore.collection('clothes').doc(clothId).update({
+        'likesCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint('Failed to like cloth: $e');
@@ -316,12 +449,41 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      await _firestore
+      final likeRef = _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('likes')
-          .doc(userId)
-          .delete();
+          .doc(userId);
+
+      // Check if like exists before deleting
+      final likeDoc = await likeRef.get();
+      if (!likeDoc.exists) {
+        // Like doesn't exist, no need to do anything
+        return;
+      }
+
+      // Delete like document
+      await likeRef.delete();
+
+      // Update likesCount on subcollection cloth document
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (clothDoc.exists) {
+        await clothRef.update({
+          'likesCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update likesCount on top-level cloth document
+        await _firestore.collection('clothes').doc(clothId).update({
+          'likesCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      // If cloth doesn't exist, that's okay - the like is already deleted
     } catch (e) {
       debugPrint('Failed to unlike cloth: $e');
       rethrow;
@@ -350,6 +512,26 @@ class ClothService {
     }
   }
 
+  /// Get actual like count from Firestore (counts like documents)
+  static Future<int> getLikeCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('likes')
+          .get();
+
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint('Failed to get like count: $e');
+      return 0;
+    }
+  }
+
   /// Add comment to cloth
   static Future<String> addComment({
     required String userId,
@@ -362,6 +544,7 @@ class ClothService {
       final commentId = _firestore.collection('comments').doc().id;
       final now = DateTime.now();
 
+      // Create comment document
       await _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
@@ -371,6 +554,35 @@ class ClothService {
         'userId': userId,
         'text': text,
         'createdAt': Timestamp.fromDate(now),
+      });
+
+      // Update commentsCount on subcollection cloth document
+      final clothRef = _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId);
+      
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (!clothDoc.exists) {
+        // Cloth doesn't exist, delete the comment we just created
+        await _firestore
+            .collection(_clothesPath(ownerId, wardrobeId))
+            .doc(clothId)
+            .collection('comments')
+            .doc(commentId)
+            .delete();
+        throw Exception('Cloth not found');
+      }
+
+      await clothRef.update({
+        'commentsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update commentsCount on top-level cloth document
+      await _firestore.collection('clothes').doc(clothId).update({
+        'commentsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       return commentId;
@@ -421,22 +633,67 @@ class ClothService {
 
       if (!commentDoc.exists) return;
 
-      final comment = Comment.fromJson(commentDoc.data()!, commentId);
+      final data = commentDoc.data();
+      if (data == null) return;
+
+      final comment = Comment.fromJson(data, commentId);
 
       // Only comment author can delete
       if (comment.userId != userId) {
         throw Exception('Only comment author can delete');
       }
 
+      // Delete comment document
       await _firestore
           .collection(_clothesPath(ownerId, wardrobeId))
           .doc(clothId)
           .collection('comments')
           .doc(commentId)
           .delete();
+
+      // Update commentsCount on subcollection cloth document
+      final clothRef = _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId);
+      
+      // Check if cloth exists before updating
+      final clothDoc = await clothRef.get();
+      if (clothDoc.exists) {
+        await clothRef.update({
+          'commentsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update commentsCount on top-level cloth document
+        await _firestore.collection('clothes').doc(clothId).update({
+          'commentsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      // If cloth doesn't exist, that's okay - the comment is already deleted
     } catch (e) {
       debugPrint('Failed to delete comment: $e');
       rethrow;
+    }
+  }
+
+  /// Get actual comment count from Firestore (counts comment documents)
+  static Future<int> getCommentCount({
+    required String ownerId,
+    required String wardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_clothesPath(ownerId, wardrobeId))
+          .doc(clothId)
+          .collection('comments')
+          .get();
+
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint('Failed to get comment count: $e');
+      return 0;
     }
   }
 
@@ -450,7 +707,7 @@ class ClothService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
             .toList());
   }
 
@@ -462,7 +719,7 @@ class ClothService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Cloth.fromJson(doc.data()!, doc.id))
+            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
             .toList());
   }
 
