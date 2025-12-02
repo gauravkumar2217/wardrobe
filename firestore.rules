@@ -269,7 +269,18 @@ service cloud.firestore {
       // Notifications subcollection: users/{userId}/notifications/{notificationId}
       match /notifications/{notificationId} {
         allow read: if isOwner(userId);
+        // Allow owner to create their own notifications
         allow create: if isOwner(userId) && isValidNotification(request.resource.data);
+        // Allow authenticated users to create notifications for other users (for push notifications)
+        // This is needed when sender creates notification for recipient
+        // Security: Only allow specific notification types (dm_message) with valid data
+        allow create: if isAuthenticated() && 
+                         isValidNotification(request.resource.data) &&
+                         request.resource.data.type == 'dm_message' &&
+                         'data' in request.resource.data &&
+                         request.resource.data.data is map &&
+                         'senderId' in request.resource.data.data &&
+                         request.resource.data.data.senderId == request.auth.uid;
         allow update: if isOwner(userId) && 
                          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) ||
                           isValidNotification(request.resource.data));
@@ -278,15 +289,30 @@ service cloud.firestore {
       
       // Devices subcollection: users/{userId}/devices/{deviceId}
       match /devices/{deviceId} {
+        // Allow owner to read their own devices
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDevice(request.resource.data);
+        // Allow authenticated users to query devices for app state checks (for push notifications)
+        // This allows checking if a user's app is in foreground/background
+        allow list: if isAuthenticated();
+        // Allow create with full device data or just isActive/lastActiveAt (for set with merge)
+        allow create: if isOwner(userId) && 
+                         (isValidDevice(request.resource.data) ||
+                          // Allow creating with just isActive and lastActiveAt (for set with merge)
+                          (('isActive' in request.resource.data && request.resource.data.isActive is bool) &&
+                           ('lastActiveAt' in request.resource.data)));
         // Allow partial updates for isActive and lastActiveAt
-        // Also allow full updates that pass validation
+        // Note: lastActiveAt uses FieldValue.serverTimestamp() which is a sentinel
+        // Use diff() to check which fields are actually being changed
         allow update: if isOwner(userId) && 
-                         ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'lastActiveAt']) &&
-                           request.resource.data.isActive is bool &&
-                           request.resource.data.lastActiveAt is timestamp) ||
-                          isValidDevice(request.resource.data));
+                         // Only allow updates to isActive and/or lastActiveAt
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'lastActiveAt']) ||
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive']) ||
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActiveAt'])) &&
+                         // Ensure isActive is a bool if it's being updated
+                         (!('isActive' in request.resource.data.diff(resource.data).affectedKeys()) ||
+                          request.resource.data.isActive is bool);
+        // Allow full updates that pass validation
+        allow update: if isOwner(userId) && isValidDevice(request.resource.data);
         allow delete: if isOwner(userId);
       }
       

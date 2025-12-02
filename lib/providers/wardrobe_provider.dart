@@ -28,6 +28,10 @@ class WardrobeProvider with ChangeNotifier {
 
     try {
       _wardrobes = await WardrobeService.getUserWardrobes(userId);
+      
+      // Refresh counts for all wardrobes
+      await _refreshAllWardrobeCounts(userId);
+      
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load wardrobes: ${e.toString()}';
@@ -38,12 +42,55 @@ class WardrobeProvider with ChangeNotifier {
     }
   }
 
+  /// Refresh counts for all wardrobes
+  Future<void> _refreshAllWardrobeCounts(String userId) async {
+    try {
+      // Fetch counts for all wardrobes in parallel
+      final futures = _wardrobes.map((wardrobe) async {
+        try {
+          final count = await WardrobeService.getClothesCount(
+            userId: userId,
+            wardrobeId: wardrobe.id,
+          );
+          return {'wardrobeId': wardrobe.id, 'count': count};
+        } catch (e) {
+          debugPrint('Failed to get count for wardrobe ${wardrobe.id}: $e');
+          return {'wardrobeId': wardrobe.id, 'count': 0};
+        }
+      });
+
+      final results = await Future.wait(futures);
+
+      // Update wardrobes with actual counts
+      for (var result in results) {
+        final wardrobeId = result['wardrobeId'] as String;
+        final count = result['count'] as int;
+        
+        final index = _wardrobes.indexWhere((w) => w.id == wardrobeId);
+        if (index != -1) {
+          _wardrobes[index] = _wardrobes[index].copyWith(totalItems: count);
+          
+          // Update selected wardrobe if it's the same
+          if (_selectedWardrobe?.id == wardrobeId) {
+            _selectedWardrobe = _wardrobes[index];
+          }
+        }
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to refresh wardrobe counts: $e');
+    }
+  }
+
   /// Watch wardrobes for real-time updates
   void watchWardrobes(String userId) {
-    WardrobeService.watchUserWardrobes(userId).listen((wardrobes) {
+    WardrobeService.watchUserWardrobes(userId).listen((wardrobes) async {
       _wardrobes = wardrobes;
       _errorMessage = null;
-      notifyListeners();
+      
+      // Refresh counts for all wardrobes
+      await _refreshAllWardrobeCounts(userId);
     }).onError((error) {
       _errorMessage = 'Failed to watch wardrobes: ${error.toString()}';
       notifyListeners();
