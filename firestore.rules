@@ -470,14 +470,26 @@ service cloud.firestore {
         
         // Messages subcollection: chats/{chatId}/messages/{messageId}
         match /messages/{messageId} {
+          // Allow list queries for participants (needed for loading messages)
+          allow list: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
+          
           // Allow read if user is a participant in parent chat
           allow read: if isAuthenticated() && 
                          request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
           
+          // Allow create if:
+          // 1. User is a participant in the chat (can create in their own subcollection), OR
+          // 2. User is the sender and is a participant (allows creating in other participants' subcollections)
+          // This allows bidirectional message creation - when User A sends a message,
+          // it can be created in both User A's and User B's message subcollections
           allow create: if isAuthenticated() && 
-                           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants &&
                            isValidMessage(request.resource.data) &&
-                           request.resource.data.senderId == request.auth.uid;
+                           request.resource.data.senderId == request.auth.uid &&
+                           // Check if sender is a participant in the chat
+                           // We check the chat document at the userId path (which may be different from sender)
+                           // but both users should have the same chat with same participants
+                           request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
           allow update: if isAuthenticated() && 
                            request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants &&
                            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) ||

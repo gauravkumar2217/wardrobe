@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
+import '../providers/chat_provider.dart';
 import 'home/home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
 import 'friends/friends_list_screen.dart';
@@ -30,6 +31,14 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final navigationProvider = Provider.of<NavigationProvider>(context);
+    final chatProvider = Provider.of<ChatProvider>(context);
+    
+    // Load unread counts when screen builds
+    if (authProvider.user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        chatProvider.loadUnreadCounts(authProvider.user!.uid);
+      });
+    }
     
     if (!authProvider.isAuthenticated) {
       // This shouldn't happen, but handle it gracefully
@@ -61,24 +70,56 @@ class _MainNavigationState extends State<MainNavigation> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF7C3AED),
         unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2),
             label: 'Wardrobes',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.people),
             label: 'Friends',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.chat),
+                if (chatProvider.totalUnreadCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        chatProvider.totalUnreadCount > 99
+                            ? '99+'
+                            : '${chatProvider.totalUnreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             label: 'Chats',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),

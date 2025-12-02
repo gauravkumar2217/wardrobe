@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat.dart';
+import '../../models/user_profile.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/chat_bubble.dart';
+import '../../services/user_service.dart';
 import '../cloth/cloth_detail_screen.dart';
 
 /// Chat detail screen for a specific chat
@@ -22,11 +24,43 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  UserProfile? _otherParticipantProfile;
+  bool _isLoadingProfile = false;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _loadOtherParticipantProfile();
+  }
+
+  Future<void> _loadOtherParticipantProfile() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    if (authProvider.user == null) return;
+    
+    final otherParticipantId = widget.chat.getOtherParticipant(authProvider.user!.uid);
+    if (otherParticipantId == null) return;
+
+    setState(() {
+      _isLoadingProfile = true;
+    });
+
+    try {
+      final profile = await UserService.getUserProfile(otherParticipantId);
+      if (mounted) {
+        setState(() {
+          _otherParticipantProfile = profile;
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+        });
+      }
+    }
   }
 
   @override
@@ -49,6 +83,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         userId: authProvider.user!.uid,
         chatId: widget.chat.id,
       );
+      
+      // Mark all messages as seen when opening the chat
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted && authProvider.user != null) {
+          await chatProvider.markAllMessagesAsSeen(
+            userId: authProvider.user!.uid,
+            chatId: widget.chat.id,
+          );
+        }
+      });
     }
   }
 
@@ -124,10 +169,61 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final chatProvider = Provider.of<ChatProvider>(context);
-
+    final otherParticipantId = widget.chat.getOtherParticipant(authProvider.user?.uid ?? '');
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.chat.isGroup ? 'Group Chat' : 'Chat'),
+        title: _isLoadingProfile
+            ? const Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Loading...'),
+                ],
+              )
+            : widget.chat.isGroup
+                ? const Text('Group Chat')
+                : Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white.withOpacity(0.3),
+                        backgroundImage: _otherParticipantProfile?.photoUrl != null
+                            ? NetworkImage(_otherParticipantProfile!.photoUrl!)
+                            : null,
+                        child: _otherParticipantProfile?.photoUrl == null
+                            ? Text(
+                                _otherParticipantProfile?.displayName?.substring(0, 1).toUpperCase() ?? 
+                                (otherParticipantId != null && otherParticipantId.isNotEmpty ? otherParticipantId.substring(0, 1).toUpperCase() : '?'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _otherParticipantProfile?.displayName ?? 
+                          (_otherParticipantProfile?.username != null 
+                              ? '@${_otherParticipantProfile!.username}' 
+                              : 'Chat'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
       ),

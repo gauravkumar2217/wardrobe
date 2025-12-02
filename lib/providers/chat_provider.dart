@@ -9,12 +9,24 @@ class ChatProvider with ChangeNotifier {
   Chat? _currentChat;
   bool _isLoading = false;
   String? _errorMessage;
+  Map<String, int> _unreadCounts = {}; // chatId -> unread count
 
   List<Chat> get chats => _chats;
   List<ChatMessage> get messages => _messages;
   Chat? get currentChat => _currentChat;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  Map<String, int> get unreadCounts => _unreadCounts;
+  
+  /// Get total unread count across all chats
+  int get totalUnreadCount {
+    return _unreadCounts.values.fold(0, (sum, count) => sum + count);
+  }
+  
+  /// Get unread count for a specific chat
+  int getUnreadCount(String chatId) {
+    return _unreadCounts[chatId] ?? 0;
+  }
 
   /// Load chats for a user
   Future<void> loadChats(String userId) async {
@@ -39,11 +51,28 @@ class ChatProvider with ChangeNotifier {
     ChatService.watchUserChats(userId).listen((chats) {
       _chats = chats;
       _errorMessage = null;
+      // Refresh unread counts when chats update
+      _refreshUnreadCounts(userId);
       notifyListeners();
     }).onError((error) {
       _errorMessage = 'Failed to watch chats: ${error.toString()}';
       notifyListeners();
     });
+  }
+
+  /// Refresh unread counts for all chats
+  Future<void> _refreshUnreadCounts(String userId) async {
+    try {
+      _unreadCounts = await ChatService.getAllUnreadCounts(userId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to refresh unread counts: $e');
+    }
+  }
+
+  /// Load unread counts for all chats
+  Future<void> loadUnreadCounts(String userId) async {
+    await _refreshUnreadCounts(userId);
   }
 
   /// Get or create chat between two users
@@ -104,11 +133,31 @@ class ChatProvider with ChangeNotifier {
     ChatService.watchMessages(userId: userId, chatId: chatId).listen((messages) {
       _messages = messages;
       _errorMessage = null;
+      // Refresh unread count for this chat when messages update
+      _refreshChatUnreadCount(userId: userId, chatId: chatId);
       notifyListeners();
     }).onError((error) {
       _errorMessage = 'Failed to watch messages: ${error.toString()}';
       notifyListeners();
     });
+  }
+
+  /// Refresh unread count for a specific chat
+  Future<void> _refreshChatUnreadCount({
+    required String userId,
+    required String chatId,
+  }) async {
+    try {
+      final count = await ChatService.getUnreadCount(userId: userId, chatId: chatId);
+      if (count > 0) {
+        _unreadCounts[chatId] = count;
+      } else {
+        _unreadCounts.remove(chatId);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to refresh chat unread count: $e');
+    }
   }
 
   /// Send text message
@@ -204,8 +253,34 @@ class ChatProvider with ChangeNotifier {
         chatId: chatId,
         messageIds: messageIds,
       );
+      // Refresh unread count after marking as seen
+      await _refreshChatUnreadCount(userId: userId, chatId: chatId);
     } catch (e) {
       debugPrint('Failed to mark messages as seen: $e');
+    }
+  }
+
+  /// Mark all messages in current chat as seen
+  Future<void> markAllMessagesAsSeen({
+    required String userId,
+    required String chatId,
+  }) async {
+    try {
+      // Get all unread messages
+      final unreadMessages = _messages
+          .where((msg) => msg.senderId != userId && !msg.isSeenBy(userId))
+          .map((msg) => msg.id)
+          .toList();
+
+      if (unreadMessages.isNotEmpty) {
+        await markMessagesAsSeen(
+          userId: userId,
+          chatId: chatId,
+          messageIds: unreadMessages,
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to mark all messages as seen: $e');
     }
   }
 
