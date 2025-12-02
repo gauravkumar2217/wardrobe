@@ -280,7 +280,13 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidDevice(request.resource.data);
-        allow update: if isOwner(userId) && isValidDevice(request.resource.data);
+        // Allow partial updates for isActive and lastActiveAt
+        // Also allow full updates that pass validation
+        allow update: if isOwner(userId) && 
+                         ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'lastActiveAt']) &&
+                           request.resource.data.isActive is bool &&
+                           request.resource.data.lastActiveAt is timestamp) ||
+                          isValidDevice(request.resource.data));
         allow delete: if isOwner(userId);
       }
       
@@ -636,6 +642,29 @@ service cloud.firestore {
       // Allow delete if user is a participant
       allow delete: if isAuthenticated() && 
                        request.auth.uid in resource.data.participants;
+    }
+    
+    // ============================================
+    // NOTIFICATION TRIGGERS COLLECTION
+    // ============================================
+    // Used to trigger push notifications via Cloud Functions
+    // Cloud Functions listen to this collection and send FCM notifications
+    match /notificationTriggers/{triggerId} {
+      // Allow authenticated users to create notification triggers
+      // This allows users to trigger notifications for other users
+      // Cloud Functions will process these and send actual FCM notifications
+      allow create: if isAuthenticated() && 
+                       request.resource.data.keys().hasAll(['type', 'recipientUserId', 'senderUserId', 'createdAt']) &&
+                       request.resource.data.type is string &&
+                       request.resource.data.recipientUserId is string &&
+                       request.resource.data.senderUserId is string &&
+                       request.resource.data.senderUserId == request.auth.uid &&
+                       request.resource.data.createdAt is timestamp;
+      
+      // Only Cloud Functions should read/update/delete these
+      // For now, allow read for debugging (can be restricted later)
+      allow read: if isAuthenticated();
+      allow update, delete: if false; // Only Cloud Functions can update/delete
     }
   }
 }

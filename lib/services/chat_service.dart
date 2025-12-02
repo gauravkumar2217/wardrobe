@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
+import 'push_notification_service.dart';
+import 'user_service.dart';
 
 /// Chat service for managing chats and messages
 class ChatService {
@@ -187,6 +189,37 @@ class ChatService {
       // Commit all writes atomically
       await batch.commit();
 
+      // Send push notifications to other participants if their app is in background
+      // Skip the sender
+      for (var participantId in chat.participants) {
+        if (participantId != userId) {
+          // Check if recipient's app is likely in foreground
+          // If not, send push notification
+          final isInForeground =
+              await PushNotificationService.isUserAppInForeground(
+                  participantId);
+
+          if (!isInForeground) {
+            // Get sender's profile for notification
+            final senderProfile = await UserService.getUserProfile(userId);
+            final senderName = senderProfile?.displayName ??
+                (senderProfile?.username != null
+                    ? '@${senderProfile!.username}'
+                    : 'Someone');
+
+            // Send push notification
+            await PushNotificationService.sendChatMessageNotification(
+              recipientUserId: participantId,
+              senderUserId: userId,
+              chatId: chatId,
+              messageId: messageId,
+              messageText: previewText,
+              senderName: senderName,
+            );
+          }
+        }
+      }
+
       return messageId;
     } catch (e) {
       debugPrint('Failed to send message: $e');
@@ -346,9 +379,11 @@ class ChatService {
         final data = doc.data();
         final senderId = data['senderId'] as String?;
         final seenBy = data['seenBy'] as List<dynamic>? ?? [];
-        
+
         // Count only messages from others that haven't been seen by this user
-        if (senderId != null && senderId != userId && !seenBy.contains(userId)) {
+        if (senderId != null &&
+            senderId != userId &&
+            !seenBy.contains(userId)) {
           unreadCount++;
         }
       }
@@ -386,4 +421,3 @@ class ChatService {
     }
   }
 }
-

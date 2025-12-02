@@ -126,9 +126,29 @@ class FCMService {
           .doc(_currentToken!)
           .update({
         'lastActiveAt': FieldValue.serverTimestamp(),
+        'isActive': true,
       });
     } catch (e) {
       debugPrint('Failed to update last active: $e');
+    }
+  }
+
+  /// Update app state (foreground/background)
+  static Future<void> updateAppState(String userId, bool isInForeground) async {
+    if (_currentToken == null) return;
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('devices')
+          .doc(_currentToken!)
+          .update({
+        'isActive': isInForeground,
+        'lastActiveAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Failed to update app state: $e');
     }
   }
 
@@ -186,4 +206,3 @@ class FCMService {
     }
   }
 }
-
