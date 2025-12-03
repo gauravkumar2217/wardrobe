@@ -13,6 +13,7 @@ import 'providers/friend_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/navigation_provider.dart';
+import 'providers/filter_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
 
@@ -41,12 +42,14 @@ void main() async {
   // Initialize App Check
   try {
     if (kDebugMode) {
-      FirebaseAppCheck.instance.activate(
+      FirebaseAppCheck.instance
+          .activate(
         androidProvider: AndroidProvider.debug,
         appleProvider: AppleProvider.debug,
-      ).then((_) async {
+      )
+          .then((_) async {
         debugPrint('✅ App Check initialized in DEBUG mode');
-        
+
         // Verify App Check token is working
         // Wait a moment for App Check to fully initialize
         Future.delayed(const Duration(seconds: 2), () async {
@@ -56,33 +59,44 @@ void main() async {
               // tokenResult is already a String (the token itself)
               final tokenString = tokenResult;
               debugPrint('');
-              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint(
+                  '═══════════════════════════════════════════════════════');
               debugPrint('✅ APP CHECK DEBUG TOKEN VERIFIED');
-              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint(
+                  '═══════════════════════════════════════════════════════');
               debugPrint('');
               debugPrint('Current token: $tokenString');
               debugPrint('');
-              debugPrint('Expected token: BECB928B-A405-40BC-B0AA-A2EBC581AB97');
+              debugPrint(
+                  'Expected token: BECB928B-A405-40BC-B0AA-A2EBC581AB97');
               debugPrint('');
-              if (tokenString.contains('BECB928B-A405-40BC-B0AA-A2EBC581AB97')) {
-                debugPrint('✅ Token matches! App Check is configured correctly.');
+              if (tokenString
+                  .contains('BECB928B-A405-40BC-B0AA-A2EBC581AB97')) {
+                debugPrint(
+                    '✅ Token matches! App Check is configured correctly.');
               } else {
-                debugPrint('⚠️ Token mismatch. Make sure the debug token is added in Firebase Console.');
-                debugPrint('   Go to: Firebase Console → App Check → Your App → Manage debug tokens');
+                debugPrint(
+                    '⚠️ Token mismatch. Make sure the debug token is added in Firebase Console.');
+                debugPrint(
+                    '   Go to: Firebase Console → App Check → Your App → Manage debug tokens');
               }
               debugPrint('');
-              debugPrint('═══════════════════════════════════════════════════════');
+              debugPrint(
+                  '═══════════════════════════════════════════════════════');
               debugPrint('');
             } else {
               debugPrint('⚠️ App Check token is null');
-              debugPrint('   Make sure debug token BECB928B-A405-40BC-B0AA-A2EBC581AB97 is added in Firebase Console');
+              debugPrint(
+                  '   Make sure debug token BECB928B-A405-40BC-B0AA-A2EBC581AB97 is added in Firebase Console');
             }
           } catch (tokenError) {
             debugPrint('⚠️ Failed to get App Check debug token: $tokenError');
             debugPrint('');
-            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint(
+                '═══════════════════════════════════════════════════════');
             debugPrint('🔍 ALTERNATIVE: Check Android Logcat for debug token');
-            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint(
+                '═══════════════════════════════════════════════════════');
             debugPrint('');
             debugPrint('To find the debug token:');
             debugPrint('1. Open Android Studio Logcat');
@@ -93,9 +107,10 @@ void main() async {
             debugPrint('6. Click "Manage debug tokens" → "Add debug token"');
             debugPrint('7. Paste the token and save');
             debugPrint('');
-            debugPrint('═══════════════════════════════════════════════════════');
+            debugPrint(
+                '═══════════════════════════════════════════════════════');
             debugPrint('');
-            
+
             // Try one more time after a longer delay
             Future.delayed(const Duration(seconds: 5), () async {
               try {
@@ -116,10 +131,12 @@ void main() async {
         debugPrint('⚠️ App Check debug initialization failed: $e');
       });
     } else {
-      FirebaseAppCheck.instance.activate(
+      FirebaseAppCheck.instance
+          .activate(
         androidProvider: AndroidProvider.playIntegrity,
         appleProvider: AppleProvider.appAttest,
-      ).then((_) {
+      )
+          .then((_) {
         debugPrint('✅ App Check initialized in RELEASE mode');
       }).catchError((e) {
         debugPrint('❌ App Check initialization failed: $e');
@@ -161,6 +178,7 @@ class WardrobeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => FilterProvider()),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

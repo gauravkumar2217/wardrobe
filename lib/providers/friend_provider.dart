@@ -123,12 +123,50 @@ class FriendProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Find the request in local list to get fromUserId for immediate UI update
+      // If not found locally, we'll still proceed - the service will fetch it
+      String? fromUserId;
+      int? requestIndex;
+      
+      // Safely find the request index
+      if (_incomingRequests.isNotEmpty) {
+        requestIndex = _incomingRequests.indexWhere((r) => r.id == requestId);
+        if (requestIndex != -1 && requestIndex < _incomingRequests.length) {
+          fromUserId = _incomingRequests[requestIndex].fromUserId;
+        } else {
+          requestIndex = null; // Invalid index, don't try to remove
+        }
+      }
+      
       await FriendService.acceptFriendRequest(requestId);
-      _incomingRequests.removeWhere((r) => r.id == requestId);
+      
+      // Remove from local list if it was there and index is valid
+      if (requestIndex != null && 
+          requestIndex != -1 && 
+          requestIndex < _incomingRequests.length &&
+          _incomingRequests.isNotEmpty) {
+        try {
+          _incomingRequests.removeAt(requestIndex);
+        } catch (e) {
+          // If removal fails, try removing by ID instead
+          _incomingRequests.removeWhere((r) => r.id == requestId);
+        }
+      } else {
+        // Fallback: remove by ID if index lookup failed
+        _incomingRequests.removeWhere((r) => r.id == requestId);
+      }
+      
+      // Add the friend to the friends list immediately if we have the fromUserId
+      if (fromUserId != null && fromUserId.isNotEmpty && !_friends.contains(fromUserId)) {
+        _friends.add(fromUserId);
+      }
+      
       _errorMessage = null;
       return true;
     } catch (e) {
       _errorMessage = 'Failed to accept friend request: ${e.toString()}';
+      debugPrint('Error accepting friend request: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
       return false;
     } finally {
       _isLoading = false;

@@ -60,6 +60,10 @@ class FriendService {
   /// Accept friend request
   static Future<void> acceptFriendRequest(String requestId) async {
     try {
+      if (requestId.isEmpty) {
+        throw Exception('Friend request ID cannot be empty');
+      }
+
       final requestDoc =
           await _firestore.collection('friendRequests').doc(requestId).get();
 
@@ -67,24 +71,41 @@ class FriendService {
         throw Exception('Friend request not found');
       }
 
-      final request = FriendRequest.fromJson(requestDoc.data()!, requestId);
+      final data = requestDoc.data();
+      if (data == null) {
+        throw Exception('Friend request data is null');
+      }
+
+      final request = FriendRequest.fromJson(data, requestId);
 
       if (request.status != 'pending') {
         throw Exception('Friend request is not pending');
       }
 
-      // Update request status
-      await _firestore.collection('friendRequests').doc(requestId).update({
-        'status': 'accepted',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Validate user IDs
+      if (request.fromUserId.isEmpty || request.toUserId.isEmpty) {
+        throw Exception('Invalid friend request: user IDs are empty');
+      }
 
-      // Create friend documents in both users' friends subcollections
-      // Note: This should be done by Cloud Function, but we'll do it here too
+      if (request.fromUserId == request.toUserId) {
+        throw Exception('Invalid friend request: cannot be friends with yourself');
+      }
+
+      // Update request status and create friend documents in both users' friends subcollections
+      // Do everything in a batch to ensure atomicity
       final now = DateTime.now();
       final batch = _firestore.batch();
 
-      // Add to fromUserId's friends
+      // Update request status
+      batch.update(
+        _firestore.collection('friendRequests').doc(requestId),
+        {
+          'status': 'accepted',
+          'updatedAt': Timestamp.fromDate(now),
+        },
+      );
+
+      // Add to fromUserId's friends (sender's friends list)
       batch.set(
         _firestore
             .collection('users')
@@ -97,7 +118,7 @@ class FriendService {
         },
       );
 
-      // Add to toUserId's friends
+      // Add to toUserId's friends (receiver's friends list)
       batch.set(
         _firestore
             .collection('users')
@@ -113,6 +134,8 @@ class FriendService {
       await batch.commit();
     } catch (e) {
       debugPrint('Failed to accept friend request: $e');
+      debugPrint('Request ID: $requestId');
+      debugPrint('Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
+import 'push_notification_service.dart';
+import 'user_service.dart';
 
 /// Chat service for managing chats and messages
 class ChatService {
@@ -146,42 +148,74 @@ class ChatService {
         'seenBy': [userId],
       };
 
-      // Create message in chat's messages subcollection
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(messageId)
-          .set(messageData);
-
-      // Update chat's lastMessage and lastMessageAt
-      final previewText = text ?? (imageUrl != null ? '📷 Image' : '👕 Cloth');
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .update({
-        'lastMessage': previewText,
-        'lastMessageAt': Timestamp.fromDate(now),
-      });
-
-      // Also update in other participants' chat documents
+      // Get chat to find all participants
       final chat = await getChat(userId: userId, chatId: chatId);
-      if (chat != null) {
-        for (var participantId in chat.participants) {
-          if (participantId != userId) {
-            await _firestore
-                .collection('users')
-                .doc(participantId)
-                .collection('chats')
-                .doc(chatId)
-                .update({
-              'lastMessage': previewText,
-              'lastMessageAt': Timestamp.fromDate(now),
-            });
+      if (chat == null) {
+        throw Exception('Chat not found');
+      }
+
+      // Create message in ALL participants' message subcollections
+      // This ensures all participants can see all messages
+      final batch = _firestore.batch();
+      final previewText = text ?? (imageUrl != null ? '📷 Image' : '👕 Cloth');
+
+      for (var participantId in chat.participants) {
+        // Create message in each participant's messages subcollection
+        batch.set(
+          _firestore
+              .collection('users')
+              .doc(participantId)
+              .collection('chats')
+              .doc(chatId)
+              .collection('messages')
+              .doc(messageId),
+          messageData,
+        );
+
+        // Update chat's lastMessage and lastMessageAt for each participant
+        batch.update(
+          _firestore
+              .collection('users')
+              .doc(participantId)
+              .collection('chats')
+              .doc(chatId),
+          {
+            'lastMessage': previewText,
+            'lastMessageAt': Timestamp.fromDate(now),
+          },
+        );
+      }
+
+      // Commit all writes atomically
+      await batch.commit();
+
+      // Send push notifications to other participants if their app is in background
+      // Skip the sender
+      for (var participantId in chat.participants) {
+        if (participantId != userId) {
+          // Check if recipient's app is likely in foreground
+          // If not, send push notification
+          final isInForeground =
+              await PushNotificationService.isUserAppInForeground(
+                  participantId);
+
+          if (!isInForeground) {
+            // Get sender's profile for notification
+            final senderProfile = await UserService.getUserProfile(userId);
+            final senderName = senderProfile?.displayName ??
+                (senderProfile?.username != null
+                    ? '@${senderProfile!.username}'
+                    : 'Someone');
+
+            // Send push notification
+            await PushNotificationService.sendChatMessageNotification(
+              recipientUserId: participantId,
+              senderUserId: userId,
+              chatId: chatId,
+              messageId: messageId,
+              messageText: previewText,
+              senderName: senderName,
+            );
           }
         }
       }
@@ -323,5 +357,67 @@ class ChatService {
             .map((doc) => Chat.fromJson(doc.data(), doc.id))
             .toList());
   }
-}
 
+  /// Get unread message count for a specific chat
+  static Future<int> getUnreadCount({
+    required String userId,
+    required String chatId,
+  }) async {
+    try {
+      // Get all messages and filter client-side
+      // Note: Firestore doesn't support isNotEqualTo, so we get all and filter
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .get();
+
+      int unreadCount = 0;
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final senderId = data['senderId'] as String?;
+        final seenBy = data['seenBy'] as List<dynamic>? ?? [];
+
+        // Count only messages from others that haven't been seen by this user
+        if (senderId != null &&
+            senderId != userId &&
+            !seenBy.contains(userId)) {
+          unreadCount++;
+        }
+      }
+
+      return unreadCount;
+    } catch (e) {
+      debugPrint('Failed to get unread count: $e');
+      return 0;
+    }
+  }
+
+  /// Get unread message counts for all chats
+  static Future<Map<String, int>> getAllUnreadCounts(String userId) async {
+    try {
+      final chatsSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('chats')
+          .get();
+
+      final Map<String, int> unreadCounts = {};
+
+      for (var chatDoc in chatsSnapshot.docs) {
+        final chatId = chatDoc.id;
+        final count = await getUnreadCount(userId: userId, chatId: chatId);
+        if (count > 0) {
+          unreadCounts[chatId] = count;
+        }
+      }
+
+      return unreadCounts;
+    } catch (e) {
+      debugPrint('Failed to get all unread counts: $e');
+      return {};
+    }
+  }
+}

@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
+import 'verify_contact_screen.dart';
 import '../auth/login_screen.dart';
 import '../privacy_policy_screen.dart';
 import '../terms_conditions_screen.dart';
@@ -36,8 +39,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       setState(() {
         _notificationSettings = NotificationSettings();
-        _privacySettings = PrivacySettings();
+        // Set default privacy settings (friends, friends, false)
+        _privacySettings = PrivacySettings(
+          profileVisibility: 'friends',
+          wardrobeVisibility: 'friends',
+          allowDmFromNonFriends: false,
+        );
       });
+    }
+
+    // Ensure privacy settings have default values (friends, friends, false)
+    // These are set automatically and don't need to be shown in UI
+    if (_privacySettings == null) {
+      _privacySettings = PrivacySettings(
+        profileVisibility: 'friends',
+        wardrobeVisibility: 'friends',
+        allowDmFromNonFriends: false,
+      );
+      // Save defaults if not set
+      _savePrivacySettings();
+    } else {
+      // Ensure defaults are applied
+      if (_privacySettings!.profileVisibility != 'friends' ||
+          _privacySettings!.wardrobeVisibility != 'friends' ||
+          _privacySettings!.allowDmFromNonFriends != false) {
+        _privacySettings = PrivacySettings(
+          profileVisibility: 'friends',
+          wardrobeVisibility: 'friends',
+          allowDmFromNonFriends: false,
+        );
+        _savePrivacySettings();
+      }
     }
   }
 
@@ -141,10 +173,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirmed == true && mounted) {
-      // TODO: Implement OTP confirmation for account deletion
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account deletion requires OTP confirmation')),
-      );
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final user = authProvider.user;
+
+        if (user == null) {
+          throw Exception('User not found');
+        }
+
+        // Delete user profile from Firestore
+        await UserService.deleteAccount(user.uid);
+
+        // Delete Firebase Auth account
+        await user.delete();
+
+        // Sign out
+        await authProvider.signOut();
+
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete account: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -168,11 +237,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: const Icon(Icons.person, color: Color(0xFF7C3AED)),
                   title: const Text('Edit Profile'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    // TODO: Navigate to edit profile screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit profile coming soon')),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                     );
+                    // Reload settings after editing profile
+                    if (mounted) {
+                      await _loadSettings();
+                    }
                   },
                 ),
                 ListTile(
@@ -180,9 +253,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Change Password'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // TODO: Navigate to change password screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Change password coming soon')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
                     );
                   },
                 ),
@@ -191,9 +264,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Verify Phone/Email'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // TODO: Navigate to verification screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Verification coming soon')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VerifyContactScreen()),
                     );
                   },
                 ),
@@ -323,43 +396,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                // Privacy section
-                const _SectionHeader(title: 'Privacy'),
-                if (_privacySettings != null) ...[
-                  ListTile(
-                    leading: const Icon(Icons.visibility, color: Color(0xFF7C3AED)),
-                    title: const Text('Profile Visibility'),
-                    subtitle: Text(_privacySettings!.profileVisibility),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      _showProfileVisibilityDialog();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                    title: const Text('Wardrobe Visibility'),
-                    subtitle: Text(_privacySettings!.wardrobeVisibility),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      _showWardrobeVisibilityDialog();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.message, color: Color(0xFF7C3AED)),
-                    title: const Text('Allow DM from Non-Friends'),
-                    value: _privacySettings!.allowDmFromNonFriends,
-                    onChanged: (value) {
-                      setState(() {
-                        _privacySettings = PrivacySettings(
-                          profileVisibility: _privacySettings!.profileVisibility,
-                          wardrobeVisibility: _privacySettings!.wardrobeVisibility,
-                          allowDmFromNonFriends: value,
-                        );
-                      });
-                      _savePrivacySettings();
-                    },
-                  ),
-                ],
+                // Privacy section - Hidden as per requirements (defaults are set automatically)
+                // Privacy settings are set to defaults:
+                // - profileVisibility: 'friends'
+                // - wardrobeVisibility: 'friends'
+                // - allowDmFromNonFriends: false
+                // These are applied automatically and don't need to be shown in settings
                 const SizedBox(height: 16),
                 // About section
                 const _SectionHeader(title: 'About'),
@@ -434,142 +476,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-    );
-  }
-
-  void _showProfileVisibilityDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Profile Visibility'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Public'),
-              value: 'public',
-              groupValue: _privacySettings?.profileVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: value,
-                      wardrobeVisibility: _privacySettings!.wardrobeVisibility,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Friends Only'),
-              value: 'friends',
-              groupValue: _privacySettings?.profileVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: value,
-                      wardrobeVisibility: _privacySettings!.wardrobeVisibility,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Private'),
-              value: 'private',
-              groupValue: _privacySettings?.profileVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: value,
-                      wardrobeVisibility: _privacySettings!.wardrobeVisibility,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showWardrobeVisibilityDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Wardrobe Visibility'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Public'),
-              value: 'public',
-              groupValue: _privacySettings?.wardrobeVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: _privacySettings!.profileVisibility,
-                      wardrobeVisibility: value,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Friends Only'),
-              value: 'friends',
-              groupValue: _privacySettings?.wardrobeVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: _privacySettings!.profileVisibility,
-                      wardrobeVisibility: value,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Private'),
-              value: 'private',
-              groupValue: _privacySettings?.wardrobeVisibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _privacySettings = PrivacySettings(
-                      profileVisibility: _privacySettings!.profileVisibility,
-                      wardrobeVisibility: value,
-                      allowDmFromNonFriends: _privacySettings!.allowDmFromNonFriends,
-                    );
-                  });
-                  _savePrivacySettings();
-                  Navigator.pop(context);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

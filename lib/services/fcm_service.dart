@@ -119,16 +119,38 @@ class FCMService {
     if (_currentToken == null) return;
 
     try {
+      // Use set with merge instead of update for better compatibility with sentinel values
       await _firestore
           .collection('users')
           .doc(userId)
           .collection('devices')
           .doc(_currentToken!)
-          .update({
+          .set({
         'lastActiveAt': FieldValue.serverTimestamp(),
-      });
+        'isActive': true,
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Failed to update last active: $e');
+    }
+  }
+
+  /// Update app state (foreground/background)
+  static Future<void> updateAppState(String userId, bool isInForeground) async {
+    if (_currentToken == null) return;
+
+    try {
+      // Use set with merge instead of update for better compatibility with sentinel values
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('devices')
+          .doc(_currentToken!)
+          .set({
+        'isActive': isInForeground,
+        'lastActiveAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Failed to update app state: $e');
     }
   }
 
@@ -186,4 +208,3 @@ class FCMService {
     }
   }
 }
-

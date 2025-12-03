@@ -5,6 +5,7 @@ import '../../providers/cloth_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/filter_provider.dart';
 import '../../models/cloth.dart';
 import '../../widgets/cloth_card.dart';
 import '../wardrobe/wardrobe_list_screen.dart';
@@ -31,6 +32,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isRefreshingCounts = false;
   bool _hasInitialLoad = false;
   int _lastNavigationIndex = -1;
+  
+  // Filter state
+  String? _filterType;
+  String? _filterOccasion;
+  String? _filterSeason;
+  String? _filterColor;
+  String? _searchQuery;
+  final TextEditingController _searchController = TextEditingController();
+  bool _showSearchBar = false;
 
   @override
   void initState() {
@@ -41,7 +51,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadClothes();
+      _checkForFilterParameters();
     });
+  }
+
+  void _checkForFilterParameters() {
+    // Check if we received filter parameters from statistics screen
+    // This will be handled via FilterProvider
+  }
+
+  void _clearFilters() {
+    final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+    filterProvider.clearFilters();
+    setState(() {
+      _filterType = null;
+      _filterOccasion = null;
+      _filterSeason = null;
+      _filterColor = null;
+    });
+  }
+
+  String _getFilterLabel() {
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    if (wardrobeProvider.selectedWardrobe != null) {
+      return wardrobeProvider.selectedWardrobe!.name;
+    }
+    if (_filterType != null) return _filterType!;
+    if (_filterOccasion != null) return _filterOccasion!;
+    if (_filterSeason != null) return _filterSeason!;
+    if (_filterColor != null) return _filterColor!;
+    return '';
   }
 
   @override
@@ -492,6 +531,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final clothProvider = Provider.of<ClothProvider>(context);
     final wardrobeProvider = Provider.of<WardrobeProvider>(context);
     final navigationProvider = Provider.of<NavigationProvider>(context);
+    final filterProvider = Provider.of<FilterProvider>(context);
+    
+    // Sync filter state from provider
+    _filterType = filterProvider.filterType;
+    _filterOccasion = filterProvider.filterOccasion;
+    _filterSeason = filterProvider.filterSeason;
+    _filterColor = filterProvider.filterColor;
 
     // Refresh counts when navigating back to home screen (index 0)
     if (_hasInitialLoad &&
@@ -505,11 +551,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     _lastNavigationIndex = navigationProvider.currentIndex;
 
-    final filteredClothes = wardrobeProvider.selectedWardrobe != null
-        ? clothProvider.clothes
-            .where((c) => c.wardrobeId == wardrobeProvider.selectedWardrobe!.id)
-            .toList()
-        : clothProvider.clothes;
+    // Apply all filters
+    var filteredClothes = clothProvider.clothes;
+
+    // Filter by wardrobe
+    if (wardrobeProvider.selectedWardrobe != null) {
+      filteredClothes = filteredClothes
+          .where((c) => c.wardrobeId == wardrobeProvider.selectedWardrobe!.id)
+          .toList();
+    }
+
+    // Filter by type
+    if (_filterType != null) {
+      filteredClothes = filteredClothes
+          .where((c) => c.clothType == _filterType)
+          .toList();
+    }
+
+    // Filter by occasion
+    if (_filterOccasion != null) {
+      filteredClothes = filteredClothes
+          .where((c) => c.occasions.contains(_filterOccasion))
+          .toList();
+    }
+
+    // Filter by season
+    if (_filterSeason != null) {
+      filteredClothes = filteredClothes
+          .where((c) => c.season == _filterSeason)
+          .toList();
+    }
+
+    // Filter by color
+    if (_filterColor != null) {
+      filteredClothes = filteredClothes
+          .where((c) => c.colorTags.colors.contains(_filterColor))
+          .toList();
+    }
+
+    // Filter by search query
+    if (_searchQuery != null && _searchQuery!.isNotEmpty) {
+      final query = _searchQuery!.toLowerCase();
+      filteredClothes = filteredClothes.where((c) {
+        return c.clothType.toLowerCase().contains(query) ||
+            c.category.toLowerCase().contains(query) ||
+            c.season.toLowerCase().contains(query) ||
+            c.occasions.any((occ) => occ.toLowerCase().contains(query)) ||
+            c.colorTags.colors.any((color) => color.toLowerCase().contains(query));
+      }).toList();
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -586,6 +676,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       onPressed: () {
                                         wardrobeProvider
                                             .setSelectedWardrobe(null);
+                                        _clearFilters();
                                         _loadClothes();
                                       },
                                       child: const Text('Clear filter',
@@ -657,9 +748,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               },
                             ),
             ),
+            // Search bar (if visible)
+            if (_showSearchBar)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.95),
+                        Colors.black.withValues(alpha: 0.7),
+                      ],
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search by type, occasion, season, color...',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                      prefixIcon: const Icon(Icons.search, color: Colors.white),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.white),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = null;
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.2),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.isEmpty ? null : value;
+                      });
+                    },
+                  ),
+                ),
+              ),
             // Top controls
             Positioned(
-              top: 0,
+              top: _showSearchBar ? 60 : 0,
               left: 0,
               right: 0,
               child: Container(
@@ -681,6 +823,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     // Don't show back button on home screen (it's part of MainNavigation)
                     // Only show spacer to maintain layout
                     const SizedBox(width: 48),
+                    // Search button
+                    IconButton(
+                      icon: Icon(
+                        _showSearchBar ? Icons.close : Icons.search,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showSearchBar = !_showSearchBar;
+                          if (!_showSearchBar) {
+                            _searchQuery = null;
+                            _searchController.clear();
+                          }
+                        });
+                      },
+                    ),
                     // Wardrobe filter button
                     GestureDetector(
                       onTap: () async {
@@ -699,7 +857,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: wardrobeProvider.selectedWardrobe != null
+                          color: wardrobeProvider.selectedWardrobe != null ||
+                                  _filterType != null ||
+                                  _filterOccasion != null ||
+                                  _filterSeason != null ||
+                                  _filterColor != null
                               ? Colors.purple.withValues(alpha: 0.8)
                               : Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -709,10 +871,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             const Icon(Icons.filter_list,
                                 color: Colors.white, size: 20),
-                            if (wardrobeProvider.selectedWardrobe != null) ...[
+                            if (wardrobeProvider.selectedWardrobe != null ||
+                                _filterType != null ||
+                                _filterOccasion != null ||
+                                _filterSeason != null ||
+                                _filterColor != null) ...[
                               const SizedBox(width: 4),
                               Text(
-                                wardrobeProvider.selectedWardrobe!.name,
+                                _getFilterLabel(),
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 14),
                               ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../models/user_profile.dart';
+import '../../services/user_service.dart';
 import 'chat_detail_screen.dart';
 
 /// Chat list screen showing all user chats
@@ -13,6 +15,8 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
+  final Map<String, UserProfile?> _participantProfiles = {};
+
   @override
   void initState() {
     super.initState();
@@ -22,6 +26,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
+  Future<void> _loadParticipantProfile(String userId) async {
+    if (_participantProfiles.containsKey(userId)) return;
+
+    try {
+      final profile = await UserService.getUserProfile(userId);
+      if (mounted) {
+        setState(() {
+          _participantProfiles[userId] = profile;
+        });
+      }
+    } catch (e) {
+      // Silently fail - will show fallback UI
+    }
+  }
+
   void _loadChats() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
@@ -29,12 +48,27 @@ class _ChatListScreenState extends State<ChatListScreen> {
     if (authProvider.user != null) {
       chatProvider.loadChats(authProvider.user!.uid);
       chatProvider.watchChats(authProvider.user!.uid);
+      // Load unread counts
+      chatProvider.loadUnreadCounts(authProvider.user!.uid);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+
+    // Load profiles for all chat participants
+    if (authProvider.user != null) {
+      for (var chat in chatProvider.chats) {
+        if (!chat.isGroup) {
+          final otherParticipantId = chat.getOtherParticipant(authProvider.user!.uid);
+          if (otherParticipantId != null) {
+            _loadParticipantProfile(otherParticipantId);
+          }
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -101,20 +135,119 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   itemCount: chatProvider.chats.length,
                   itemBuilder: (context, index) {
                     final chat = chatProvider.chats[index];
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    
+                    // Get other participant for non-group chats
+                    String? otherParticipantId;
+                    UserProfile? otherParticipantProfile;
+                    
+                    if (!chat.isGroup && authProvider.user != null) {
+                      otherParticipantId = chat.getOtherParticipant(authProvider.user!.uid);
+                      if (otherParticipantId != null) {
+                        otherParticipantProfile = _participantProfiles[otherParticipantId];
+                        // Trigger profile load if not already loaded
+                        _loadParticipantProfile(otherParticipantId);
+                      }
+                    }
+
+                    // Determine display name and avatar
+                    String displayName;
+                    String? photoUrl;
+                    String avatarLetter;
+
+                    if (chat.isGroup) {
+                      displayName = 'Group Chat';
+                      avatarLetter = 'G';
+                    } else if (otherParticipantProfile != null) {
+                      displayName = otherParticipantProfile.displayName ?? 
+                                   (otherParticipantProfile.username != null 
+                                       ? '@${otherParticipantProfile.username}' 
+                                       : 'Chat');
+                      photoUrl = otherParticipantProfile.photoUrl;
+                      avatarLetter = otherParticipantProfile.displayName?.substring(0, 1).toUpperCase() ?? 
+                                   (otherParticipantId != null && otherParticipantId.isNotEmpty 
+                                       ? otherParticipantId.substring(0, 1).toUpperCase() 
+                                       : '?');
+                    } else {
+                      displayName = 'Chat';
+                      avatarLetter = otherParticipantId != null && otherParticipantId.isNotEmpty
+                          ? otherParticipantId.substring(0, 1).toUpperCase()
+                          : '?';
+                    }
+
+                    final unreadCount = chatProvider.getUnreadCount(chat.id);
+
                     return ListTile(
                       leading: CircleAvatar(
+                        radius: 28,
                         backgroundColor: const Color(0xFF7C3AED),
-                        child: Text(
-                          chat.isGroup ? 'G' : chat.participants.first[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
+                        backgroundImage: photoUrl != null
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: photoUrl == null
+                            ? Text(
+                                avatarLetter,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: TextStyle(
+                                fontWeight: unreadCount > 0 
+                                    ? FontWeight.bold 
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (unreadCount > 0)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C3AED),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        chat.lastMessage ?? 'No messages yet',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: unreadCount > 0 
+                              ? FontWeight.w500 
+                              : FontWeight.normal,
                         ),
                       ),
-                      title: Text(chat.isGroup ? 'Group Chat' : 'Chat'),
-                      subtitle: Text(chat.lastMessage ?? 'No messages yet'),
                       trailing: chat.lastMessageAt != null
                           ? Text(
                               _formatTime(chat.lastMessageAt!),
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: unreadCount > 0 
+                                    ? FontWeight.bold 
+                                    : FontWeight.normal,
+                              ),
                             )
                           : null,
                       onTap: () {

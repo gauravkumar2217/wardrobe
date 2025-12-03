@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/cloth_provider.dart';
+import '../../providers/navigation_provider.dart';
 import '../../models/cloth.dart';
 import '../wardrobe/wardrobe_list_screen.dart';
 import '../friends/friends_list_screen.dart';
 import '../friends/friend_requests_screen.dart';
+import '../statistics/statistics_screen.dart';
+import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
 import '../auth/login_screen.dart';
 
@@ -285,6 +288,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         );
                       },
                     ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.bar_chart, color: Color(0xFF7C3AED)),
+                      title: const Text('Statistics'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                        );
+                        // If filter was selected, navigate to home with filter
+                        if (result != null && mounted) {
+                          final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+                          navigationProvider.setCurrentIndex(0); // Navigate to home
+                          // The filter will be applied when home screen loads
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -297,11 +318,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       leading: const Icon(Icons.edit, color: Color(0xFF7C3AED)),
                       title: const Text('Edit Profile'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        // TODO: Navigate to edit profile screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Edit profile coming soon')),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                         );
+                        // Reload profile after editing
+                        if (mounted) {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          if (authProvider.user != null) {
+                            // Profile is automatically updated via AuthProvider when updateProfile is called
+                            _loadStats(); // Reload stats to reflect any changes
+                          }
+                        }
                       },
                     ),
                     const Divider(height: 1),

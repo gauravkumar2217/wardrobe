@@ -78,6 +78,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
 
   Future<void> _acceptRequest(FriendRequest request) async {
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     final success = await friendProvider.acceptFriendRequest(request.id);
 
@@ -86,8 +87,14 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request accepted')),
         );
+        
+        // Reload friends list to ensure the new friend appears
+        if (authProvider.user != null) {
+          await friendProvider.loadFriends(authProvider.user!.uid);
+        }
+        
         // Reload requests to update the list
-        _loadFriendRequests();
+        await _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
