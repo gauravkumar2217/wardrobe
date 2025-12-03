@@ -90,6 +90,29 @@ class ClothService {
     required String clothId,
   }) async {
     try {
+      // Try top-level clothes collection first (has better rules for shared clothes)
+      // This collection allows authenticated users to read, and GET rule checks canReadCloth
+      try {
+        final topLevelDoc = await _firestore
+            .collection('clothes')
+            .doc(clothId)
+            .get();
+
+        if (topLevelDoc.exists) {
+          final data = topLevelDoc.data();
+          if (data != null) {
+            // For shared clothes, we don't need to verify userId/wardrobeId match
+            // The Firestore rules already check canReadCloth which handles permissions
+            // Just return the cloth if it exists
+            return Cloth.fromJson(data, clothId);
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to get cloth from top-level collection: $e');
+        // Fall through to try subcollection
+      }
+
+      // Fall back to subcollection (for owner's own clothes)
       final doc = await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)

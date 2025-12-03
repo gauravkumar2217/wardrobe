@@ -186,6 +186,53 @@ class ChatService {
         );
       }
 
+      // If sharing a cloth, add recipients to cloth's sharedWith array
+      if (clothId != null && clothOwnerId != null && clothWardrobeId != null) {
+        try {
+          // Get the cloth document to update sharedWith
+          final clothRef = _firestore
+              .collection('users')
+              .doc(clothOwnerId)
+              .collection('wardrobes')
+              .doc(clothWardrobeId)
+              .collection('clothes')
+              .doc(clothId);
+
+          // Get current sharedWith array
+          final clothDoc = await clothRef.get();
+          if (clothDoc.exists) {
+            final clothData = clothDoc.data()!;
+            final currentSharedWith = clothData['sharedWith'] as List<dynamic>? ?? [];
+            final sharedWithList = List<String>.from(currentSharedWith.map((e) => e.toString()));
+
+            // Add all participants (except the sender) to sharedWith
+            for (var participantId in chat.participants) {
+              if (participantId != userId && !sharedWithList.contains(participantId)) {
+                sharedWithList.add(participantId);
+              }
+            }
+
+            // Update sharedWith in both subcollection and top-level collection
+            batch.update(clothRef, {
+              'sharedWith': sharedWithList,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            // Also update top-level clothes collection
+            batch.update(
+              _firestore.collection('clothes').doc(clothId),
+              {
+                'sharedWith': sharedWithList,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+            );
+          }
+        } catch (e) {
+          debugPrint('Failed to update cloth sharedWith: $e');
+          // Don't fail the message send if this fails
+        }
+      }
+
       // Commit all writes atomically
       await batch.commit();
 
@@ -208,14 +255,19 @@ class ChatService {
                     : 'Someone');
 
             // Send push notification
-            await PushNotificationService.sendChatMessageNotification(
-              recipientUserId: participantId,
-              senderUserId: userId,
-              chatId: chatId,
-              messageId: messageId,
-              messageText: previewText,
-              senderName: senderName,
-            );
+            try {
+              await PushNotificationService.sendChatMessageNotification(
+                recipientUserId: participantId,
+                senderUserId: userId,
+                chatId: chatId,
+                messageId: messageId,
+                messageText: previewText,
+                senderName: senderName,
+              );
+            } catch (e) {
+              debugPrint('Failed to send push notification: $e');
+              // Don't fail the message send if notification fails
+            }
           }
         }
       }

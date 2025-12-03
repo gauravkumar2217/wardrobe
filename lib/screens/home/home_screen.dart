@@ -15,6 +15,7 @@ import '../cloth/comment_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../services/chat_service.dart';
+import '../../services/user_service.dart';
 import '../../models/wardrobe.dart';
 
 /// Home screen with swipeable fullscreen cloth cards
@@ -999,16 +1000,45 @@ class _ShareDialog extends StatelessWidget {
                 itemCount: friends.length,
                 itemBuilder: (context, index) {
                   final friendId = friends[index];
-                  return ListTile(
-                    title: Text('Friend ${friendId.substring(0, 8)}...'),
-                    onTap: () async {
-                      final chatId = await ChatService.getOrCreateChat(
-                        userId1: userId,
-                        userId2: friendId,
+                  return FutureBuilder(
+                    future: UserService.getUserProfile(friendId),
+                    builder: (context, snapshot) {
+                      final profile = snapshot.data;
+                      final displayName = profile?.displayName ?? 
+                                        (profile?.username != null 
+                                          ? '@${profile!.username}' 
+                                          : 'Friend');
+                      
+                      return ListTile(
+                        leading: profile?.photoUrl != null
+                            ? CircleAvatar(
+                                backgroundImage: NetworkImage(profile!.photoUrl!),
+                                radius: 20,
+                              )
+                            : CircleAvatar(
+                                backgroundColor: Colors.grey[700],
+                                radius: 20,
+                                child: Text(
+                                  displayName.isNotEmpty 
+                                      ? displayName[0].toUpperCase() 
+                                      : 'F',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                        title: Text(displayName),
+                        subtitle: profile?.username != null
+                            ? Text('@${profile!.username}')
+                            : null,
+                        onTap: () async {
+                          final chatId = await ChatService.getOrCreateChat(
+                            userId1: userId,
+                            userId2: friendId,
+                          );
+                          if (context.mounted) {
+                            Navigator.pop(context, chatId);
+                          }
+                        },
                       );
-                      if (context.mounted) {
-                        Navigator.pop(context, chatId);
-                      }
                     },
                   );
                 },

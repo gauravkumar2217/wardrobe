@@ -99,12 +99,30 @@ class FCMService {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
+      // Store in user's devices subcollection (existing structure)
       await _firestore
           .collection('users')
           .doc(userId)
           .collection('devices')
           .doc(deviceId)
           .set(deviceData, SetOptions(merge: true));
+
+      // Also store in new FCM tokens collection for easier querying
+      // Structure: fcmTokens/{tokenId} -> { userId, token, platform, deviceName, isActive, lastActiveAt, createdAt }
+      final fcmTokenData = {
+        'userId': userId,
+        'fcmToken': _currentToken!,
+        'platform': platform,
+        'deviceName': deviceName ?? 'Unknown Device',
+        'isActive': true,
+        'lastActiveAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore
+          .collection('fcmTokens')
+          .doc(deviceId)
+          .set(fcmTokenData, SetOptions(merge: true));
 
       if (kDebugMode) {
         debugPrint('FCM token registered for user: $userId');
@@ -129,6 +147,17 @@ class FCMService {
         'lastActiveAt': FieldValue.serverTimestamp(),
         'isActive': true,
       }, SetOptions(merge: true));
+
+      // Also update in FCM tokens collection
+      // Include userId in the update so the rule can verify ownership
+      await _firestore
+          .collection('fcmTokens')
+          .doc(_currentToken!)
+          .set({
+        'userId': userId, // Include userId so rule can verify ownership
+        'lastActiveAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Failed to update last active: $e');
     }
@@ -149,6 +178,17 @@ class FCMService {
         'isActive': isInForeground,
         'lastActiveAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Also update in FCM tokens collection
+      // Include userId in the update so the rule can verify ownership
+      await _firestore
+          .collection('fcmTokens')
+          .doc(_currentToken!)
+          .set({
+        'userId': userId, // Include userId so rule can verify ownership
+        'isActive': isInForeground,
+        'lastActiveAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Failed to update app state: $e');
     }
@@ -163,6 +203,15 @@ class FCMService {
           .collection('users')
           .doc(userId)
           .collection('devices')
+          .doc(_currentToken!)
+          .update({
+        'isActive': false,
+        'lastActiveAt': FieldValue.serverTimestamp(),
+      });
+
+      // Also update in FCM tokens collection
+      await _firestore
+          .collection('fcmTokens')
           .doc(_currentToken!)
           .update({
         'isActive': false,
@@ -190,20 +239,64 @@ class FCMService {
   }
 
   /// Get all active tokens for a user (for server-side use)
+  /// Uses the new fcmTokens collection for easier querying
   static Future<List<String>> getActiveTokens(String userId) async {
     try {
+      // Query the new fcmTokens collection by userId
       final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
+          .collection('fcmTokens')
+          .where('userId', isEqualTo: userId)
           .where('isActive', isEqualTo: true)
           .get();
 
       return snapshot.docs
           .map((doc) => doc.data()['fcmToken'] as String)
+          .where((token) => token.isNotEmpty)
           .toList();
     } catch (e) {
       debugPrint('Failed to get active tokens: $e');
+      // Fallback to old method
+      try {
+        final snapshot = await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('devices')
+            .where('isActive', isEqualTo: true)
+            .get();
+
+        return snapshot.docs
+            .map((doc) => doc.data()['fcmToken'] as String)
+            .where((token) => token.isNotEmpty)
+            .toList();
+      } catch (e2) {
+        debugPrint('Failed to get active tokens (fallback): $e2');
+        return [];
+      }
+    }
+  }
+
+  /// Get all active tokens for a user from fcmTokens collection (for Cloud Functions)
+  /// This is the preferred method as it's faster and easier to query
+  static Future<List<Map<String, dynamic>>> getActiveTokenDetails(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('fcmTokens')
+          .where('userId', isEqualTo: userId)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'tokenId': doc.id,
+          'fcmToken': data['fcmToken'] as String,
+          'platform': data['platform'] as String? ?? 'unknown',
+          'deviceName': data['deviceName'] as String? ?? 'Unknown Device',
+          'lastActiveAt': data['lastActiveAt'],
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('Failed to get active token details: $e');
       return [];
     }
   }
