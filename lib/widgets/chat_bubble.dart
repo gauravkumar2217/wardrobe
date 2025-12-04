@@ -20,6 +20,15 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug logging for cloth share messages
+    if (message.isClothShare) {
+      debugPrint('👕 ChatBubble: Rendering cloth share message');
+      debugPrint('   clothId: ${message.clothId}');
+      debugPrint('   clothOwnerId: ${message.clothOwnerId}');
+      debugPrint('   clothWardrobeId: ${message.clothWardrobeId}');
+      debugPrint('   isCurrentUser: $isCurrentUser');
+    }
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -78,6 +87,14 @@ class ChatBubble extends StatelessWidget {
                       ownerId: message.clothOwnerId,
                       wardrobeId: message.clothWardrobeId,
                       isCurrentUser: isCurrentUser,
+                    )
+                  else if (message.isClothShare && message.clothId == null)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      child: const Text(
+                        'Cloth shared (missing ID)',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                 ],
               ),
@@ -125,20 +142,65 @@ class _ClothShareCardState extends State<_ClothShareCard> {
   @override
   void initState() {
     super.initState();
-    _loadCloth();
+    debugPrint('🚀 ClothShareCard: initState called');
+    debugPrint('   ownerId: ${widget.ownerId}');
+    debugPrint('   wardrobeId: ${widget.wardrobeId}');
+    debugPrint('   clothId: ${widget.clothId}');
+    // Defer loading to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('📋 ClothShareCard: PostFrameCallback executing');
+      if (mounted) {
+        _loadCloth();
+      } else {
+        debugPrint('⚠️ ClothShareCard: Widget not mounted, skipping load');
+      }
+    });
+  }
+  
+  @override
+  void didUpdateWidget(_ClothShareCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload if clothId, ownerId, or wardrobeId changed
+    if (oldWidget.clothId != widget.clothId ||
+        oldWidget.ownerId != widget.ownerId ||
+        oldWidget.wardrobeId != widget.wardrobeId) {
+      debugPrint('🔄 ClothShareCard: Widget updated, reloading cloth');
+      _cachedCloth = null;
+      _hasError = false;
+      _isLoading = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadCloth();
+        }
+      });
+    }
   }
 
   Future<void> _loadCloth() async {
     if (widget.ownerId == null || widget.wardrobeId == null) {
+      debugPrint('❌ ClothShareCard: Missing ownerId or wardrobeId');
+      debugPrint('   ownerId: ${widget.ownerId}');
+      debugPrint('   wardrobeId: ${widget.wardrobeId}');
+      debugPrint('   clothId: ${widget.clothId}');
       return;
     }
+
+    debugPrint('📦 ClothShareCard: Loading cloth');
+    debugPrint('   ownerId: ${widget.ownerId}');
+    debugPrint('   wardrobeId: ${widget.wardrobeId}');
+    debugPrint('   clothId: ${widget.clothId}');
 
     // Check global cache first
     final cacheKey = '${widget.ownerId}_${widget.wardrobeId}_${widget.clothId}';
     if (_globalCache.containsKey(cacheKey)) {
+      debugPrint('✅ ClothShareCard: Found in cache');
       if (mounted) {
-        setState(() {
-          _cachedCloth = _globalCache[cacheKey];
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _cachedCloth = _globalCache[cacheKey];
+            });
+          }
         });
       }
       return;
@@ -146,20 +208,30 @@ class _ClothShareCardState extends State<_ClothShareCard> {
 
     // Check if already loading
     if (_loadingFutures.containsKey(cacheKey)) {
+      debugPrint('⏳ ClothShareCard: Already loading, waiting...');
       final cloth = await _loadingFutures[cacheKey];
       if (mounted && cloth != null) {
-        setState(() {
-          _cachedCloth = cloth;
-          _globalCache[cacheKey] = cloth;
+        debugPrint('✅ ClothShareCard: Loaded from existing future');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _cachedCloth = cloth;
+              _globalCache[cacheKey] = cloth;
+            });
+          }
         });
       }
       return;
     }
 
     if (mounted) {
-      setState(() {
-        _isLoading = true;
-        _hasError = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = true;
+            _hasError = false;
+          });
+        }
       });
     }
 
@@ -172,23 +244,42 @@ class _ClothShareCardState extends State<_ClothShareCard> {
     _loadingFutures[cacheKey] = future;
 
     try {
+      debugPrint('🔄 ClothShareCard: Fetching cloth from service...');
       final cloth = await future;
+      debugPrint('📥 ClothShareCard: Received response');
+      debugPrint('   cloth: ${cloth != null ? "✅ Found" : "❌ Null"}');
+      
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          if (cloth != null) {
-            _cachedCloth = cloth;
-            _globalCache[cacheKey] = cloth;
-          } else {
-            _hasError = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              if (cloth != null) {
+                debugPrint('✅ ClothShareCard: Cloth loaded successfully');
+                debugPrint('   clothType: ${cloth.clothType}');
+                debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
+                _cachedCloth = cloth;
+                _globalCache[cacheKey] = cloth;
+              } else {
+                debugPrint('❌ ClothShareCard: Cloth is null');
+                _hasError = true;
+              }
+            });
           }
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ClothShareCard: Error loading cloth');
+      debugPrint('   Error: $e');
+      debugPrint('   StackTrace: $stackTrace');
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasError = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _hasError = true;
+            });
+          }
         });
       }
     } finally {
@@ -198,33 +289,75 @@ class _ClothShareCardState extends State<_ClothShareCard> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🎨 ClothShareCard: Building widget');
+    debugPrint('   ownerId: ${widget.ownerId}');
+    debugPrint('   wardrobeId: ${widget.wardrobeId}');
+    debugPrint('   clothId: ${widget.clothId}');
+    debugPrint('   isLoading: $_isLoading');
+    debugPrint('   hasError: $_hasError');
+    debugPrint('   cachedCloth: ${_cachedCloth != null ? "✅ Has cloth" : "❌ No cloth"}');
+    
     if (widget.ownerId == null || widget.wardrobeId == null) {
+      debugPrint('⚠️ ClothShareCard: Missing ownerId or wardrobeId, showing simple card');
       return _buildSimpleCard('Cloth shared');
     }
 
+    // If we have an error but haven't tried loading yet, try loading
+    if (_hasError && !_isLoading && _cachedCloth == null) {
+      debugPrint('🔄 ClothShareCard: Had error, retrying load...');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _hasError = false;
+          _loadCloth();
+        }
+      });
+    }
+
     if (_isLoading) {
+      debugPrint('⏳ ClothShareCard: Still loading, showing loader');
       return _buildSimpleCard('Loading...', showLoader: true);
     }
 
     if (_hasError || _cachedCloth == null) {
-      return _buildSimpleCard('Cloth shared');
+      debugPrint('❌ ClothShareCard: Error or null cloth, showing simple card');
+      debugPrint('   hasError: $_hasError');
+      debugPrint('   cachedCloth is null: ${_cachedCloth == null}');
+      // Show a clickable card that will try to load when tapped
+      return GestureDetector(
+        onTap: () {
+          debugPrint('👆 ClothShareCard: Tapped, retrying load...');
+          setState(() {
+            _hasError = false;
+            _isLoading = true;
+          });
+          _loadCloth();
+        },
+        child: _buildSimpleCard('Tap to load cloth'),
+      );
     }
 
     final cloth = _cachedCloth!;
+    debugPrint('✅ ClothShareCard: Rendering full cloth card');
+    debugPrint('   clothType: ${cloth.clothType}');
+    debugPrint('   imageUrl length: ${cloth.imageUrl.length}');
 
+    // Make the card look the same for both users (consistent styling)
     return Container(
           constraints: const BoxConstraints(maxWidth: 280),
           decoration: BoxDecoration(
-            color: widget.isCurrentUser
-                ? Colors.white.withValues(alpha: 0.15)
-                : Colors.white,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: widget.isCurrentUser
-                  ? Colors.white.withValues(alpha: 0.3)
-                  : Colors.grey[300]!,
+              color: Colors.grey[300]!,
               width: 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,14 +416,14 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         Icon(
                           Icons.checkroom,
                           size: 16,
-                          color: widget.isCurrentUser ? Colors.white70 : Colors.grey[700],
+                          color: Colors.grey[700],
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             cloth.clothType,
-                            style: TextStyle(
-                              color: widget.isCurrentUser ? Colors.white : Colors.black87,
+                            style: const TextStyle(
+                              color: Colors.black87,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -307,13 +440,13 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         Icon(
                           Icons.wb_sunny,
                           size: 16,
-                          color: widget.isCurrentUser ? Colors.white70 : Colors.grey[700],
+                          color: Colors.grey[700],
                         ),
                         const SizedBox(width: 6),
                         Text(
                           cloth.season,
                           style: TextStyle(
-                            color: widget.isCurrentUser ? Colors.white70 : Colors.grey[700],
+                            color: Colors.grey[700],
                             fontSize: 13,
                           ),
                         ),
@@ -322,14 +455,14 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         Icon(
                           Icons.category,
                           size: 16,
-                          color: widget.isCurrentUser ? Colors.white70 : Colors.grey[700],
+                          color: Colors.grey[700],
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             cloth.category,
                             style: TextStyle(
-                              color: widget.isCurrentUser ? Colors.white70 : Colors.grey[700],
+                              color: Colors.grey[700],
                               fontSize: 13,
                             ),
                             maxLines: 1,
@@ -350,15 +483,13 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.isCurrentUser
-                                  ? Colors.white.withValues(alpha: 0.2)
-                                  : Colors.grey[200],
+                              color: Colors.grey[200],
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               occasion,
-                              style: TextStyle(
-                                color: widget.isCurrentUser ? Colors.white : Colors.black87,
+                              style: const TextStyle(
+                                color: Colors.black87,
                                 fontSize: 11,
                               ),
                             ),
@@ -378,34 +509,32 @@ class _ClothShareCardState extends State<_ClothShareCard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: widget.isCurrentUser
-            ? Colors.white.withValues(alpha: 0.2)
-            : Colors.grey[300],
+        color: Colors.grey[200],
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showLoader)
-            SizedBox(
+            const SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: widget.isCurrentUser ? Colors.white : Colors.black87,
+                color: Colors.black87,
               ),
             )
           else
             Icon(
               Icons.checkroom,
               size: 20,
-              color: widget.isCurrentUser ? Colors.white : Colors.black87,
+              color: Colors.black87,
             ),
           const SizedBox(width: 8),
           Text(
             text,
-            style: TextStyle(
-              color: widget.isCurrentUser ? Colors.white : Colors.black87,
+            style: const TextStyle(
+              color: Colors.black87,
               fontSize: 14,
             ),
           ),

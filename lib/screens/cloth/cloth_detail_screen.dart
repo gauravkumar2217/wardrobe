@@ -63,12 +63,23 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
   Future<void> _loadCloth() async {
     if (widget.clothId == null || widget.ownerId == null || widget.wardrobeId == null) {
+      debugPrint('❌ ClothDetailScreen: Missing required parameters');
+      debugPrint('   clothId: ${widget.clothId}');
+      debugPrint('   ownerId: ${widget.ownerId}');
+      debugPrint('   wardrobeId: ${widget.wardrobeId}');
       setState(() {
         _errorMessage = 'Missing required parameters';
         _isLoading = false;
       });
       return;
     }
+
+    debugPrint('📦 ClothDetailScreen: Loading cloth');
+    debugPrint('   clothId: ${widget.clothId}');
+    debugPrint('   ownerId: ${widget.ownerId}');
+    debugPrint('   wardrobeId: ${widget.wardrobeId}');
+    debugPrint('   isShared: ${widget.isShared}');
+    debugPrint('   isOwner: ${widget.isOwner}');
 
     setState(() {
       _isLoading = true;
@@ -77,25 +88,38 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     try {
       final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+      debugPrint('🔄 ClothDetailScreen: Calling getClothById...');
+      
       final cloth = await clothProvider.getClothById(
         userId: widget.ownerId!,
         wardrobeId: widget.wardrobeId!,
         clothId: widget.clothId!,
       );
 
+      debugPrint('📥 ClothDetailScreen: Received response');
+      debugPrint('   cloth: ${cloth != null ? "✅ Found" : "❌ Null"}');
+
       if (cloth != null) {
+        debugPrint('✅ ClothDetailScreen: Cloth loaded successfully');
+        debugPrint('   clothType: ${cloth.clothType}');
+        debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
+        debugPrint('   visibility: ${cloth.visibility}');
         setState(() {
           _cloth = cloth;
           _isLoading = false;
         });
         _loadLikeStatus();
       } else {
+        debugPrint('❌ ClothDetailScreen: Cloth is null');
         setState(() {
           _errorMessage = 'Cloth not found';
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ClothDetailScreen: Error loading cloth');
+      debugPrint('   Error: $e');
+      debugPrint('   StackTrace: $stackTrace');
       setState(() {
         _errorMessage = 'Failed to load cloth: ${e.toString()}';
         _isLoading = false;
@@ -412,9 +436,14 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
               ),
             );
           },
-          onShare: (isOwner && !isShared) ? _handleShare : null,
-          onMarkWorn: (isOwner && !isShared) ? _handleToggleWorn : null,
+          // Both users can share if not already shared, but only owner can actually share
+          // For shared cloths, disable share button for both users
+          onShare: isShared ? null : (isOwner ? _handleShare : null),
+          // Both users can mark as worn if shared (friends can mark each other's shared clothes)
+          onMarkWorn: isShared ? _handleToggleWorn : (isOwner ? _handleToggleWorn : null),
+          // Only owner can edit
           onEdit: null, // Edit is handled elsewhere
+          // Only owner can delete, and not if shared
           onDelete: (isOwner && !isShared) ? _handleDelete : null,
         ),
       ),

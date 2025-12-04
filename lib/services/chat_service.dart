@@ -189,6 +189,10 @@ class ChatService {
       // If sharing a cloth, add recipients to cloth's sharedWith array
       if (clothId != null && clothOwnerId != null && clothWardrobeId != null) {
         try {
+          debugPrint('👕 ChatService: Updating sharedWith for cloth $clothId');
+          debugPrint('   ownerId: $clothOwnerId');
+          debugPrint('   participants: ${chat.participants}');
+          
           // Get the cloth document to update sharedWith
           final clothRef = _firestore
               .collection('users')
@@ -204,37 +208,79 @@ class ChatService {
             final clothData = clothDoc.data()!;
             final currentSharedWith = clothData['sharedWith'] as List<dynamic>? ?? [];
             final sharedWithList = List<String>.from(currentSharedWith.map((e) => e.toString()));
+            
+            debugPrint('   current sharedWith: $sharedWithList');
 
             // Add all participants (except the sender) to sharedWith
+            bool hasChanges = false;
             for (var participantId in chat.participants) {
               if (participantId != userId && !sharedWithList.contains(participantId)) {
                 sharedWithList.add(participantId);
+                hasChanges = true;
+                debugPrint('   Adding $participantId to sharedWith');
               }
             }
 
-            // Update sharedWith in both subcollection and top-level collection
-            batch.update(clothRef, {
-              'sharedWith': sharedWithList,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-
-            // Also update top-level clothes collection
-            batch.update(
-              _firestore.collection('clothes').doc(clothId),
-              {
+            if (hasChanges) {
+              debugPrint('   Updating sharedWith to: $sharedWithList');
+              
+              // Update sharedWith in both subcollection and top-level collection
+              batch.update(clothRef, {
                 'sharedWith': sharedWithList,
                 'updatedAt': FieldValue.serverTimestamp(),
-              },
-            );
+              });
+
+              // Also update top-level clothes collection
+              batch.update(
+                _firestore.collection('clothes').doc(clothId),
+                {
+                  'sharedWith': sharedWithList,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                },
+              );
+              
+              debugPrint('✅ ChatService: Successfully queued sharedWith update');
+            } else {
+              debugPrint('ℹ️ ChatService: No changes to sharedWith (all participants already added)');
+            }
+          } else {
+            debugPrint('⚠️ ChatService: Cloth document not found, cannot update sharedWith');
           }
-        } catch (e) {
-          debugPrint('Failed to update cloth sharedWith: $e');
-          // Don't fail the message send if this fails
+        } catch (e, stackTrace) {
+          debugPrint('❌ ChatService: Failed to update cloth sharedWith: $e');
+          debugPrint('   StackTrace: $stackTrace');
+          // Don't fail the message send if this fails, but log the error
+          // The user will still see the message, but might not be able to view the cloth
+          // if permissions don't allow it
         }
       }
 
       // Commit all writes atomically
-      await batch.commit();
+      try {
+        await batch.commit();
+        debugPrint('✅ ChatService: Batch commit successful');
+        
+        // Verify sharedWith was updated if we tried to update it
+        if (clothId != null && clothOwnerId != null && clothWardrobeId != null) {
+          try {
+            final verifyDoc = await _firestore
+                .collection('clothes')
+                .doc(clothId)
+                .get();
+            if (verifyDoc.exists) {
+              final verifyData = verifyDoc.data();
+              debugPrint('🔍 ChatService: Verifying sharedWith update');
+              debugPrint('   sharedWith after commit: ${verifyData?['sharedWith']}');
+            }
+          } catch (e) {
+            debugPrint('⚠️ ChatService: Could not verify sharedWith update: $e');
+          }
+        }
+      } catch (e, stackTrace) {
+        debugPrint('❌ ChatService: Batch commit failed: $e');
+        debugPrint('   StackTrace: $stackTrace');
+        rethrow;
+      }
 
       // Send push notifications to other participants if their app is in background
       // Skip the sender

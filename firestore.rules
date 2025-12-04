@@ -30,19 +30,34 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    // Helper function to check if user is a friend of the owner
+    function isFriendOfOwner(ownerId) {
+      return exists(/databases/$(database)/documents/users/$(ownerId)/friends/$(request.auth.uid));
+    }
+    
     // Helper function to check if user can read cloth
     function canReadCloth(clothData) {
       // Owner can always read
       return request.auth != null && (
+        // Owner can always read
         request.auth.uid == clothData.ownerId ||
         // Public visibility - anyone authenticated can read
         (isAuthenticated() && clothData.visibility == 'public') ||
         // Friends visibility - check if user is a friend of the owner
         (isAuthenticated() && 
          clothData.visibility == 'friends' && 
-         exists(/databases/$(database)/documents/users/$(clothData.ownerId)/friends/$(request.auth.uid))) ||
-        // Shared with specific users
-        (isAuthenticated() && clothData.sharedWith != null && request.auth.uid in clothData.sharedWith)
+         isFriendOfOwner(clothData.ownerId)) ||
+        // Shared with specific users - check if user is in sharedWith array
+        (isAuthenticated() && 
+         clothData.sharedWith != null && 
+         clothData.sharedWith is list && 
+         request.auth.uid in clothData.sharedWith) ||
+        // If visibility is "private" but users are friends, allow access
+        // This handles cases where cloth was shared via DM but sharedWith wasn't updated
+        // OR cloth was shared before sharedWith update rules were added
+        (isAuthenticated() && 
+         clothData.visibility == 'private' && 
+         isFriendOfOwner(clothData.ownerId))
       );
     }
     
@@ -394,6 +409,21 @@ service cloud.firestore {
                            'updatedAt' in request.resource.data &&
                            (!('wornAt' in request.resource.data) || request.resource.data.wornAt is timestamp);
           
+          // Allow owner to update sharedWith array (for sharing clothes via DM)
+          // This allows updating sharedWith and updatedAt only
+          allow update: if isOwner(userId) &&
+                           request.resource.data.likesCount == resource.data.likesCount &&
+                           request.resource.data.commentsCount == resource.data.commentsCount &&
+                           'updatedAt' in request.resource.data &&
+                           (!('sharedWith' in request.resource.data) || request.resource.data.sharedWith is list) &&
+                           // Ensure other critical fields are unchanged
+                           request.resource.data.ownerId == resource.data.ownerId &&
+                           request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                           request.resource.data.imageUrl == resource.data.imageUrl &&
+                           request.resource.data.clothType == resource.data.clothType &&
+                           request.resource.data.category == resource.data.category &&
+                           request.resource.data.season == resource.data.season;
+          
           // Allow full cloth updates (e.g., edit cloth details)
           allow update: if isOwner(userId) &&
                            request.resource.data.likesCount == resource.data.likesCount &&
@@ -638,6 +668,22 @@ service cloud.firestore {
                       // Verify cloth exists and is readable (check subcollection)
                       exists(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)) &&
                       canReadCloth(get(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)).data);
+      
+      // Allow owner to update sharedWith array (for sharing clothes via DM)
+      // This allows updating sharedWith and updatedAt only
+      allow update: if isAuthenticated() &&
+                      resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.likesCount == resource.data.likesCount &&
+                      request.resource.data.commentsCount == resource.data.commentsCount &&
+                      'updatedAt' in request.resource.data &&
+                      (!('sharedWith' in request.resource.data) || request.resource.data.sharedWith is list) &&
+                      // Ensure other critical fields are unchanged
+                      request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                      request.resource.data.imageUrl == resource.data.imageUrl &&
+                      request.resource.data.clothType == resource.data.clothType &&
+                      request.resource.data.category == resource.data.category &&
+                      request.resource.data.season == resource.data.season;
       
       // Allow partial update for wear tracking (requires updatedAt)
       allow update: if isAuthenticated() && 

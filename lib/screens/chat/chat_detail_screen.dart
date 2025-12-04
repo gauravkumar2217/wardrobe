@@ -42,22 +42,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final otherParticipantId = widget.chat.getOtherParticipant(authProvider.user!.uid);
     if (otherParticipantId == null) return;
 
-    setState(() {
-      _isLoadingProfile = true;
+    // Defer setState to avoid calling during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = true;
+        });
+      }
     });
 
     try {
       final profile = await UserService.getUserProfile(otherParticipantId);
       if (mounted) {
-        setState(() {
-          _otherParticipantProfile = profile;
-          _isLoadingProfile = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _otherParticipantProfile = profile;
+              _isLoadingProfile = false;
+            });
+          }
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingProfile = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isLoadingProfile = false;
+            });
+          }
         });
       }
     }
@@ -108,10 +121,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _handleClothTap(ChatMessage message) async {
-    if (message.clothId == null) return;
+    if (message.clothId == null) {
+      debugPrint('❌ ChatDetailScreen: clothId is null');
+      return;
+    }
+
+    debugPrint('👆 ChatDetailScreen: Cloth tapped');
+    debugPrint('   clothId: ${message.clothId}');
+    debugPrint('   clothOwnerId: ${message.clothOwnerId}');
+    debugPrint('   clothWardrobeId: ${message.clothWardrobeId}');
 
     // Navigate to cloth detail screen if we have all required data
     if (message.clothOwnerId != null && message.clothWardrobeId != null) {
+      debugPrint('✅ ChatDetailScreen: Navigating to ClothDetailScreen');
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final isOwner = authProvider.user?.uid == message.clothOwnerId;
+      
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -120,10 +145,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ownerId: message.clothOwnerId!,
             wardrobeId: message.clothWardrobeId!,
             isShared: true, // Mark as shared since it came from DM
+            isOwner: isOwner,
           ),
         ),
-      );
+      ).then((_) {
+        debugPrint('📱 ChatDetailScreen: Returned from ClothDetailScreen');
+      });
     } else {
+      debugPrint('❌ ChatDetailScreen: Missing cloth information');
+      debugPrint('   clothOwnerId: ${message.clothOwnerId}');
+      debugPrint('   clothWardrobeId: ${message.clothWardrobeId}');
       // Fallback: show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
