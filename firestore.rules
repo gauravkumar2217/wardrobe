@@ -229,16 +229,14 @@ service cloud.firestore {
       // Allow read if:
       // 1. User owns the profile (full access)
       // 2. Unauthenticated users can read username/email for login queries
-      // 3. Authenticated users can read basic profile info
+      // 3. Authenticated users can read any user profile (needed for comments, friend lists, etc.)
       allow get: if isOwner(userId) || 
                      // Allow unauthenticated reads for username/email (needed for login)
                      (!isAuthenticated() && 
                       ('username' in resource.data || 'email' in resource.data)) ||
-                     // Allow authenticated users to read basic profile info
-                     (isAuthenticated() && 
-                      ('username' in resource.data || 
-                       'email' in resource.data ||
-                       resource.data.keys().hasAll(['displayName', 'photoUrl'])));
+                     // Allow authenticated users to read any user profile
+                     // This is needed for displaying usernames/photos in comments, friend lists, etc.
+                     isAuthenticated();
       
       // Allow create if user owns the profile
       // Username must be provided and valid on creation

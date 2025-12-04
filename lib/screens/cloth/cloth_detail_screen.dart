@@ -104,8 +104,29 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         debugPrint('   clothType: ${cloth.clothType}');
         debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
         debugPrint('   visibility: ${cloth.visibility}');
+        debugPrint('   commentsCount: ${cloth.commentsCount}');
+        
+        // Refresh comment count to ensure it's accurate
+        Cloth updatedCloth = cloth;
+        try {
+          final actualCommentCount = await clothProvider.getCommentCount(
+            ownerId: widget.ownerId!,
+            wardrobeId: widget.wardrobeId!,
+            clothId: widget.clothId!,
+          );
+          debugPrint('   actualCommentCount: $actualCommentCount');
+          
+          // Update cloth with actual count if different
+          if (actualCommentCount != cloth.commentsCount) {
+            updatedCloth = cloth.copyWith(commentsCount: actualCommentCount);
+            debugPrint('   Updated commentsCount from ${cloth.commentsCount} to $actualCommentCount');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Failed to refresh comment count: $e');
+        }
+        
         setState(() {
-          _cloth = cloth;
+          _cloth = updatedCloth;
           _isLoading = false;
         });
         _loadLikeStatus();
@@ -418,6 +439,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     final isOwner = widget.isOwner || (authProvider.user?.uid == _cloth!.ownerId);
     final isShared = widget.isShared;
+    final isAuthenticated = authProvider.user != null;
+    final canInteract = isAuthenticated && (isOwner || isShared);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -427,15 +450,35 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           isOwner: isOwner,
           isLiked: _isLiked,
           showBackButton: true,
-          onLike: _handleLike,
-          onComment: () {
-            Navigator.push(
+          onLike: canInteract ? _handleLike : null,
+          onComment: canInteract ? () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => CommentScreen(cloth: _cloth!),
               ),
             );
-          },
+            
+            // Refresh comment count after returning from comment screen
+            if (mounted && _cloth != null) {
+              try {
+                final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+                final actualCount = await clothProvider.getCommentCount(
+                  ownerId: _cloth!.ownerId,
+                  wardrobeId: _cloth!.wardrobeId,
+                  clothId: _cloth!.id,
+                );
+                
+                if (mounted && actualCount != _cloth!.commentsCount) {
+                  setState(() {
+                    _cloth = _cloth!.copyWith(commentsCount: actualCount);
+                  });
+                }
+              } catch (e) {
+                debugPrint('Failed to refresh comment count: $e');
+              }
+            }
+          } : null,
           // Both users can share if not already shared, but only owner can actually share
           // For shared cloths, disable share button for both users
           onShare: isShared ? null : (isOwner ? _handleShare : null),

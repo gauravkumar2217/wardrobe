@@ -9,15 +9,32 @@ class UserService {
   /// Get user profile
   static Future<UserProfile?> getUserProfile(String userId) async {
     try {
+      debugPrint('🔍 UserService: Fetching profile for userId: $userId');
       final doc = await _firestore.collection('users').doc(userId).get();
 
+      debugPrint('   Document exists: ${doc.exists}');
+      
       if (!doc.exists || doc.data() == null) {
+        debugPrint('❌ UserService: Profile not found or data is null for $userId');
         return null;
       }
 
-      return UserProfile.fromJson(doc.data()!);
-    } catch (e) {
-      debugPrint('Failed to fetch user profile: $e');
+      final data = doc.data()!;
+      debugPrint('   Profile data keys: ${data.keys.toList()}');
+      debugPrint('   displayName: ${data['displayName']}');
+      debugPrint('   photoUrl: ${data['photoUrl']}');
+      debugPrint('   username: ${data['username']}');
+      
+      final profile = UserProfile.fromJson(data);
+      debugPrint('✅ UserService: Successfully loaded profile for $userId');
+      debugPrint('   Profile displayName: ${profile.displayName}');
+      debugPrint('   Profile photoUrl: ${profile.photoUrl}');
+      
+      return profile;
+    } catch (e, stackTrace) {
+      debugPrint('❌ UserService: Failed to fetch user profile for $userId: $e');
+      debugPrint('   Error type: ${e.runtimeType}');
+      debugPrint('   StackTrace: $stackTrace');
       return null;
     }
   }

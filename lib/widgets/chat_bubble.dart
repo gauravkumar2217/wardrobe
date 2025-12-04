@@ -499,6 +499,28 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         }).toList(),
                       ),
                     ],
+                    // Comment count badge
+                    if (cloth.commentsCount > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.comment_outlined,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${cloth.commentsCount} ${cloth.commentsCount == 1 ? 'comment' : 'comments'}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
