@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../services/fcm_service.dart';
 import '../models/user_profile.dart';
 
 /// Auth provider for managing authentication state
@@ -32,6 +33,12 @@ class AuthProvider with ChangeNotifier {
       
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token for already logged-in user
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token on init: $e');
+        }
       }
 
       // Listen to auth state changes
@@ -39,6 +46,12 @@ class AuthProvider with ChangeNotifier {
         _user = user;
         if (user != null) {
           await _loadUserProfile(user.uid);
+          // Register FCM token when user logs in
+          try {
+            await FCMService.registerDeviceToken(user.uid);
+          } catch (e) {
+            debugPrint('Failed to register FCM token on auth change: $e');
+          }
         } else {
           _userProfile = null;
         }
@@ -84,6 +97,12 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful phone sign-in
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after phone sign-in: $e');
+        }
       }
 
       _errorMessage = null;
@@ -109,6 +128,12 @@ class AuthProvider with ChangeNotifier {
       
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful Google sign-in
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after Google sign-in: $e');
+        }
       }
 
       _errorMessage = null;
@@ -123,6 +148,12 @@ class AuthProvider with ChangeNotifier {
         if (currentUser != null) {
           _user = currentUser;
           await _loadUserProfile(_user!.uid);
+          // Register FCM token after successful Google sign-in (workaround case)
+          try {
+            await FCMService.registerDeviceToken(_user!.uid);
+          } catch (e) {
+            debugPrint('Failed to register FCM token after Google sign-in (workaround): $e');
+          }
           _errorMessage = null;
           _isLoading = false;
           notifyListeners();
@@ -183,6 +214,12 @@ class AuthProvider with ChangeNotifier {
             debugPrint('User authenticated despite error, proceeding with sign-in');
             _user = currentUser;
             await _loadUserProfile(_user!.uid);
+            // Register FCM token after successful email sign-in (recovered from error)
+            try {
+              await FCMService.registerDeviceToken(_user!.uid);
+            } catch (e) {
+              debugPrint('Failed to register FCM token after email sign-in (recovered): $e');
+            }
             _errorMessage = null;
             debugPrint('Sign in successful (recovered from error)');
             return true;
@@ -196,6 +233,12 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful email sign-in
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after email sign-in: $e');
+        }
       }
 
       _errorMessage = null;
@@ -242,6 +285,12 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful email sign-in
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after email sign-in: $e');
+        }
       }
 
       _errorMessage = null;
@@ -273,6 +322,12 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       if (_user != null) {
         await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful email registration
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after email registration: $e');
+        }
       }
 
       _errorMessage = null;

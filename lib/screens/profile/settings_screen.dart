@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
-import 'change_password_screen.dart';
 import 'verify_contact_screen.dart';
 import '../auth/login_screen.dart';
 import '../privacy_policy_screen.dart';
@@ -246,17 +245,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (mounted) {
                       await _loadSettings();
                     }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.lock, color: Color(0xFF7C3AED)),
-                  title: const Text('Change Password'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                    );
                   },
                 ),
                 ListTile(

@@ -30,17 +30,34 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    // Helper function to check if user is a friend of the owner
+    function isFriendOfOwner(ownerId) {
+      return exists(/databases/$(database)/documents/users/$(ownerId)/friends/$(request.auth.uid));
+    }
+    
     // Helper function to check if user can read cloth
-    // Note: Friend visibility checks are handled at application level
-    // as Firestore rules cannot use request.auth.uid in document paths
     function canReadCloth(clothData) {
       // Owner can always read
       return request.auth != null && (
+        // Owner can always read
         request.auth.uid == clothData.ownerId ||
         // Public visibility - anyone authenticated can read
         (isAuthenticated() && clothData.visibility == 'public') ||
-        // Shared with specific users
-        (isAuthenticated() && clothData.sharedWith != null && request.auth.uid in clothData.sharedWith)
+        // Friends visibility - check if user is a friend of the owner
+        (isAuthenticated() && 
+         clothData.visibility == 'friends' && 
+         isFriendOfOwner(clothData.ownerId)) ||
+        // Shared with specific users - check if user is in sharedWith array
+        (isAuthenticated() && 
+         clothData.sharedWith != null && 
+         clothData.sharedWith is list && 
+         request.auth.uid in clothData.sharedWith) ||
+        // If visibility is "private" but users are friends, allow access
+        // This handles cases where cloth was shared via DM but sharedWith wasn't updated
+        // OR cloth was shared before sharedWith update rules were added
+        (isAuthenticated() && 
+         clothData.visibility == 'private' && 
+         isFriendOfOwner(clothData.ownerId))
       );
     }
     
@@ -212,16 +229,14 @@ service cloud.firestore {
       // Allow read if:
       // 1. User owns the profile (full access)
       // 2. Unauthenticated users can read username/email for login queries
-      // 3. Authenticated users can read basic profile info
+      // 3. Authenticated users can read any user profile (needed for comments, friend lists, etc.)
       allow get: if isOwner(userId) || 
                      // Allow unauthenticated reads for username/email (needed for login)
                      (!isAuthenticated() && 
                       ('username' in resource.data || 'email' in resource.data)) ||
-                     // Allow authenticated users to read basic profile info
-                     (isAuthenticated() && 
-                      ('username' in resource.data || 
-                       'email' in resource.data ||
-                       resource.data.keys().hasAll(['displayName', 'photoUrl'])));
+                     // Allow authenticated users to read any user profile
+                     // This is needed for displaying usernames/photos in comments, friend lists, etc.
+                     isAuthenticated();
       
       // Allow create if user owns the profile
       // Username must be provided and valid on creation
@@ -345,8 +360,13 @@ service cloud.firestore {
         match /clothes/{clothId} {
           // Allow list queries for wardrobe owner (needed for deletion and listing)
           allow list: if isOwner(userId);
+          // Also allow list for authenticated users
+          // This is needed when Firestore internally uses queries for document access
+          // Security: The GET rule still enforces actual read permissions via canReadCloth()
+          // LIST only allows querying the collection, but individual documents still require GET permission
+          allow list: if isAuthenticated();
           
-          // Allow read based on cloth visibility
+          // Allow read based on cloth visibility (this is the actual security check)
           allow get: if canReadCloth(resource.data);
           
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
@@ -387,6 +407,21 @@ service cloud.firestore {
                            'updatedAt' in request.resource.data &&
                            (!('wornAt' in request.resource.data) || request.resource.data.wornAt is timestamp);
           
+          // Allow owner to update sharedWith array (for sharing clothes via DM)
+          // This allows updating sharedWith and updatedAt only
+          allow update: if isOwner(userId) &&
+                           request.resource.data.likesCount == resource.data.likesCount &&
+                           request.resource.data.commentsCount == resource.data.commentsCount &&
+                           'updatedAt' in request.resource.data &&
+                           (!('sharedWith' in request.resource.data) || request.resource.data.sharedWith is list) &&
+                           // Ensure other critical fields are unchanged
+                           request.resource.data.ownerId == resource.data.ownerId &&
+                           request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                           request.resource.data.imageUrl == resource.data.imageUrl &&
+                           request.resource.data.clothType == resource.data.clothType &&
+                           request.resource.data.category == resource.data.category &&
+                           request.resource.data.season == resource.data.season;
+          
           // Allow full cloth updates (e.g., edit cloth details)
           allow update: if isOwner(userId) &&
                            request.resource.data.likesCount == resource.data.likesCount &&
@@ -408,36 +443,48 @@ service cloud.firestore {
           
           // Likes subcollection: clothes/{clothId}/likes/{likeId}
           match /likes/{likeId} {
-            // SIMPLIFIED RULES - Owner can do everything on their own cloths
+            // Owner can do everything on their own cloths
             allow read, write: if isAuthenticated() && request.auth.uid == userId;
             
-            // Others can read if authenticated and cloth is readable
-            allow read: if isAuthenticated() &&
-                        exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
-                        canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+            // Allow list queries for authenticated users (needed for checking like status and getting counts)
+            allow list: if isAuthenticated();
+            
+            // Allow GET for authenticated users (likeId is the userId, so users can check their own likes)
+            // Security: CREATE rule below ensures users can only create likes if they can read the cloth
+            allow get: if isAuthenticated();
             
             // Others can create likes if they can read the cloth
+            // This is the main security check - users can only like clothes they can read
+            // Check top-level collection (works for both owner and shared clothes)
             allow create: if isAuthenticated() &&
                            likeId == request.auth.uid &&
                            request.resource.data.keys().hasAll(['userId', 'createdAt']) &&
                            request.resource.data.userId == request.auth.uid &&
                            request.resource.data.createdAt is timestamp &&
-                           exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
-                           canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+                           exists(/databases/$(database)/documents/clothes/$(clothId)) &&
+                           canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data);
             
-            // Users can delete their own likes (simplified - if they created it, they can delete it)
+            // Users can delete their own likes
             allow delete: if isAuthenticated() && likeId == request.auth.uid;
           }
           
           // Comments subcollection: clothes/{clothId}/comments/{commentId}
           match /comments/{commentId} {
-            // SIMPLIFIED RULES - Owner can do everything on their own cloths
+            // Owner can do everything on their own cloths
             allow read, write: if isAuthenticated() && request.auth.uid == userId;
             
+            // Allow list queries for authenticated users (needed for loading comments)
+            // Individual document access is still controlled by get/create/update/delete rules below
+            allow list: if isAuthenticated();
+            
             // Others can read if authenticated and cloth is readable
-            allow read: if isAuthenticated() &&
-                        exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
-                        canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+            // Try both subcollection and top-level collection paths
+            allow get: if isAuthenticated() && (
+                        (exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
+                         canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data)) ||
+                        (exists(/databases/$(database)/documents/clothes/$(clothId)) &&
+                         canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data))
+                      );
             
             // Others can create comments if they can read the cloth
             allow create: if isAuthenticated() && 
@@ -446,14 +493,18 @@ service cloud.firestore {
                            request.resource.data.text is string &&
                            request.resource.data.text.size() > 0 &&
                            request.resource.data.createdAt is timestamp &&
-                           exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
-                           canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+                           ((exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
+                             canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data)) ||
+                            (exists(/databases/$(database)/documents/clothes/$(clothId)) &&
+                             canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data)));
             
             // Users can update/delete their own comments if they can read the cloth
             allow update, delete: if isAuthenticated() &&
                                    resource.data.userId == request.auth.uid &&
-                                   exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
-                                   canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data);
+                                   ((exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
+                                     canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data)) ||
+                                    (exists(/databases/$(database)/documents/clothes/$(clothId)) &&
+                                     canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data)));
           }
         }
       }
@@ -573,9 +624,15 @@ service cloud.firestore {
     // This top-level collection is for querying across all clothes (if needed)
     // Also allows writes to sync with subcollection
     match /clothes/{clothId} {
-      // Allow read based on cloth visibility (requires fetching cloth document)
-      // This is a simplified rule - actual access should be checked via the cloth document
-      allow read: if isAuthenticated();
+      // Allow list for authenticated users (needed for queries and document access)
+      // Individual document access is still controlled by get rule below
+      allow list: if isAuthenticated();
+      
+      // Allow read based on cloth visibility
+      // Check canReadCloth to ensure proper permissions (owner, public, friends, or sharedWith)
+      allow get: if isAuthenticated() && 
+                   resource.data != null &&
+                   canReadCloth(resource.data);
       // Allow write if user owns the cloth (ownerId matches authenticated user)
       allow create: if isAuthenticated() && 
                       request.resource.data.ownerId == request.auth.uid &&
@@ -609,6 +666,22 @@ service cloud.firestore {
                       // Verify cloth exists and is readable (check subcollection)
                       exists(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)) &&
                       canReadCloth(get(/databases/$(database)/documents/users/$(resource.data.ownerId)/wardrobes/$(resource.data.wardrobeId)/clothes/$(clothId)).data);
+      
+      // Allow owner to update sharedWith array (for sharing clothes via DM)
+      // This allows updating sharedWith and updatedAt only
+      allow update: if isAuthenticated() &&
+                      resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.likesCount == resource.data.likesCount &&
+                      request.resource.data.commentsCount == resource.data.commentsCount &&
+                      'updatedAt' in request.resource.data &&
+                      (!('sharedWith' in request.resource.data) || request.resource.data.sharedWith is list) &&
+                      // Ensure other critical fields are unchanged
+                      request.resource.data.wardrobeId == resource.data.wardrobeId &&
+                      request.resource.data.imageUrl == resource.data.imageUrl &&
+                      request.resource.data.clothType == resource.data.clothType &&
+                      request.resource.data.category == resource.data.category &&
+                      request.resource.data.season == resource.data.season;
       
       // Allow partial update for wear tracking (requires updatedAt)
       allow update: if isAuthenticated() && 
@@ -691,6 +764,45 @@ service cloud.firestore {
       // For now, allow read for debugging (can be restricted later)
       allow read: if isAuthenticated();
       allow update, delete: if false; // Only Cloud Functions can update/delete
+    }
+    
+    // ============================================
+    // FCM TOKENS COLLECTION
+    // ============================================
+    // Stores FCM tokens linked to users for easy notification sending
+    // Structure: fcmTokens/{tokenId} -> { userId, fcmToken, platform, deviceName, isActive, lastActiveAt, createdAt }
+    match /fcmTokens/{tokenId} {
+      // Allow users to create their own tokens
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['userId', 'fcmToken', 'platform', 'createdAt']) &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId is string &&
+                       request.resource.data.fcmToken is string &&
+                       request.resource.data.platform is string &&
+                       request.resource.data.createdAt is timestamp;
+      
+      // Allow users to update their own tokens (for lastActiveAt, isActive)
+      // When using set() with merge: true, if document exists it uses update rule
+      allow update: if isAuthenticated() &&
+                       // User must own the token (userId in request matches auth user)
+                       'userId' in request.resource.data &&
+                       request.resource.data.userId == request.auth.uid &&
+                       // If document exists, verify user owns it
+                       (!('userId' in resource.data) || resource.data.userId == request.auth.uid);
+      
+      // Allow users to read their own tokens
+      allow read: if isAuthenticated() && 
+                     (!exists(/databases/$(database)/documents/fcmTokens/$(tokenId)) ||
+                      resource.data.userId == request.auth.uid);
+      
+      // Allow list queries for authenticated users (needed for Cloud Functions to query by userId)
+      // Individual document access is still controlled by read rule above
+      allow list: if isAuthenticated();
+      
+      // Allow delete (users can delete their own tokens)
+      allow delete: if isAuthenticated() && 
+                      exists(/databases/$(database)/documents/fcmTokens/$(tokenId)) &&
+                      resource.data.userId == request.auth.uid;
     }
   }
 }

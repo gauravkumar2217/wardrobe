@@ -112,6 +112,40 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     }
   }
 
+  Future<void> _skipVerification() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Update profile without phone verification
+      final updatedProfile = UserProfile(
+        displayName: widget.profile.displayName,
+        username: widget.profile.username,
+        email: widget.profile.email,
+        phone: widget.phoneNumber.trim(), // Save phone number but not verified
+        gender: widget.profile.gender,
+        dateOfBirth: widget.profile.dateOfBirth,
+        photoUrl: widget.profile.photoUrl,
+        createdAt: widget.profile.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      await authProvider.updateProfile(updatedProfile);
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _verifyOTPAndCompleteProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -302,6 +336,15 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 24),
+                // Skip button for Google sign-in users
+                TextButton(
+                  onPressed: _isLoading ? null : _skipVerification,
+                  child: const Text(
+                    'Skip for now',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ],
             ),

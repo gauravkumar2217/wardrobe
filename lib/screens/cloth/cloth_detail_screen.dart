@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/cloth_card.dart';
 import '../cloth/comment_screen.dart';
 import '../../services/chat_service.dart';
+import '../../services/user_service.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/friend_provider.dart';
 
@@ -62,12 +63,23 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
   Future<void> _loadCloth() async {
     if (widget.clothId == null || widget.ownerId == null || widget.wardrobeId == null) {
+      debugPrint('❌ ClothDetailScreen: Missing required parameters');
+      debugPrint('   clothId: ${widget.clothId}');
+      debugPrint('   ownerId: ${widget.ownerId}');
+      debugPrint('   wardrobeId: ${widget.wardrobeId}');
       setState(() {
         _errorMessage = 'Missing required parameters';
         _isLoading = false;
       });
       return;
     }
+
+    debugPrint('📦 ClothDetailScreen: Loading cloth');
+    debugPrint('   clothId: ${widget.clothId}');
+    debugPrint('   ownerId: ${widget.ownerId}');
+    debugPrint('   wardrobeId: ${widget.wardrobeId}');
+    debugPrint('   isShared: ${widget.isShared}');
+    debugPrint('   isOwner: ${widget.isOwner}');
 
     setState(() {
       _isLoading = true;
@@ -76,25 +88,59 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     try {
       final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+      debugPrint('🔄 ClothDetailScreen: Calling getClothById...');
+      
       final cloth = await clothProvider.getClothById(
         userId: widget.ownerId!,
         wardrobeId: widget.wardrobeId!,
         clothId: widget.clothId!,
       );
 
+      debugPrint('📥 ClothDetailScreen: Received response');
+      debugPrint('   cloth: ${cloth != null ? "✅ Found" : "❌ Null"}');
+
       if (cloth != null) {
+        debugPrint('✅ ClothDetailScreen: Cloth loaded successfully');
+        debugPrint('   clothType: ${cloth.clothType}');
+        debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
+        debugPrint('   visibility: ${cloth.visibility}');
+        debugPrint('   commentsCount: ${cloth.commentsCount}');
+        
+        // Refresh comment count to ensure it's accurate
+        Cloth updatedCloth = cloth;
+        try {
+          final actualCommentCount = await clothProvider.getCommentCount(
+            ownerId: widget.ownerId!,
+            wardrobeId: widget.wardrobeId!,
+            clothId: widget.clothId!,
+          );
+          debugPrint('   actualCommentCount: $actualCommentCount');
+          
+          // Update cloth with actual count if different
+          if (actualCommentCount != cloth.commentsCount) {
+            updatedCloth = cloth.copyWith(commentsCount: actualCommentCount);
+            debugPrint('   Updated commentsCount from ${cloth.commentsCount} to $actualCommentCount');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Failed to refresh comment count: $e');
+        }
+        
         setState(() {
-          _cloth = cloth;
+          _cloth = updatedCloth;
           _isLoading = false;
         });
         _loadLikeStatus();
       } else {
+        debugPrint('❌ ClothDetailScreen: Cloth is null');
         setState(() {
           _errorMessage = 'Cloth not found';
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ ClothDetailScreen: Error loading cloth');
+      debugPrint('   Error: $e');
+      debugPrint('   StackTrace: $stackTrace');
       setState(() {
         _errorMessage = 'Failed to load cloth: ${e.toString()}';
         _isLoading = false;
@@ -393,6 +439,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     final isOwner = widget.isOwner || (authProvider.user?.uid == _cloth!.ownerId);
     final isShared = widget.isShared;
+    final isAuthenticated = authProvider.user != null;
+    final canInteract = isAuthenticated && (isOwner || isShared);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -402,18 +450,43 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           isOwner: isOwner,
           isLiked: _isLiked,
           showBackButton: true,
-          onLike: _handleLike,
-          onComment: () {
-            Navigator.push(
+          onLike: canInteract ? _handleLike : null,
+          onComment: canInteract ? () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => CommentScreen(cloth: _cloth!),
               ),
             );
-          },
-          onShare: (isOwner && !isShared) ? _handleShare : null,
-          onMarkWorn: (isOwner && !isShared) ? _handleToggleWorn : null,
+            
+            // Refresh comment count after returning from comment screen
+            if (mounted && _cloth != null) {
+              try {
+                final clothProvider = Provider.of<ClothProvider>(context, listen: false);
+                final actualCount = await clothProvider.getCommentCount(
+                  ownerId: _cloth!.ownerId,
+                  wardrobeId: _cloth!.wardrobeId,
+                  clothId: _cloth!.id,
+                );
+                
+                if (mounted && actualCount != _cloth!.commentsCount) {
+                  setState(() {
+                    _cloth = _cloth!.copyWith(commentsCount: actualCount);
+                  });
+                }
+              } catch (e) {
+                debugPrint('Failed to refresh comment count: $e');
+              }
+            }
+          } : null,
+          // Both users can share if not already shared, but only owner can actually share
+          // For shared cloths, disable share button for both users
+          onShare: isShared ? null : (isOwner ? _handleShare : null),
+          // Both users can mark as worn if shared (friends can mark each other's shared clothes)
+          onMarkWorn: isShared ? _handleToggleWorn : (isOwner ? _handleToggleWorn : null),
+          // Only owner can edit
           onEdit: null, // Edit is handled elsewhere
+          // Only owner can delete, and not if shared
           onDelete: (isOwner && !isShared) ? _handleDelete : null,
         ),
       ),
@@ -447,16 +520,45 @@ class _ShareDialog extends StatelessWidget {
                 itemCount: friends.length,
                 itemBuilder: (context, index) {
                   final friendId = friends[index];
-                  return ListTile(
-                    title: Text('Friend ${friendId.substring(0, 8)}...'),
-                    onTap: () async {
-                      final chatId = await ChatService.getOrCreateChat(
-                        userId1: userId,
-                        userId2: friendId,
+                  return FutureBuilder(
+                    future: UserService.getUserProfile(friendId),
+                    builder: (context, snapshot) {
+                      final profile = snapshot.data;
+                      final displayName = profile?.displayName ?? 
+                                        (profile?.username != null 
+                                          ? '@${profile!.username}' 
+                                          : 'Friend');
+                      
+                      return ListTile(
+                        leading: profile?.photoUrl != null
+                            ? CircleAvatar(
+                                backgroundImage: NetworkImage(profile!.photoUrl!),
+                                radius: 20,
+                              )
+                            : CircleAvatar(
+                                backgroundColor: Colors.grey[700],
+                                radius: 20,
+                                child: Text(
+                                  displayName.isNotEmpty 
+                                      ? displayName[0].toUpperCase() 
+                                      : 'F',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                        title: Text(displayName),
+                        subtitle: profile?.username != null
+                            ? Text('@${profile!.username}')
+                            : null,
+                        onTap: () async {
+                          final chatId = await ChatService.getOrCreateChat(
+                            userId1: userId,
+                            userId2: friendId,
+                          );
+                          if (context.mounted) {
+                            Navigator.pop(context, chatId);
+                          }
+                        },
                       );
-                      if (context.mounted) {
-                        Navigator.pop(context, chatId);
-                      }
                     },
                   );
                 },

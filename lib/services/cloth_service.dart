@@ -90,19 +90,113 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final doc = await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .get();
+      debugPrint('🔍 ClothService.getCloth: Starting');
+      debugPrint('   userId: $userId');
+      debugPrint('   wardrobeId: $wardrobeId');
+      debugPrint('   clothId: $clothId');
+      
+      // Try top-level clothes collection first (has better rules for shared clothes)
+      // This collection allows authenticated users to read, and GET rule checks canReadCloth
+      try {
+        debugPrint('📂 Trying top-level clothes collection...');
+        final topLevelDoc = await _firestore
+            .collection('clothes')
+            .doc(clothId)
+            .get();
 
-      if (!doc.exists) return null;
+        debugPrint('   exists: ${topLevelDoc.exists}');
+        
+        if (topLevelDoc.exists) {
+          final data = topLevelDoc.data();
+          if (data != null) {
+            debugPrint('✅ Found cloth in top-level collection');
+            debugPrint('   ownerId: ${data['ownerId']}');
+            debugPrint('   visibility: ${data['visibility']}');
+            debugPrint('   sharedWith: ${data['sharedWith']}');
+            // For shared clothes, we don't need to verify userId/wardrobeId match
+            // The Firestore rules already check canReadCloth which handles permissions
+            // Just return the cloth if it exists
+            try {
+              final cloth = Cloth.fromJson(data, clothId);
+              debugPrint('✅ Successfully parsed cloth from top-level');
+              debugPrint('   clothType: ${cloth.clothType}');
+              debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
+              return cloth;
+            } catch (e, stackTrace) {
+              debugPrint('❌ Error parsing cloth from top-level: $e');
+              debugPrint('   StackTrace: $stackTrace');
+            }
+          } else {
+            debugPrint('❌ Top-level document exists but data is null');
+          }
+        } else {
+          debugPrint('❌ Cloth not found in top-level collection');
+        }
+      } catch (e, stackTrace) {
+        debugPrint('❌ Failed to get cloth from top-level collection: $e');
+        debugPrint('   Error type: ${e.runtimeType}');
+        debugPrint('   StackTrace: $stackTrace');
+        // Fall through to try subcollection
+      }
 
-      final data = doc.data();
-      if (data == null) return null;
+      // Fall back to subcollection (for owner's own clothes)
+      // Note: This might fail for non-owners due to permissions, but we try anyway
+      debugPrint('📂 Trying subcollection path...');
+      debugPrint('   path: ${_clothesPath(userId, wardrobeId)}');
+      
+      try {
+        final doc = await _firestore
+            .collection(_clothesPath(userId, wardrobeId))
+            .doc(clothId)
+            .get();
 
-      return Cloth.fromJson(data, clothId);
-    } catch (e) {
-      debugPrint('Failed to get cloth: $e');
+        debugPrint('   exists: ${doc.exists}');
+
+        if (!doc.exists) {
+          debugPrint('❌ Cloth not found in subcollection');
+          debugPrint('💡 This might be a permission issue or the cloth doesn\'t exist');
+          return null;
+        }
+
+        final data = doc.data();
+        if (data == null) {
+          debugPrint('❌ Document exists but data is null');
+          return null;
+        }
+
+        debugPrint('✅ Found cloth in subcollection');
+        debugPrint('   ownerId: ${data['ownerId']}');
+        debugPrint('   visibility: ${data['visibility']}');
+        debugPrint('   sharedWith: ${data['sharedWith']}');
+        try {
+          final cloth = Cloth.fromJson(data, clothId);
+          debugPrint('✅ Successfully parsed cloth from subcollection');
+          debugPrint('   clothType: ${cloth.clothType}');
+          debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
+          return cloth;
+        } catch (e, stackTrace) {
+          debugPrint('❌ Error parsing cloth from subcollection: $e');
+          debugPrint('   StackTrace: $stackTrace');
+          return null;
+        }
+      } catch (e, stackTrace) {
+        debugPrint('❌ Failed to get cloth from subcollection: $e');
+        debugPrint('   Error type: ${e.runtimeType}');
+        debugPrint('   Error message: ${e.toString()}');
+        if (e.toString().contains('permission-denied')) {
+          debugPrint('🔒 PERMISSION DENIED: User may not have access to this cloth');
+          debugPrint('   This could mean:');
+          debugPrint('   1. Cloth visibility is "private" and user is not in sharedWith');
+          debugPrint('   2. Cloth visibility is "friends" but users are not friends');
+          debugPrint('   3. Cloth was not properly shared via DM');
+        }
+        debugPrint('   StackTrace: $stackTrace');
+        return null;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ ClothService.getCloth: Unexpected error');
+      debugPrint('   Error: $e');
+      debugPrint('   StackTrace: $stackTrace');
       return null;
     }
   }

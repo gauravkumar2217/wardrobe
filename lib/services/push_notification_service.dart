@@ -107,34 +107,23 @@ class PushNotificationService {
   }
 
   /// Check if user's app is likely in foreground
-  /// This is a client-side check - for accurate server-side check,
-  /// you'd need to track this in Firestore (e.g., lastActiveAt timestamp)
+  /// Uses the new fcmTokens collection for faster queries
   static Future<bool> isUserAppInForeground(String userId) async {
     try {
-      // Check last active timestamp
-      // If lastActiveAt is very recent (within last 30 seconds), assume app is in foreground
-      final userDoc = await _firestore.collection('users').doc(userId).get();
-
-      if (!userDoc.exists) return false;
-
-      final data = userDoc.data();
-      if (data == null) return false;
-
-      // Check devices collection for active devices
-      final devicesSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
+      // Check fcmTokens collection for active devices
+      final tokensSnapshot = await _firestore
+          .collection('fcmTokens')
+          .where('userId', isEqualTo: userId)
           .where('isActive', isEqualTo: true)
           .get();
 
-      if (devicesSnapshot.docs.isEmpty) return false;
+      if (tokensSnapshot.docs.isEmpty) return false;
 
       // Check if any device was active recently (within last 30 seconds)
       final now = DateTime.now();
-      for (var deviceDoc in devicesSnapshot.docs) {
-        final deviceData = deviceDoc.data();
-        final lastActiveAt = deviceData['lastActiveAt'] as Timestamp?;
+      for (var tokenDoc in tokensSnapshot.docs) {
+        final tokenData = tokenDoc.data();
+        final lastActiveAt = tokenData['lastActiveAt'] as Timestamp?;
         if (lastActiveAt != null) {
           final lastActive = lastActiveAt.toDate();
           final difference = now.difference(lastActive);
@@ -148,7 +137,54 @@ class PushNotificationService {
       return false;
     } catch (e) {
       debugPrint('Failed to check if user app is in foreground: $e');
-      return false;
+      // Fallback to old method
+      try {
+        final devicesSnapshot = await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('devices')
+            .where('isActive', isEqualTo: true)
+            .get();
+
+        if (devicesSnapshot.docs.isEmpty) return false;
+
+        final now = DateTime.now();
+        for (var deviceDoc in devicesSnapshot.docs) {
+          final deviceData = deviceDoc.data();
+          final lastActiveAt = deviceData['lastActiveAt'] as Timestamp?;
+          if (lastActiveAt != null) {
+            final lastActive = lastActiveAt.toDate();
+            final difference = now.difference(lastActive);
+            if (difference.inSeconds < 30) {
+              return true;
+            }
+          }
+        }
+        return false;
+      } catch (e2) {
+        debugPrint('Failed to check if user app is in foreground (fallback): $e2');
+        return false;
+      }
+    }
+  }
+
+  /// Get all active FCM tokens for a user (for Cloud Functions)
+  /// Uses the new fcmTokens collection
+  static Future<List<String>> getActiveTokensForUser(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('fcmTokens')
+          .where('userId', isEqualTo: userId)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['fcmToken'] as String)
+          .where((token) => token.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to get active tokens for user: $e');
+      return [];
     }
   }
 }

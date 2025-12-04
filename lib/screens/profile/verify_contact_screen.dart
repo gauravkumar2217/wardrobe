@@ -18,8 +18,9 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
   bool _isLoading = false;
   String? _verificationId;
   int _resendTimer = 0;
-  bool _isVerifyingEmail = false;
-  String? _emailToVerify;
+  bool _emailVerified = false;
+  bool _phoneVerified = false;
+  String? _phoneNumber;
 
   @override
   void initState() {
@@ -36,22 +37,17 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
   void _checkVerificationStatus() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
+    final profile = authProvider.userProfile;
 
     if (user != null) {
-      final hasEmail = user.email != null && user.emailVerified == false;
-      final hasPhone = user.phoneNumber == null;
-
-      if (hasEmail) {
-        setState(() {
-          _isVerifyingEmail = true;
-          _emailToVerify = user.email;
-        });
-      } else if (hasPhone) {
-        // Will send OTP for phone verification
-        setState(() {
-          _isVerifyingEmail = false;
-        });
-      }
+      // Email is verified if user has email and it's verified, or if account was created with email
+      _emailVerified = user.email != null && 
+                      (user.emailVerified || 
+                       user.providerData.any((info) => info.providerId == 'password'));
+      
+      // Phone is verified if user has phoneNumber in Firebase Auth
+      _phoneVerified = user.phoneNumber != null;
+      _phoneNumber = user.phoneNumber ?? profile?.phone;
     }
   }
 
@@ -186,6 +182,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     try {
       await user.reload();
       final updatedUser = FirebaseAuth.instance.currentUser;
+      await authProvider.refreshProfile();
+      _checkVerificationStatus();
 
       if (updatedUser?.emailVerified == true) {
         if (mounted) {
@@ -195,7 +193,6 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Email verified successfully')),
           );
-          Navigator.pop(context);
         }
       } else {
         if (mounted) {
@@ -249,12 +246,28 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
       );
 
       await user.linkWithCredential(credential);
+      
+      // Update profile with verified phone
+      final profile = authProvider.userProfile;
+      if (profile != null && _phoneNumber != null) {
+        final updatedProfile = profile.copyWith(
+          phone: _phoneNumber,
+        );
+        await authProvider.updateProfile(updatedProfile);
+      }
+
+      // Refresh user to get updated phone number
+      await user.reload();
+      await authProvider.refreshProfile();
+      _checkVerificationStatus();
 
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Phone verified successfully')),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -280,161 +293,397 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Verify your contact',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _isVerifyingEmail
-                    ? 'Verify your email address'
-                    : 'Verify your phone number',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 32),
-              if (_isVerifyingEmail) ...[
-                // Email verification
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Email: ${_emailToVerify ?? user?.email ?? 'N/A'}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'A verification email has been sent to your email address. Please check your inbox and click the verification link.',
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _sendEmailVerification,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C3AED),
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Resend Verification Email'),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _verifyEmail,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C3AED),
-                            foregroundColor: Colors.white,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Verify Contact',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Verify your email and phone number for account security',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Email verification status
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _emailVerified
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                )
-                              : const Text('Check Verification Status'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ] else ...[
-                // Phone verification
-                if (_verificationId == null) ...[
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _sendPhoneOTP,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C3AED),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                                  child: Icon(
+                                    _emailVerified
+                                        ? Icons.check_circle
+                                        : Icons.email_outlined,
+                                    color: _emailVerified
+                                        ? Colors.green
+                                        : Colors.grey[600],
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Email Address',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        user?.email ?? 'No email',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _emailVerified
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    _emailVerified ? 'Verified' : 'Not Verified',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          )
-                        : const Text('Send OTP'),
-                  ),
-                ] else ...[
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextFormField(
-                          controller: _otpController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Enter OTP',
-                            prefixIcon: Icon(Icons.pin),
-                            helperText: 'Enter the 6-digit code sent to your phone',
-                          ),
-                          maxLength: 6,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter OTP';
-                            }
-                            if (value.length != 6) {
-                              return 'OTP must be 6 digits';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _verifyPhoneOTP,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C3AED),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
+                            if (!_emailVerified && user?.email != null) ...[
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'A verification email will be sent to your email address. Please check your inbox and click the verification link.',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _sendEmailVerification,
+                                  icon: const Icon(Icons.send),
+                                  label: const Text('Send Verification Email'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF7C3AED),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
-                                )
-                              : const Text('Verify OTP'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoading ? null : _verifyEmail,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Check Status'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF7C3AED),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    side: const BorderSide(
+                                      color: Color(0xFF7C3AED),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        if (_resendTimer > 0) ...[
-                          const SizedBox(height: 16),
-                          Text(
-                            'Resend OTP in $_resendTimer seconds',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ] else ...[
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: _sendPhoneOTP,
-                            child: const Text('Resend OTP'),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ],
-          ),
-        ),
+                    const SizedBox(height: 16),
+                    // Phone verification status
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _phoneVerified
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    _phoneVerified
+                                        ? Icons.check_circle
+                                        : Icons.phone_outlined,
+                                    color: _phoneVerified
+                                        ? Colors.green
+                                        : Colors.grey[600],
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Phone Number',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _phoneNumber != null &&
+                                                _phoneNumber!.isNotEmpty
+                                            ? _phoneNumber!
+                                            : 'No phone number',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _phoneVerified
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    _phoneVerified ? 'Verified' : 'Not Verified',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (!_phoneVerified) ...[
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 16),
+                              if (_phoneNumber == null || _phoneNumber!.isEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: Colors.orange[700],
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Please add a phone number in your profile to verify it.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.orange[900],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                if (_verificationId == null) ...[
+                                  const Text(
+                                    'We will send a verification code to your phone number via SMS.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isLoading ? null : _sendPhoneOTP,
+                                      icon: const Icon(Icons.sms),
+                                      label: const Text('Send OTP'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF7C3AED),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const Text(
+                                    'Enter the 6-digit code sent to your phone number.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Form(
+                                    key: _formKey,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        TextFormField(
+                                          controller: _otpController,
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 12,
+                                          ),
+                                          maxLength: 6,
+                                          decoration: InputDecoration(
+                                            labelText: 'Enter OTP',
+                                            hintText: '000000',
+                                            counterText: '',
+                                            prefixIcon: const Icon(Icons.pin),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.grey[50],
+                                          ),
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Please enter OTP';
+                                            }
+                                            if (value.length != 6) {
+                                              return 'OTP must be 6 digits';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: _isLoading
+                                                ? null
+                                                : _verifyPhoneOTP,
+                                            icon: const Icon(Icons.verified),
+                                            label: const Text('Verify OTP'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(0xFF7C3AED),
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                vertical: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        if (_resendTimer > 0)
+                                          Center(
+                                            child: Text(
+                                              'Resend OTP in $_resendTimer seconds',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          Center(
+                                            child: TextButton.icon(
+                                              onPressed: _sendPhoneOTP,
+                                              icon: const Icon(Icons.refresh),
+                                              label: const Text('Resend OTP'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    const Color(0xFF7C3AED),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
-import '../../providers/auth_provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Change password screen
 class ChangePasswordScreen extends StatefulWidget {
@@ -30,61 +29,159 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _changePassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (kDebugMode) {
+      debugPrint('=== CHANGE PASSWORD START ===');
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      if (kDebugMode) {
+        debugPrint('Form validation failed');
+      }
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
+      if (kDebugMode) {
+        debugPrint('Step 1: Getting current user...');
+      }
 
-      if (user == null) {
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (kDebugMode) {
+        debugPrint('Current user: ${user?.uid ?? 'null'}');
+        debugPrint('User email: ${user?.email ?? 'null'}');
+        debugPrint('User providers: ${user?.providerData.map((p) => p.providerId).toList() ?? []}');
+      }
+
+      if (user == null || user.email == null) {
+        if (kDebugMode) {
+          debugPrint('ERROR: User not found or email is null');
+        }
         throw Exception('User not found. Please sign in again.');
       }
 
-      // Check if user has email/password provider
-      final hasEmailPassword = user.providerData.any(
-        (info) => info.providerId == 'password',
-      );
-
-      if (!hasEmailPassword) {
-        throw Exception('Password change is only available for email/password accounts.');
+      if (kDebugMode) {
+        debugPrint('Step 2: Attempting to update password directly...');
+        debugPrint('New password length: ${_newPasswordController.text.length}');
       }
 
-      // Re-authenticate user with current password
-      final email = user.email;
-      if (email == null) {
-        throw Exception('Email not found. Cannot change password.');
+      // Try to update password directly first (might work if user was recently authenticated)
+      try {
+        await user.updatePassword(_newPasswordController.text);
+        if (kDebugMode) {
+          debugPrint('SUCCESS: Password updated directly without re-authentication');
+        }
+      } on FirebaseAuthException catch (updateError) {
+        if (updateError.code == 'requires-recent-login') {
+          if (kDebugMode) {
+            debugPrint('Password update requires recent login. Verifying current password...');
+            debugPrint('Step 3: Creating credential with email: ${user.email}');
+            debugPrint('Current password length: ${_currentPasswordController.text.length}');
+          }
+
+          // Verify current password by re-authenticating
+          final credential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: _currentPasswordController.text,
+          );
+          
+          if (kDebugMode) {
+            debugPrint('Step 4: Re-authenticating user...');
+          }
+
+          try {
+            await user.reauthenticateWithCredential(credential);
+            if (kDebugMode) {
+              debugPrint('SUCCESS: Re-authentication successful');
+            }
+          } catch (reAuthError) {
+            if (kDebugMode) {
+              debugPrint('ERROR in re-authentication:');
+              debugPrint('Error type: ${reAuthError.runtimeType}');
+              debugPrint('Error toString: $reAuthError');
+              if (reAuthError is FirebaseAuthException) {
+                debugPrint('Error code: ${reAuthError.code}');
+                debugPrint('Error message: ${reAuthError.message}');
+              }
+            }
+            
+            // Check if it's the known type cast error
+            final errorStr = reAuthError.toString();
+            if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
+              if (kDebugMode) {
+                debugPrint('DETECTED: Known Firebase Auth bug with multi-provider accounts');
+              }
+              throw Exception(
+                'Authentication error detected. This happens with Google sign-in accounts. '
+                'Please sign out and sign in again with email/password, then try changing your password.',
+              );
+            }
+            rethrow;
+          }
+
+          if (kDebugMode) {
+            debugPrint('Step 5: Updating password after re-authentication...');
+          }
+
+          // Now update password after re-authentication
+          await user.updatePassword(_newPasswordController.text);
+          if (kDebugMode) {
+            debugPrint('SUCCESS: Password updated after re-authentication');
+          }
+        } else {
+          // Other error from direct update, rethrow
+          rethrow;
+        }
+      } catch (updateError) {
+        if (kDebugMode) {
+          debugPrint('ERROR in password update:');
+          debugPrint('Error type: ${updateError.runtimeType}');
+          debugPrint('Error toString: $updateError');
+          if (updateError is FirebaseAuthException) {
+            debugPrint('Error code: ${updateError.code}');
+            debugPrint('Error message: ${updateError.message}');
+          }
+        }
+        rethrow;
       }
-
-      final credential = EmailAuthProvider.credential(
-        email: email,
-        password: _currentPasswordController.text,
-      );
-
-      await user.reauthenticateWithCredential(credential);
-
-      // Update password
-      await user.updatePassword(_newPasswordController.text);
 
       if (mounted) {
+        if (kDebugMode) {
+          debugPrint('Step 5: Showing success message and closing screen');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Password changed successfully')),
         );
         Navigator.pop(context);
       }
+
+      if (kDebugMode) {
+        debugPrint('=== CHANGE PASSWORD SUCCESS ===');
+      }
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Failed to change password';
+      if (kDebugMode) {
+        debugPrint('=== FIREBASE AUTH EXCEPTION ===');
+        debugPrint('Error code: ${e.code}');
+        debugPrint('Error message: ${e.message}');
+        debugPrint('Error details: ${e.toString()}');
+        debugPrint('Stack trace: ${StackTrace.current}');
+      }
+
+      String errorMessage = 'Current password is incorrect';
       if (e.code == 'wrong-password') {
         errorMessage = 'Current password is incorrect';
       } else if (e.code == 'weak-password') {
         errorMessage = 'New password is too weak';
       } else if (e.code == 'requires-recent-login') {
-        errorMessage = 'Please sign out and sign in again to change password';
+        errorMessage = 'Please sign out and sign in again';
+      } else if (e.code == 'invalid-credential') {
+        errorMessage = 'Current password is incorrect';
       } else {
-        errorMessage = e.message ?? errorMessage;
+        errorMessage = 'Error: ${e.code} - ${e.message ?? 'Unknown error'}';
       }
 
       if (mounted) {
@@ -92,10 +189,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           SnackBar(content: Text(errorMessage)),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('=== GENERAL EXCEPTION ===');
+        debugPrint('Error type: ${e.runtimeType}');
+        debugPrint('Error toString: $e');
+        debugPrint('Error message: ${e.toString()}');
+        debugPrint('Stack trace: $stackTrace');
+        if (e.toString().contains('List<Object?>')) {
+          debugPrint('DETECTED: List<Object?> type cast error');
+        }
+        if (e.toString().contains('PigeonUserDetails')) {
+          debugPrint('DETECTED: PigeonUserDetails type cast error');
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to change password: $e')),
+          SnackBar(
+            content: Text('Failed to change password: $e'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -103,6 +217,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         setState(() {
           _isLoading = false;
         });
+      }
+      if (kDebugMode) {
+        debugPrint('=== CHANGE PASSWORD END ===');
       }
     }
   }

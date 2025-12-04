@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cloth_provider.dart';
@@ -26,6 +27,7 @@ class _CommentScreenState extends State<CommentScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isSubmitting = false;
   final Map<String, UserProfile?> _userProfiles = {};
+  final Map<String, bool> _loadingProfiles = {}; // Track loading state for each profile
 
   @override
   void dispose() {
@@ -35,13 +37,53 @@ class _CommentScreenState extends State<CommentScreen> {
   }
 
   Future<void> _loadUserProfile(String userId) async {
+    // If already loaded or currently loading, return
     if (_userProfiles.containsKey(userId)) return;
+    if (_loadingProfiles[userId] == true) return;
     
-    final profile = await UserService.getUserProfile(userId);
     if (mounted) {
       setState(() {
-        _userProfiles[userId] = profile;
+        _loadingProfiles[userId] = true;
       });
+    }
+    
+    try {
+      debugPrint('📥 CommentScreen: Loading profile for userId: $userId');
+      // Increase timeout to 5 seconds to give more time for profile loading
+      final profile = await UserService.getUserProfile(userId)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              debugPrint('⏱️ CommentScreen: Profile load timeout for $userId');
+              return null;
+            },
+          );
+      
+      debugPrint('📥 CommentScreen: Profile loaded for $userId');
+      debugPrint('   Profile: ${profile != null ? "✅ Found" : "❌ Null"}');
+      if (profile != null) {
+        debugPrint('   displayName: ${profile.displayName}');
+        debugPrint('   photoUrl: ${profile.photoUrl}');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _userProfiles[userId] = profile; // Can be null if user doesn't exist or timeout
+          _loadingProfiles[userId] = false; // Always mark as done loading
+        });
+        debugPrint('✅ CommentScreen: Profile stored and UI updated for $userId');
+      }
+    } catch (e, stackTrace) {
+      // Handle error - set profile to null and mark as not loading
+      // This ensures we show the comment even if profile fails to load
+      debugPrint('❌ CommentScreen: Error loading profile for $userId: $e');
+      debugPrint('   StackTrace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _userProfiles[userId] = null; // Store null to indicate we tried
+          _loadingProfiles[userId] = false; // Mark as done loading
+        });
+      }
     }
   }
 
@@ -137,9 +179,9 @@ class _CommentScreenState extends State<CommentScreen> {
           clothId: widget.cloth.id,
           commentId: commentId,
         );
-
-        // Refresh comment count from Firestore
-        final actualCount = await clothProvider.getCommentCount(
+        
+        // Refresh comment count after deletion
+        final deletedCount = await clothProvider.getCommentCount(
           ownerId: widget.cloth.ownerId,
           wardrobeId: widget.cloth.wardrobeId,
           clothId: widget.cloth.id,
@@ -148,7 +190,7 @@ class _CommentScreenState extends State<CommentScreen> {
         // Update the cloth in the provider with the actual count
         clothProvider.updateClothLocally(
           clothId: widget.cloth.id,
-          commentsCount: actualCount,
+          commentsCount: deletedCount,
         );
       } catch (e) {
         if (mounted) {
@@ -238,62 +280,164 @@ class _CommentScreenState extends State<CommentScreen> {
                   );
                 }
 
+                // Load all profiles in parallel when comments are first loaded
+                if (comments.isNotEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    for (var comment in comments) {
+                      if (!_userProfiles.containsKey(comment.userId) && 
+                          _loadingProfiles[comment.userId] != true) {
+                        _loadUserProfile(comment.userId);
+                      }
+                    }
+                  });
+                }
+
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: comments.length,
                   itemBuilder: (context, index) {
                     final comment = comments[index];
-                    _loadUserProfile(comment.userId);
+                    final isLoading = _loadingProfiles[comment.userId] == true;
                     final profile = _userProfiles[comment.userId];
                     final isOwner = authProvider.user?.uid == comment.userId;
 
-                    return Card(
+                    // Start loading profile if not already loaded or loading
+                    if (!_userProfiles.containsKey(comment.userId) && !isLoading) {
+                      _loadUserProfile(comment.userId);
+                    }
+
+                    // Show skeleton ONLY if we're actively loading AND haven't shown comment yet
+                    // After 1.5 seconds max, always show comment (even if profile is null)
+                    final isFirstAttempt = !_userProfiles.containsKey(comment.userId);
+                    if (isFirstAttempt && isLoading) {
+                      // Force show comment after 1.5 seconds even if profile still loading
+                      Future.delayed(const Duration(milliseconds: 1500), () {
+                        if (mounted && 
+                            _loadingProfiles[comment.userId] == true && 
+                            !_userProfiles.containsKey(comment.userId)) {
+                          setState(() {
+                            _loadingProfiles[comment.userId] = false;
+                            _userProfiles[comment.userId] = null; // Mark as tried, show "User"
+                          });
+                        }
+                      });
+                      return _buildCommentSkeleton();
+                    }
+
+                    // Always show comment - profile may be null, show "User" as fallback
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          child: profile?.photoUrl != null
-                              ? ClipOval(
-                                  child: Image.network(
-                                    profile!.photoUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.person,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey[200]!,
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Avatar
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF7C3AED),
+                            child: (profile != null && profile.photoUrl != null && profile.photoUrl!.isNotEmpty)
+                                ? ClipOval(
+                                    child: CachedNetworkImage(
+                                      imageUrl: profile.photoUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 40,
+                                      height: 40,
+                                      placeholder: (context, url) => Container(
+                                        color: Colors.grey[300],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      errorWidget: (_, __, ___) => const Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
+                                    style: const TextStyle(
                                       color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                )
-                              : Text(
-                                  profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                  style: const TextStyle(color: Colors.white),
+                          ),
+                          const SizedBox(width: 12),
+                          // Comment content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Username and delete button
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        profile?.displayName ?? 'User',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isOwner)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: Colors.grey,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _deleteComment(comment.id),
+                                      ),
+                                  ],
                                 ),
-                        ),
-                        title: Text(
-                          profile?.displayName ?? 'Unknown User',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(comment.text),
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatDate(comment.createdAt),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
+                                const SizedBox(height: 4),
+                                // Comment text
+                                Text(
+                                  comment.text,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                // Timestamp
+                                Text(
+                                  _formatDate(comment.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        trailing: isOwner
-                            ? IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 20),
-                                onPressed: () => _deleteComment(comment.id),
-                              )
-                            : null,
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -303,47 +447,83 @@ class _CommentScreenState extends State<CommentScreen> {
           ),
           // Comment input
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
               ],
             ),
             child: SafeArea(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: InputDecoration(
-                        hintText: 'Add a comment...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.grey[300]!,
+                          width: 1,
                         ),
                       ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
+                      child: TextField(
+                        controller: _commentController,
+                        decoration: InputDecoration(
+                          hintText: 'Add a comment...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        maxLines: null,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton(
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send, color: Color(0xFF7C3AED)),
-                    onPressed: _isSubmitting ? null : _submitComment,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C3AED),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _isSubmitting ? null : _submitComment,
+                        borderRadius: BorderRadius.circular(24),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.send,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -368,6 +548,83 @@ class _CommentScreenState extends State<CommentScreen> {
         .map((snapshot) => snapshot.docs
             .map((doc) => Comment.fromJson(doc.data(), doc.id))
             .toList());
+  }
+
+  /// Build skeleton/placeholder for loading comments
+  Widget _buildCommentSkeleton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar skeleton
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Content skeleton
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Username skeleton
+                Container(
+                  width: 120,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Comment text skeleton
+                Container(
+                  width: double.infinity,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 200,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Timestamp skeleton
+                Container(
+                  width: 80,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

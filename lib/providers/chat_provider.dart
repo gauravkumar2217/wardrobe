@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
 import '../services/chat_service.dart';
@@ -61,9 +62,21 @@ class ChatProvider with ChangeNotifier {
   }
 
   /// Refresh unread counts for all chats
+  /// Note: This is only called when needed (e.g., initial load or chat list update)
+  /// For active chats, we calculate from loaded messages instead
   Future<void> _refreshUnreadCounts(String userId) async {
     try {
-      _unreadCounts = await ChatService.getAllUnreadCounts(userId);
+      // Only refresh counts for chats that aren't currently loaded
+      // For the current chat, use calculated count from messages
+      final allUnreadCounts = await ChatService.getAllUnreadCounts(userId);
+      
+      // Merge with calculated counts from loaded messages
+      if (_currentChat != null && _unreadCounts.containsKey(_currentChat!.id)) {
+        // Keep calculated count for current chat
+        allUnreadCounts[_currentChat!.id] = _unreadCounts[_currentChat!.id]!;
+      }
+      
+      _unreadCounts = allUnreadCounts;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to refresh unread counts: $e');
@@ -115,6 +128,8 @@ class ChatProvider with ChangeNotifier {
         userId: userId,
         chatId: chatId,
       );
+      // Calculate unread count from loaded messages (no extra query needed)
+      _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load messages: ${e.toString()}';
@@ -133,8 +148,8 @@ class ChatProvider with ChangeNotifier {
     ChatService.watchMessages(userId: userId, chatId: chatId).listen((messages) {
       _messages = messages;
       _errorMessage = null;
-      // Refresh unread count for this chat when messages update
-      _refreshChatUnreadCount(userId: userId, chatId: chatId);
+      // Calculate unread count from loaded messages (no Firestore query needed)
+      _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
       notifyListeners();
     }).onError((error) {
       _errorMessage = 'Failed to watch messages: ${error.toString()}';
@@ -142,23 +157,23 @@ class ChatProvider with ChangeNotifier {
     });
   }
 
-  /// Refresh unread count for a specific chat
-  Future<void> _refreshChatUnreadCount({
+  /// Calculate unread count from already-loaded messages (optimized - no Firestore query)
+  void _calculateUnreadCountFromMessages({
     required String userId,
     required String chatId,
-  }) async {
-    try {
-      final count = await ChatService.getUnreadCount(userId: userId, chatId: chatId);
-      if (count > 0) {
-        _unreadCounts[chatId] = count;
-      } else {
-        _unreadCounts.remove(chatId);
-      }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to refresh chat unread count: $e');
+  }) {
+    // Calculate from _messages instead of querying Firestore
+    final unreadCount = _messages
+        .where((msg) => msg.senderId != userId && !msg.isSeenBy(userId))
+        .length;
+    
+    if (unreadCount > 0) {
+      _unreadCounts[chatId] = unreadCount;
+    } else {
+      _unreadCounts.remove(chatId);
     }
   }
+
 
   /// Send text message
   Future<bool> sendTextMessage({
@@ -253,8 +268,9 @@ class ChatProvider with ChangeNotifier {
         chatId: chatId,
         messageIds: messageIds,
       );
-      // Refresh unread count after marking as seen
-      await _refreshChatUnreadCount(userId: userId, chatId: chatId);
+      // Recalculate unread count from loaded messages (no query needed)
+      _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to mark messages as seen: $e');
     }
