@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/chat.dart';
 import '../models/cloth.dart';
 import '../services/cloth_service.dart';
@@ -74,11 +75,24 @@ class ChatBubble extends StatelessWidget {
                   if (message.isImage && message.imageUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        message.imageUrl!,
+                      child: CachedNetworkImage(
+                        imageUrl: message.imageUrl!,
                         width: 200,
                         height: 200,
                         fit: BoxFit.cover,
+                        memCacheWidth: 400, // Resize to reduce memory usage
+                        placeholder: (context, url) => Container(
+                          width: 200,
+                          height: 200,
+                          color: Colors.grey[200],
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          width: 200,
+                          height: 200,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error),
+                        ),
                       ),
                     ),
                   if (message.isClothShare && message.clothId != null)
@@ -369,38 +383,26 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
                 ),
-                child: Image.network(
-                  cloth.imageUrl,
+                child: CachedNetworkImage(
+                  imageUrl: cloth.imageUrl,
                   width: double.infinity,
                   height: 180,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 180,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.image_not_supported,
-                        size: 48,
-                        color: Colors.grey[600],
-                      ),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 180,
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    );
-                  },
+                  memCacheWidth: 400, // Resize to reduce memory usage
+                  placeholder: (context, url) => Container(
+                    height: 180,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 180,
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ),
               // Cloth details
