@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/filter_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/wardrobe_provider.dart';
+import '../../models/wardrobe.dart';
 
 /// Statistics screen showing counts by type, occasion, season, and color
 class StatisticsScreen extends StatefulWidget {
@@ -18,13 +20,39 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Map<String, int> _occasionCounts = {};
   Map<String, int> _seasonCounts = {};
   Map<String, int> _colorCounts = {};
+  List<Wardrobe> _wardrobes = [];
+  bool _isLoadingWardrobes = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _calculateStatistics();
+      _loadWardrobes();
     });
+  }
+
+  Future<void> _loadWardrobes() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    setState(() {
+      _isLoadingWardrobes = true;
+    });
+
+    try {
+      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+      await wardrobeProvider.loadWardrobes(authProvider.user!.uid);
+      
+      setState(() {
+        _wardrobes = wardrobeProvider.wardrobes;
+        _isLoadingWardrobes = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingWardrobes = false;
+      });
+    }
   }
 
   void _calculateStatistics() {
@@ -85,6 +113,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Navigator.pop(context);
   }
 
+  void _navigateToHomeWithWardrobe(Wardrobe wardrobe) {
+    // Set selected wardrobe in provider
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    wardrobeProvider.setSelectedWardrobe(wardrobe);
+    
+    // Clear any filters
+    final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+    filterProvider.clearFilters();
+    
+    // Navigate to home screen
+    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+    navigationProvider.navigateToHome();
+    
+    // Pop statistics screen
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,6 +145,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           if (authProvider.user != null) {
             await clothProvider.loadClothes(userId: authProvider.user!.uid);
             _calculateStatistics();
+            await _loadWardrobes();
           }
         },
         child: SingleChildScrollView(
@@ -107,6 +153,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // My Wardrobes Section
+              _buildWardrobesSection(),
+              const SizedBox(height: 16),
               // Type Statistics
               _buildSection(
                 title: 'By Type',
@@ -205,6 +254,90 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ),
                 ),
                 onTap: () => onTap(entry.key),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWardrobesSection() {
+    if (_isLoadingWardrobes) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory_2, color: Colors.grey),
+              const SizedBox(width: 12),
+              const Text(
+                'Loading wardrobes...',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_wardrobes.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory_2, color: Colors.grey),
+              const SizedBox(width: 12),
+              Text(
+                'No wardrobes available',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Sort by count (descending)
+    final sortedWardrobes = List<Wardrobe>.from(_wardrobes)
+      ..sort((a, b) => b.totalItems.compareTo(a.totalItems));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
+                const SizedBox(width: 8),
+                const Text(
+                  'My Wardrobes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...sortedWardrobes.map((wardrobe) {
+              return ListTile(
+                title: Text(wardrobe.name),
+                subtitle: wardrobe.location.isNotEmpty
+                    ? Text(wardrobe.location)
+                    : null,
+                trailing: Chip(
+                  label: Text('${wardrobe.totalItems}'),
+                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.1),
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF7C3AED),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () => _navigateToHomeWithWardrobe(wardrobe),
               );
             }),
           ],
