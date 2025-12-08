@@ -13,6 +13,7 @@ import '../filter/filter_selection_screen.dart';
 import '../cloth/add_cloth_screen.dart';
 import '../cloth/edit_cloth_screen.dart';
 import '../cloth/comment_screen.dart';
+import '../cloth/worn_history_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
@@ -724,6 +725,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       onMarkWorn: isOwner
                                           ? () => _handleToggleWorn(cloth)
                                           : null,
+                                      onWornHistory: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => WornHistoryScreen(cloth: cloth),
+                                          ),
+                                        );
+                                      },
                                       onEdit: isOwner
                                           ? () {
                                               Navigator.push(

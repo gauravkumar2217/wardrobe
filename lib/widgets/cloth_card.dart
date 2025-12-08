@@ -12,6 +12,7 @@ class ClothCard extends StatefulWidget {
   final VoidCallback? onComment;
   final VoidCallback? onShare;
   final VoidCallback? onMarkWorn;
+  final VoidCallback? onWornHistory;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool isLiked;
@@ -25,6 +26,7 @@ class ClothCard extends StatefulWidget {
     this.onComment,
     this.onShare,
     this.onMarkWorn,
+    this.onWornHistory,
     this.onEdit,
     this.onDelete,
     this.isLiked = false,
@@ -244,6 +246,15 @@ class _ClothCardState extends State<ClothCard> {
                         },
                       ),
                       const SizedBox(height: 24),
+                      // Worn history icon
+                      if (widget.onWornHistory != null)
+                        _ActionButton(
+                          icon: Icons.history,
+                          label: 'History',
+                          onTap: widget.onWornHistory,
+                        ),
+                      if (widget.onWornHistory != null)
+                        const SizedBox(height: 24),
                       // Owner-only actions: Share, Edit, Mark Worn, Delete
                       if (widget.isOwner) ...[
                         if (widget.onShare != null) ...[

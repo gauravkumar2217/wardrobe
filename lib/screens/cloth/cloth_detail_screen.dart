@@ -4,6 +4,7 @@ import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/cloth_card.dart';
 import '../cloth/comment_screen.dart';
+import '../cloth/worn_history_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../providers/cloth_provider.dart';
@@ -484,6 +485,15 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           onShare: isShared ? null : (isOwner ? _handleShare : null),
           // Both users can mark as worn if shared (friends can mark each other's shared clothes)
           onMarkWorn: isShared ? _handleToggleWorn : (isOwner ? _handleToggleWorn : null),
+          // Anyone who can see the cloth can view wear history
+          onWornHistory: isAuthenticated ? () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => WornHistoryScreen(cloth: _cloth!),
+              ),
+            );
+          } : null,
           // Only owner can edit
           onEdit: null, // Edit is handled elsewhere
           // Only owner can delete, and not if shared
