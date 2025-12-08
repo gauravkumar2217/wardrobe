@@ -259,6 +259,8 @@ service cloud.firestore {
       
       // Friends subcollection: users/{userId}/friends/{friendId}
       match /friends/{friendId} {
+        // Allow list queries for the owner (needed for loading friends list)
+        allow list: if isOwner(userId);
         allow read: if isOwner(userId);
         // Allow create if:
         // 1. User owns the userId path (adding friend to their own list), OR
@@ -530,6 +532,7 @@ service cloud.firestore {
       // Chats subcollection: users/{userId}/chats/{chatId}
       match /chats/{chatId} {
         // Allow list queries for the owner (needed for chat list)
+        // Note: Individual document access is still controlled by get rule
         allow list: if isOwner(userId);
         
         // Allow read if user is a participant
@@ -557,8 +560,10 @@ service cloud.firestore {
         // Messages subcollection: chats/{chatId}/messages/{messageId}
         match /messages/{messageId} {
           // Allow list queries for participants (needed for loading messages)
+          // Check if chat exists and user is a participant
           allow list: if isAuthenticated() && 
-                         request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
+                         (exists(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants);
           
           // Allow read if user is a participant in parent chat
           allow read: if isAuthenticated() && 
@@ -593,6 +598,7 @@ service cloud.firestore {
     match /friendRequests/{requestId} {
       // Allow list queries (for querying by toUserId/fromUserId)
       // User can query for requests where they are sender or receiver
+      // Note: The where clauses in the query will filter results, but we need to allow the query itself
       allow list: if isAuthenticated();
       
       // Allow read if user is sender or receiver
