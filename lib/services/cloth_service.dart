@@ -296,6 +296,63 @@ class ClothService {
     }
   }
 
+  /// Move cloth to a different wardrobe
+  static Future<void> moveClothToWardrobe({
+    required String userId,
+    required String oldWardrobeId,
+    required String newWardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      // Get the cloth from old wardrobe
+      final cloth = await getCloth(
+        userId: userId,
+        wardrobeId: oldWardrobeId,
+        clothId: clothId,
+      );
+
+      if (cloth == null) {
+        throw Exception('Cloth not found');
+      }
+
+      // Create cloth data with new wardrobe ID
+      final clothData = cloth.toJson();
+      clothData['wardrobeId'] = newWardrobeId;
+      clothData['updatedAt'] = FieldValue.serverTimestamp();
+
+      // Use batch to ensure atomicity
+      final batch = _firestore.batch();
+
+      // Delete from old wardrobe subcollection
+      final oldClothRef = _firestore
+          .collection(_clothesPath(userId, oldWardrobeId))
+          .doc(clothId);
+      batch.delete(oldClothRef);
+
+      // Add to new wardrobe subcollection
+      final newClothRef = _firestore
+          .collection(_clothesPath(userId, newWardrobeId))
+          .doc(clothId);
+      batch.set(newClothRef, clothData);
+
+      // Update top-level collection
+      final topLevelRef = _firestore.collection('clothes').doc(clothId);
+      batch.update(topLevelRef, {
+        'wardrobeId': newWardrobeId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      if (kDebugMode) {
+        debugPrint('Cloth moved from wardrobe $oldWardrobeId to $newWardrobeId');
+      }
+    } catch (e) {
+      debugPrint('Failed to move cloth: $e');
+      rethrow;
+    }
+  }
+
   /// Delete cloth
   static Future<void> deleteCloth({
     required String userId,

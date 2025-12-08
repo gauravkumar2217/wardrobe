@@ -192,6 +192,37 @@ class ClothProvider with ChangeNotifier {
     }
   }
 
+  /// Move cloth to a different wardrobe
+  Future<void> moveClothToWardrobe({
+    required String userId,
+    required String oldWardrobeId,
+    required String newWardrobeId,
+    required String clothId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await ClothService.moveClothToWardrobe(
+        userId: userId,
+        oldWardrobeId: oldWardrobeId,
+        newWardrobeId: newWardrobeId,
+        clothId: clothId,
+      );
+      
+      // Remove from local list if it exists
+      _clothes.removeWhere((c) => c.id == clothId);
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = 'Failed to move cloth: ${e.toString()}';
+      debugPrint('Error moving cloth: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Delete cloth
   Future<void> deleteCloth({
     required String userId,

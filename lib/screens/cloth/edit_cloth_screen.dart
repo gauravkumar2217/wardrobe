@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../models/cloth.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/auth_provider.dart' as app_auth;
+import '../../providers/wardrobe_provider.dart';
 import '../../services/tag_list_service.dart';
+import '../../models/wardrobe.dart';
 
 /// Edit cloth screen
 class EditClothScreen extends StatefulWidget {
@@ -31,7 +33,9 @@ class _EditClothScreenState extends State<EditClothScreen> {
   String? _selectedPlacement;
   String? _selectedCategory;
   List<String> _selectedOccasions = [];
-  String _visibility = 'private';
+  String? _selectedWardrobeId;
+  List<Wardrobe> _wardrobes = [];
+  bool _isLoadingWardrobes = true;
   
   bool _isUpdating = false;
   bool _isLoadingTags = true;
@@ -40,6 +44,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
   void initState() {
     super.initState();
     _loadTagLists();
+    _loadWardrobes();
     _initializeFields();
   }
 
@@ -49,12 +54,27 @@ class _EditClothScreenState extends State<EditClothScreen> {
     _selectedPlacement = widget.cloth.placement;
     _selectedCategory = widget.cloth.category;
     _selectedOccasions = List<String>.from(widget.cloth.occasions);
-    _visibility = widget.cloth.visibility;
+    _selectedWardrobeId = widget.cloth.wardrobeId;
     
     final colorTags = widget.cloth.colorTags;
     _selectedPrimaryColor = colorTags.primary;
     _selectedSecondaryColor = colorTags.secondary;
     _selectedColors = List<String>.from(colorTags.colors);
+  }
+
+  Future<void> _loadWardrobes() async {
+    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    
+    if (authProvider.user != null) {
+      await wardrobeProvider.loadWardrobes(authProvider.user!.uid);
+      if (mounted) {
+        setState(() {
+          _wardrobes = wardrobeProvider.wardrobes;
+          _isLoadingWardrobes = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadTagLists() async {
@@ -112,17 +132,36 @@ class _EditClothScreenState extends State<EditClothScreen> {
         placement: _selectedPlacement,
         category: _selectedCategory,
         occasions: _selectedOccasions,
-        visibility: _visibility,
         colorTags: colorTags,
         updatedAt: DateTime.now(),
       );
 
-      await clothProvider.updateCloth(
-        userId: user.uid,
-        wardrobeId: widget.wardrobeId,
-        clothId: widget.cloth.id,
-        cloth: updatedCloth,
-      );
+      // Check if wardrobe changed
+      if (_selectedWardrobeId != null && _selectedWardrobeId != widget.wardrobeId) {
+        // Move cloth to new wardrobe
+        await clothProvider.moveClothToWardrobe(
+          userId: user.uid,
+          oldWardrobeId: widget.wardrobeId,
+          newWardrobeId: _selectedWardrobeId!,
+          clothId: widget.cloth.id,
+        );
+        
+        // Update cloth in new wardrobe
+        await clothProvider.updateCloth(
+          userId: user.uid,
+          wardrobeId: _selectedWardrobeId!,
+          clothId: widget.cloth.id,
+          cloth: updatedCloth,
+        );
+      } else {
+        // Just update cloth in same wardrobe
+        await clothProvider.updateCloth(
+          userId: user.uid,
+          wardrobeId: widget.wardrobeId,
+          clothId: widget.cloth.id,
+          cloth: updatedCloth,
+        );
+      }
 
       if (mounted) {
         setState(() {
@@ -176,6 +215,43 @@ class _EditClothScreenState extends State<EditClothScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Wardrobe Selection
+              if (_isLoadingWardrobes)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  value: _selectedWardrobeId,
+                  decoration: const InputDecoration(
+                    labelText: 'Wardrobe *',
+                    prefixIcon: Icon(Icons.inventory_2),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _wardrobes.map((wardrobe) {
+                    return DropdownMenuItem(
+                      value: wardrobe.id,
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2, size: 18, color: Colors.grey[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${wardrobe.name} - ${wardrobe.location}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => _selectedWardrobeId = value),
+                  validator: (value) => value == null ? 'Please select a wardrobe' : null,
+                ),
+              const SizedBox(height: 16),
+
               // Cloth Type
               DropdownButtonFormField<String>(
                 value: _selectedClothType,
@@ -291,23 +367,6 @@ class _EditClothScreenState extends State<EditClothScreen> {
                     }).toList(),
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-
-              // Visibility
-              DropdownButtonFormField<String>(
-                value: _visibility,
-                decoration: const InputDecoration(
-                  labelText: 'Visibility',
-                  prefixIcon: Icon(Icons.visibility),
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'private', child: Text('Private')),
-                  DropdownMenuItem(value: 'friends', child: Text('Friends Only')),
-                  DropdownMenuItem(value: 'public', child: Text('Public')),
-                ],
-                onChanged: (value) => setState(() => _visibility = value ?? 'private'),
               ),
               const SizedBox(height: 32),
 
