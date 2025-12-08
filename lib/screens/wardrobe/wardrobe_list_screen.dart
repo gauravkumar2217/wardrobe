@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/navigation_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import '../../services/wardrobe_service.dart';
 import '../../models/wardrobe.dart';
@@ -247,23 +246,11 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                             },
                             child: WardrobeCard(
                               wardrobe: wardrobe,
-                              onTap: () {
-                                // Set selected wardrobe
+                              onTap: widget.selectionMode ? () {
+                                // In selection mode, set selected wardrobe and pop back
                                 wardrobeProvider.setSelectedWardrobe(wardrobe);
-                                
-                                final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-                                
-                                // Check if we're currently in the wardrobe tab (index 1) or if we were pushed
-                                // If we're in the tab, switch to home tab
-                                // If we were pushed (from filter icon), pop back to home
-                                if (navigationProvider.currentIndex == 1) {
-                                  // We're in the wardrobe tab, switch to home tab
-                                  navigationProvider.navigateToHome();
-                                } else {
-                                  // We were pushed (from filter icon or other screen), pop back
-                                  Navigator.of(context).pop();
-                                }
-                              },
+                                Navigator.of(context).pop();
+                              } : null, // No action in normal mode - just view wardrobes
                               // Only show edit/delete buttons if not in selection mode
                               onEdit: widget.selectionMode ? null : () {
                                 _editWardrobe(wardrobe, authProvider.user!.uid);
