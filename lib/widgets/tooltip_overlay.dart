@@ -3,7 +3,7 @@ import 'dart:ui';
 import '../providers/onboarding_provider.dart';
 
 /// Tooltip overlay that highlights a target widget and shows a tooltip
-class TooltipOverlay extends StatelessWidget {
+class TooltipOverlay extends StatefulWidget {
   final Widget child;
   final OnboardingStep? step;
   final VoidCallback? onNext;
@@ -24,28 +24,81 @@ class TooltipOverlay extends StatelessWidget {
   });
 
   @override
+  State<TooltipOverlay> createState() => _TooltipOverlayState();
+}
+
+class _TooltipOverlayState extends State<TooltipOverlay> {
+  Offset? _targetPosition;
+  Size? _targetSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTargetPosition();
+  }
+
+  @override
+  void didUpdateWidget(TooltipOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.step?.id != widget.step?.id) {
+      _updateTargetPosition();
+    }
+  }
+
+  void _updateTargetPosition() {
+    if (widget.step == null) return;
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.step == null) return;
+      
+      // Try to get position from key
+      if (widget.step!.targetKey?.currentContext != null) {
+        final RenderBox? targetBox = widget.step!.targetKey!.currentContext!
+            .findRenderObject() as RenderBox?;
+        if (targetBox != null && targetBox.attached) {
+          setState(() {
+            _targetPosition = targetBox.localToGlobal(Offset.zero);
+            _targetSize = targetBox.size;
+          });
+          return;
+        }
+      }
+
+      // Fallback to manual position
+      if (widget.step!.targetOffset != null) {
+        setState(() {
+          _targetPosition = widget.step!.targetOffset;
+          _targetSize = widget.step!.targetSize ?? const Size(80, 80);
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (step == null) {
-      return child;
+    if (widget.step == null) {
+      return widget.child;
     }
 
     return Stack(
       children: [
-        child,
+        widget.child,
         // Dark overlay
-        _DarkOverlay(
-          targetKey: step!.targetKey,
-          targetOffset: step!.targetOffset,
-          targetSize: step!.targetSize,
-        ),
-        // Tooltip
+        if (_targetPosition != null && _targetSize != null)
+          _DarkOverlay(
+            targetPosition: _targetPosition!,
+            targetSize: _targetSize!,
+          ),
+        // Tooltip - always show at bottom center above navigation
         _TooltipWidget(
-          step: step!,
-          onNext: onNext,
-          onPrevious: onPrevious,
-          onSkip: onSkip,
-          hasMoreSteps: hasMoreSteps,
-          hasPreviousSteps: hasPreviousSteps,
+          step: widget.step!,
+          onNext: widget.onNext,
+          onPrevious: widget.onPrevious,
+          onSkip: widget.onSkip,
+          hasMoreSteps: widget.hasMoreSteps,
+          hasPreviousSteps: widget.hasPreviousSteps,
+          targetPosition: _targetPosition,
+          targetSize: _targetSize,
         ),
       ],
     );
@@ -54,46 +107,22 @@ class TooltipOverlay extends StatelessWidget {
 
 /// Dark overlay that dims everything except the target
 class _DarkOverlay extends StatelessWidget {
-  final GlobalKey? targetKey;
-  final Offset? targetOffset;
-  final Size? targetSize;
+  final Offset targetPosition;
+  final Size targetSize;
 
   const _DarkOverlay({
-    this.targetKey,
-    this.targetOffset,
-    this.targetSize,
+    required this.targetPosition,
+    required this.targetSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        RenderBox? targetBox;
-        Offset? targetPosition;
-        Size? targetSizeValue = targetSize;
-
-        // Try to get position from key
-        if (targetKey?.currentContext != null) {
-          targetBox = targetKey!.currentContext!.findRenderObject() as RenderBox?;
-          if (targetBox != null && targetBox.attached) {
-            targetPosition = targetBox.localToGlobal(Offset.zero);
-            targetSizeValue = targetBox.size;
-          }
-        }
-
-        // Fallback to manual position
-        if (targetPosition == null && targetOffset != null) {
-          targetPosition = targetOffset!;
-        }
-
-        if (targetPosition == null || targetSizeValue == null) {
-          return const SizedBox.shrink();
-        }
-
         return CustomPaint(
           painter: _DarkOverlayPainter(
             targetPosition: targetPosition,
-            targetSize: targetSizeValue,
+            targetSize: targetSize,
           ),
           size: Size(constraints.maxWidth, constraints.maxHeight),
         );
@@ -124,7 +153,7 @@ class _DarkOverlayPainter extends CustomPainter {
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     // Create hole for target (with padding)
-    final padding = 8.0;
+    final padding = 12.0;
     final hole = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
@@ -134,7 +163,7 @@ class _DarkOverlayPainter extends CustomPainter {
             targetSize.width + (padding * 2),
             targetSize.height + (padding * 2),
           ),
-          const Radius.circular(8),
+          const Radius.circular(16),
         ),
       );
 
@@ -163,6 +192,8 @@ class _TooltipWidget extends StatelessWidget {
   final VoidCallback? onSkip;
   final bool hasMoreSteps;
   final bool hasPreviousSteps;
+  final Offset? targetPosition;
+  final Size? targetSize;
 
   const _TooltipWidget({
     required this.step,
@@ -171,110 +202,55 @@ class _TooltipWidget extends StatelessWidget {
     this.onSkip,
     this.hasMoreSteps = false,
     this.hasPreviousSteps = false,
+    this.targetPosition,
+    this.targetSize,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        RenderBox? targetBox;
-        Offset? targetPosition;
-        Size? targetSize;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    const tooltipHeight = 180.0;
+    const bottomNavHeight = 60.0;
+    const padding = 16.0;
+    
+    // Position tooltip above bottom navigation bar
+    // If target is at bottom (navigation items), show tooltip above it
+    // Otherwise show at bottom center of screen
+    double tooltipY;
+    if (targetPosition != null && 
+        targetPosition!.dy > screenHeight - 150) {
+      // Target is near bottom (navigation bar)
+      tooltipY = targetPosition!.dy - tooltipHeight - padding - 20;
+    } else {
+      // Show at bottom center, above navigation
+      tooltipY = screenHeight - bottomNavHeight - tooltipHeight - padding - 20;
+    }
+    
+    // Center horizontally
+    const tooltipWidth = 320.0;
+    final tooltipX = (screenWidth - tooltipWidth) / 2;
 
-        // Try to get position from key
-        if (step.targetKey?.currentContext != null) {
-          targetBox = step.targetKey!.currentContext!.findRenderObject() as RenderBox?;
-          if (targetBox != null && targetBox.attached) {
-            targetPosition = targetBox.localToGlobal(Offset.zero);
-            targetSize = targetBox.size;
-          }
-        }
-
-        // Fallback to manual position
-        if (targetPosition == null && step.targetOffset != null) {
-          targetPosition = step.targetOffset!;
-          targetSize = step.targetSize ?? const Size(100, 100);
-        }
-
-        if (targetPosition == null || targetSize == null) {
-          // Fallback: show at center
-          return _buildTooltipContent(context, null, null);
-        }
-
-        // Calculate tooltip position based on alignment
-        Offset tooltipPosition = _calculateTooltipPosition(
-          targetPosition,
-          targetSize,
-          constraints,
-        );
-
-        return Positioned(
-          left: tooltipPosition.dx,
-          top: tooltipPosition.dy,
-          child: _buildTooltipContent(context, targetPosition, targetSize),
-        );
-      },
+    return Positioned(
+      left: tooltipX.clamp(padding, screenWidth - tooltipWidth - padding),
+      top: tooltipY.clamp(padding, screenHeight - tooltipHeight - padding),
+      child: _buildTooltipContent(context),
     );
   }
 
-  Offset _calculateTooltipPosition(
-    Offset targetPosition,
-    Size targetSize,
-    BoxConstraints constraints,
-  ) {
-    const tooltipWidth = 300.0;
-    const tooltipHeight = 200.0;
-    const padding = 16.0;
-
-    double x = 0;
-    double y = 0;
-
-    switch (step.alignment) {
-      case Alignment.topCenter:
-        x = targetPosition.dx + (targetSize.width / 2) - (tooltipWidth / 2);
-        y = targetPosition.dy - tooltipHeight - padding;
-        break;
-      case Alignment.bottomCenter:
-        x = targetPosition.dx + (targetSize.width / 2) - (tooltipWidth / 2);
-        y = targetPosition.dy + targetSize.height + padding;
-        break;
-      case Alignment.centerLeft:
-        x = targetPosition.dx - tooltipWidth - padding;
-        y = targetPosition.dy + (targetSize.height / 2) - (tooltipHeight / 2);
-        break;
-      case Alignment.centerRight:
-        x = targetPosition.dx + targetSize.width + padding;
-        y = targetPosition.dy + (targetSize.height / 2) - (tooltipHeight / 2);
-        break;
-      default:
-        x = targetPosition.dx + (targetSize.width / 2) - (tooltipWidth / 2);
-        y = targetPosition.dy + targetSize.height + padding;
-    }
-
-    // Clamp to screen bounds
-    x = x.clamp(padding, constraints.maxWidth - tooltipWidth - padding);
-    y = y.clamp(padding, constraints.maxHeight - tooltipHeight - padding);
-
-    return Offset(x, y);
-  }
-
-  Widget _buildTooltipContent(
-    BuildContext context,
-    Offset? targetPosition,
-    Size? targetSize,
-  ) {
+  Widget _buildTooltipContent(BuildContext context) {
     return Container(
-      width: 300,
-      constraints: const BoxConstraints(maxHeight: 200),
-      padding: const EdgeInsets.all(20),
+      width: 320,
+      constraints: const BoxConstraints(maxHeight: 180),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            spreadRadius: 2,
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -282,61 +258,124 @@ class _TooltipWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            step.title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          // Header with gradient
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF7C3AED),
+                  const Color(0xFF7C3AED).withValues(alpha: 0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    step.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                // Step indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${step.id[0].toUpperCase()}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Flexible(
+          // Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
             child: Text(
               step.description,
               style: const TextStyle(
                 fontSize: 14,
-                color: Colors.black54,
+                color: Colors.black87,
+                height: 1.4,
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Skip button
-              TextButton(
-                onPressed: onSkip,
-                child: const Text(
-                  'Skip',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              // Navigation buttons
-              Row(
-                children: [
-                  if (hasPreviousSteps)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      onPressed: onPrevious,
+          // Buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Skip button
+                TextButton(
+                  onPressed: onSkip,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(
                       color: Colors.grey,
+                      fontSize: 14,
                     ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C3AED),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
+                  ),
+                ),
+                // Navigation buttons
+                Row(
+                  children: [
+                    if (hasPreviousSteps)
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, size: 20),
+                        onPressed: onPrevious,
+                        color: Colors.grey[600],
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    if (hasPreviousSteps) const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: onNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C3AED),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        hasMoreSteps ? 'Next' : 'Got it',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    child: Text(hasMoreSteps ? 'Next' : 'Got it'),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

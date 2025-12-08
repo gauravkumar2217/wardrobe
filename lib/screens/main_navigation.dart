@@ -16,6 +16,7 @@ import 'wardrobe/wardrobe_list_screen.dart';
 import 'friends/friends_list_screen.dart';
 import 'chat/chat_list_screen.dart';
 import 'profile/profile_screen.dart';
+import 'auth/login_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
 class MainNavigation extends StatefulWidget {
@@ -106,56 +107,64 @@ class _MainNavigationState extends State<MainNavigation>
   }
 
   void _startOnboarding(OnboardingProvider onboardingProvider, BuildContext context) {
-    // Calculate positions for bottom nav items
-    // Each item is approximately 1/5 of screen width, starting from left
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final itemWidth = screenWidth / 5;
-    
-    final steps = [
-      OnboardingStep(
-        id: 'home',
-        title: 'Welcome to Wardrobe!',
-        description: 'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
-        targetOffset: Offset(itemWidth * 0.5, screenHeight - 60),
-        targetSize: const Size(60, 60),
-        alignment: Alignment.topCenter,
-      ),
-      OnboardingStep(
-        id: 'wardrobes',
-        title: 'Organize Your Wardrobes',
-        description: 'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
-        targetOffset: Offset(itemWidth * 1.5, screenHeight - 60),
-        targetSize: const Size(60, 60),
-        alignment: Alignment.topCenter,
-      ),
-      OnboardingStep(
-        id: 'friends',
-        title: 'Connect with Friends',
-        description: 'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
-        targetOffset: Offset(itemWidth * 2.5, screenHeight - 60),
-        targetSize: const Size(60, 60),
-        alignment: Alignment.topCenter,
-      ),
-      OnboardingStep(
-        id: 'chat',
-        title: 'Chat & Share',
-        description: 'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
-        targetOffset: Offset(itemWidth * 3.5, screenHeight - 60),
-        targetSize: const Size(60, 60),
-        alignment: Alignment.topCenter,
-      ),
-      OnboardingStep(
-        id: 'profile',
-        title: 'Your Profile',
-        description: 'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
-        targetOffset: Offset(itemWidth * 4.5, screenHeight - 60),
-        targetSize: const Size(60, 60),
-        alignment: Alignment.topCenter,
-      ),
-    ];
-    
-    onboardingProvider.startOnboarding(steps);
+    // Wait a bit more for the bottom navigation bar to be fully rendered
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      
+      final screenWidth = MediaQuery.of(context).size.width;
+      final screenHeight = MediaQuery.of(context).size.height;
+      final bottomNavHeight = 60.0;
+      final itemWidth = screenWidth / 5;
+      
+      // Calculate center positions for each navigation item
+      // Items are centered in their 1/5 width sections
+      final steps = [
+        OnboardingStep(
+          id: 'home',
+          title: 'Welcome to Wardrobe!',
+          description: 'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
+          targetOffset: Offset(itemWidth * 0.5, screenHeight - bottomNavHeight / 2 - 10),
+          targetSize: const Size(70, 70),
+          alignment: Alignment.topCenter,
+        ),
+        OnboardingStep(
+          id: 'wardrobes',
+          title: 'Organize Your Wardrobes',
+          description: 'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
+          targetOffset: Offset(itemWidth * 1.5, screenHeight - bottomNavHeight / 2 - 10),
+          targetSize: const Size(70, 70),
+          alignment: Alignment.topCenter,
+        ),
+        OnboardingStep(
+          id: 'friends',
+          title: 'Connect with Friends',
+          description: 'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
+          targetOffset: Offset(itemWidth * 2.5, screenHeight - bottomNavHeight / 2 - 10),
+          targetSize: const Size(70, 70),
+          alignment: Alignment.topCenter,
+        ),
+        OnboardingStep(
+          id: 'chat',
+          title: 'Chat & Share',
+          description: 'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
+          targetOffset: Offset(itemWidth * 3.5, screenHeight - bottomNavHeight / 2 - 10),
+          targetSize: const Size(70, 70),
+          alignment: Alignment.topCenter,
+        ),
+        OnboardingStep(
+          id: 'profile',
+          title: 'Your Profile',
+          description: 'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
+          targetOffset: Offset(itemWidth * 4.5, screenHeight - bottomNavHeight / 2 - 10),
+          targetSize: const Size(70, 70),
+          alignment: Alignment.topCenter,
+        ),
+      ];
+      
+      if (mounted) {
+        onboardingProvider.startOnboarding(steps);
+      }
+    });
   }
 
   Future<void> _handleOnboardingNext(OnboardingProvider onboardingProvider, AuthProvider authProvider) async {
@@ -188,19 +197,29 @@ class _MainNavigationState extends State<MainNavigation>
 
     // Update FCM device state in Firestore
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.user != null) {
+    // Only update if user is authenticated
+    if (authProvider.isAuthenticated && authProvider.user != null) {
       final isInForeground = state == AppLifecycleState.resumed;
-      FCMService.updateAppState(authProvider.user!.uid, isInForeground);
+      FCMService.updateAppState(authProvider.user!.uid, isInForeground).catchError((e) {
+        // Silently handle errors (user might have signed out)
+        debugPrint('Failed to update app state: $e');
+      });
 
       if (isInForeground) {
         // Update last active when app comes to foreground
-        FCMService.updateLastActive(authProvider.user!.uid);
+        FCMService.updateLastActive(authProvider.user!.uid).catchError((e) {
+          // Silently handle errors (user might have signed out)
+          debugPrint('Failed to update last active: $e');
+        });
         // Start periodic updates
         _startPeriodicUpdates(authProvider.user!.uid);
       } else {
         // Stop periodic updates when app goes to background
         _stopPeriodicUpdates();
       }
+    } else {
+      // User is not authenticated, stop all updates
+      _stopPeriodicUpdates();
     }
   }
 
@@ -211,17 +230,33 @@ class _MainNavigationState extends State<MainNavigation>
     final chatProvider = Provider.of<ChatProvider>(context);
     final onboardingProvider = Provider.of<OnboardingProvider>(context);
 
-    // Load unread counts when screen builds
-    if (authProvider.user != null) {
+    // Load unread counts when screen builds (only if authenticated)
+    if (authProvider.isAuthenticated && authProvider.user != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        chatProvider.loadUnreadCounts(authProvider.user!.uid);
+        // Double check authentication before loading
+        if (authProvider.isAuthenticated && authProvider.user != null) {
+          chatProvider.loadUnreadCounts(authProvider.user!.uid).catchError((e) {
+            // Silently handle errors (user might have signed out)
+            debugPrint('Failed to load unread counts: $e');
+          });
+        }
       });
     }
 
     if (!authProvider.isAuthenticated) {
-      // This shouldn't happen, but handle it gracefully
+      // Redirect to login screen if not authenticated
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      });
+      // Show loading while redirecting
       return const Scaffold(
-        body: Center(child: Text('Please log in')),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 

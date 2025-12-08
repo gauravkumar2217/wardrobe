@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/friend_request.dart';
 import '../services/friend_service.dart';
@@ -11,6 +13,9 @@ class FriendProvider with ChangeNotifier {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
   String? _errorMessage;
+  StreamSubscription<List<String>>? _friendsSubscription;
+  StreamSubscription<List<FriendRequest>>? _incomingRequestsSubscription;
+  StreamSubscription<List<FriendRequest>>? _outgoingRequestsSubscription;
 
   List<String> get friends => _friends;
   List<FriendRequest> get incomingRequests => _incomingRequests;
@@ -21,6 +26,26 @@ class FriendProvider with ChangeNotifier {
 
   /// Load friends list
   Future<void> loadFriends(String userId) async {
+    // Check authentication before loading
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, clear friends and return
+        _friends = [];
+        _errorMessage = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      // If auth check fails, don't load
+      _friends = [];
+      _errorMessage = null;
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -39,11 +64,44 @@ class FriendProvider with ChangeNotifier {
 
   /// Watch friends for real-time updates
   void watchFriends(String userId) {
-    FriendService.watchFriends(userId).listen((friends) {
+    // Cancel existing subscription
+    _friendsSubscription?.cancel();
+    
+    // Check authentication before setting up stream
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, don't set up stream
+        _friends = [];
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      // If auth check fails, don't set up stream
+      return;
+    }
+    
+    _friendsSubscription = FriendService.watchFriends(userId).listen((friends) {
+      // Check authentication in stream callback
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null || currentUser.uid != userId) {
+          // User signed out, cancel subscription
+          _friendsSubscription?.cancel();
+          _friends = [];
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        // If auth check fails, cancel subscription
+        _friendsSubscription?.cancel();
+        return;
+      }
+      
       _friends = friends;
       _errorMessage = null;
       notifyListeners();
-    }).onError((error) {
+    }, onError: (error) {
       _errorMessage = 'Failed to watch friends: ${error.toString()}';
       notifyListeners();
     });
@@ -51,6 +109,28 @@ class FriendProvider with ChangeNotifier {
 
   /// Load friend requests
   Future<void> loadFriendRequests(String userId) async {
+    // Check authentication before loading
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, clear requests and return
+        _incomingRequests = [];
+        _outgoingRequests = [];
+        _errorMessage = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      // If auth check fails, don't load
+      _incomingRequests = [];
+      _outgoingRequests = [];
+      _errorMessage = null;
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -78,17 +158,88 @@ class FriendProvider with ChangeNotifier {
 
   /// Watch friend requests for real-time updates
   void watchFriendRequests(String userId) {
-    FriendService.watchFriendRequests(userId: userId, type: 'incoming')
+    // Cancel existing subscriptions
+    _incomingRequestsSubscription?.cancel();
+    _outgoingRequestsSubscription?.cancel();
+    
+    // Check authentication before setting up streams
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, don't set up streams
+        _incomingRequests = [];
+        _outgoingRequests = [];
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      // If auth check fails, don't set up streams
+      return;
+    }
+    
+    _incomingRequestsSubscription = FriendService.watchFriendRequests(userId: userId, type: 'incoming')
         .listen((requests) {
+      // Check authentication in stream callback
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null || currentUser.uid != userId) {
+          // User signed out, cancel subscription
+          _incomingRequestsSubscription?.cancel();
+          _incomingRequests = [];
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        // If auth check fails, cancel subscription
+        _incomingRequestsSubscription?.cancel();
+        return;
+      }
+      
       _incomingRequests = requests;
       notifyListeners();
+    }, onError: (error) {
+      debugPrint('Failed to watch incoming friend requests: $error');
     });
 
-    FriendService.watchFriendRequests(userId: userId, type: 'outgoing')
+    _outgoingRequestsSubscription = FriendService.watchFriendRequests(userId: userId, type: 'outgoing')
         .listen((requests) {
+      // Check authentication in stream callback
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null || currentUser.uid != userId) {
+          // User signed out, cancel subscription
+          _outgoingRequestsSubscription?.cancel();
+          _outgoingRequests = [];
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        // If auth check fails, cancel subscription
+        _outgoingRequestsSubscription?.cancel();
+        return;
+      }
+      
       _outgoingRequests = requests;
       notifyListeners();
+    }, onError: (error) {
+      debugPrint('Failed to watch outgoing friend requests: $error');
     });
+  }
+  
+  /// Clean up all subscriptions and reset state
+  void cleanup() {
+    _friendsSubscription?.cancel();
+    _friendsSubscription = null;
+    _incomingRequestsSubscription?.cancel();
+    _incomingRequestsSubscription = null;
+    _outgoingRequestsSubscription?.cancel();
+    _outgoingRequestsSubscription = null;
+    _friends = [];
+    _incomingRequests = [];
+    _outgoingRequests = [];
+    _searchResults = [];
+    _errorMessage = null;
+    notifyListeners();
   }
 
   /// Send friend request

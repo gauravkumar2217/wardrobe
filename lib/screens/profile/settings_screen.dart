@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/friend_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
@@ -446,6 +448,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
 
                     if (confirmed == true) {
+                      // Clean up providers before signing out
+                      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                      final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+                      chatProvider.cleanup();
+                      friendProvider.cleanup();
+                      
                       await authProvider.signOut();
                       if (context.mounted) {
                         Navigator.pushAndRemoveUntil(

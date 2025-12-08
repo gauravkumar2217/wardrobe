@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/friend_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/navigation_provider.dart';
@@ -97,6 +99,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true && mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+      
+      // Clean up providers before signing out
+      chatProvider.cleanup();
+      friendProvider.cleanup();
+      
       await authProvider.signOut();
 
       if (mounted) {

@@ -47,9 +47,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
     
     if (authProvider.user != null) {
       chatProvider.loadChats(authProvider.user!.uid);
-      chatProvider.watchChats(authProvider.user!.uid);
+      // Only watch chats if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        chatProvider.watchChats(authProvider.user!.uid);
+      }
       // Load unread counts
-      chatProvider.loadUnreadCounts(authProvider.user!.uid);
+      // Only load unread counts if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        chatProvider.loadUnreadCounts(authProvider.user!.uid).catchError((e) {
+          // Silently handle errors (user might have signed out)
+          debugPrint('Failed to load unread counts: $e');
+        });
+      }
     }
   }
 

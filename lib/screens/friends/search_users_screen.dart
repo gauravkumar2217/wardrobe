@@ -47,8 +47,11 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
     if (authProvider.user != null) {
-      await friendProvider.loadFriendRequests(authProvider.user!.uid);
-      friendProvider.watchFriendRequests(authProvider.user!.uid);
+      // Only load and watch if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        await friendProvider.loadFriendRequests(authProvider.user!.uid);
+        friendProvider.watchFriendRequests(authProvider.user!.uid);
+      }
 
       // Load profiles for all incoming requests
       for (var request in friendProvider.incomingRequests) {
