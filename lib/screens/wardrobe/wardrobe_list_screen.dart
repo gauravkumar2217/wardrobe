@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import '../../services/wardrobe_service.dart';
+import '../../models/wardrobe.dart';
 import 'create_wardrobe_screen.dart';
 
 /// Wardrobe list screen
@@ -143,6 +144,9 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
                               navigationProvider.navigateToHome();
                             },
+                            onEdit: () {
+                              _editWardrobe(wardrobe, authProvider.user!.uid);
+                            },
                             onDelete: () {
                               _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
                             },
@@ -233,6 +237,183 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
         );
       }
     }
+  }
+
+  Future<void> _editWardrobe(Wardrobe wardrobe, String userId) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditWardrobeDialog(
+        wardrobe: wardrobe,
+        userId: userId,
+        onSuccess: () {
+          _loadWardrobes();
+        },
+      ),
+    );
+  }
+}
+
+/// Dialog widget for editing wardrobe
+class _EditWardrobeDialog extends StatefulWidget {
+  final Wardrobe wardrobe;
+  final String userId;
+  final VoidCallback onSuccess;
+
+  const _EditWardrobeDialog({
+    required this.wardrobe,
+    required this.userId,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_EditWardrobeDialog> createState() => _EditWardrobeDialogState();
+}
+
+class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _locationController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.wardrobe.name);
+    _locationController = TextEditingController(text: widget.wardrobe.location);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveWardrobe() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final wardrobeProvider = Provider.of<WardrobeProvider>(
+        context,
+        listen: false);
+
+    try {
+      await wardrobeProvider.updateWardrobe(
+        userId: widget.userId,
+        wardrobeId: widget.wardrobe.id,
+        updates: {
+          'name': _nameController.text.trim(),
+          'location': _locationController.text.trim(),
+        },
+      );
+
+      if (!mounted) return;
+
+      if (wardrobeProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(wardrobeProvider.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      } else {
+        Navigator.pop(context);
+        widget.onSuccess();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wardrobe updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update wardrobe: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Wardrobe'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Wardrobe Name *',
+                  prefixIcon: Icon(Icons.title),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Location *',
+                  prefixIcon: Icon(Icons.location_on),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a location';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _saveWardrobe,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF7C3AED),
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
   }
 }
 
