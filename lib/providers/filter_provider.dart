@@ -2,21 +2,31 @@ import 'package:flutter/foundation.dart';
 
 /// Filter provider for managing home screen filters
 class FilterProvider with ChangeNotifier {
-  String? _filterType;
-  String? _filterOccasion;
-  String? _filterSeason;
-  String? _filterColor;
+  List<String> _filterTypes = [];
+  List<String> _filterOccasions = [];
+  List<String> _filterSeasons = [];
+  List<String> _filterColors = [];
+  String? _selectedWardrobeId;
 
-  String? get filterType => _filterType;
-  String? get filterOccasion => _filterOccasion;
-  String? get filterSeason => _filterSeason;
-  String? get filterColor => _filterColor;
+  // Getters for backward compatibility (single value)
+  String? get filterType => _filterTypes.isNotEmpty ? _filterTypes.first : null;
+  String? get filterOccasion => _filterOccasions.isNotEmpty ? _filterOccasions.first : null;
+  String? get filterSeason => _filterSeasons.isNotEmpty ? _filterSeasons.first : null;
+  String? get filterColor => _filterColors.isNotEmpty ? _filterColors.first : null;
+
+  // Getters for multiple values
+  List<String> get filterTypes => _filterTypes;
+  List<String> get filterOccasions => _filterOccasions;
+  List<String> get filterSeasons => _filterSeasons;
+  List<String> get filterColors => _filterColors;
+  String? get selectedWardrobeId => _selectedWardrobeId;
 
   bool get hasActiveFilter =>
-      _filterType != null ||
-      _filterOccasion != null ||
-      _filterSeason != null ||
-      _filterColor != null;
+      _filterTypes.isNotEmpty ||
+      _filterOccasions.isNotEmpty ||
+      _filterSeasons.isNotEmpty ||
+      _filterColors.isNotEmpty ||
+      _selectedWardrobeId != null;
 
   void setFilter({
     String? type,
@@ -24,18 +34,34 @@ class FilterProvider with ChangeNotifier {
     String? season,
     String? color,
   }) {
-    _filterType = type;
-    _filterOccasion = occasion;
-    _filterSeason = season;
-    _filterColor = color;
+    _filterTypes = type != null ? [type] : [];
+    _filterOccasions = occasion != null ? [occasion] : [];
+    _filterSeasons = season != null ? [season] : [];
+    _filterColors = color != null ? [color] : [];
+    notifyListeners();
+  }
+
+  void setMultipleFilters({
+    List<String>? types,
+    List<String>? occasions,
+    List<String>? seasons,
+    List<String>? colors,
+    String? wardrobeId,
+  }) {
+    _filterTypes = types ?? [];
+    _filterOccasions = occasions ?? [];
+    _filterSeasons = seasons ?? [];
+    _filterColors = colors ?? [];
+    _selectedWardrobeId = wardrobeId;
     notifyListeners();
   }
 
   void clearFilters() {
-    _filterType = null;
-    _filterOccasion = null;
-    _filterSeason = null;
-    _filterColor = null;
+    _filterTypes = [];
+    _filterOccasions = [];
+    _filterSeasons = [];
+    _filterColors = [];
+    _selectedWardrobeId = null;
     notifyListeners();
   }
 }
