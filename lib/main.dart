@@ -14,6 +14,7 @@ import 'providers/chat_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/navigation_provider.dart';
 import 'providers/filter_provider.dart';
+import 'providers/onboarding_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
 
@@ -179,6 +180,7 @@ class WardrobeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => FilterProvider()),
+        ChangeNotifierProvider(create: (_) => OnboardingProvider()),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
