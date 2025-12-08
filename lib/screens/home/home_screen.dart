@@ -13,7 +13,6 @@ import '../cloth/add_cloth_screen.dart';
 import '../cloth/edit_cloth_screen.dart';
 import '../cloth/comment_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../profile/profile_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../models/wardrobe.dart';
@@ -824,22 +823,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     // Don't show back button on home screen (it's part of MainNavigation)
                     // Only show spacer to maintain layout
                     const SizedBox(width: 48),
-                    // Search button
-                    IconButton(
-                      icon: Icon(
-                        _showSearchBar ? Icons.close : Icons.search,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showSearchBar = !_showSearchBar;
-                          if (!_showSearchBar) {
-                            _searchQuery = null;
-                            _searchController.clear();
-                          }
-                        });
-                      },
-                    ),
                     // Wardrobe filter button
                     GestureDetector(
                       onTap: () async {
@@ -888,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    // Notification and profile buttons
+                    // Notification and search buttons
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -909,19 +892,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.person_outline,
-                              color: Colors.white),
-                          onPressed: () async {
-                            // Navigate to profile screen
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const ProfileScreen()),
-                            );
-                            // Refresh counts when returning from profile screen
-                            if (mounted && _hasInitialLoad) {
-                              await _refreshCountsOnly();
-                            }
+                          icon: Icon(
+                            _showSearchBar ? Icons.close : Icons.search,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showSearchBar = !_showSearchBar;
+                              if (!_showSearchBar) {
+                                _searchQuery = null;
+                                _searchController.clear();
+                              }
+                            });
                           },
                         ),
                       ],
