@@ -258,7 +258,12 @@ class _CommentScreenState extends State<CommentScreen> {
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () {
-                            setState(() {}); // Trigger rebuild to retry stream
+                            // Use postFrameCallback to avoid setState during build
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                setState(() {}); // Trigger rebuild to retry stream
+                              }
+                            });
                           },
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry'),
@@ -303,8 +308,14 @@ class _CommentScreenState extends State<CommentScreen> {
                     final isOwner = authProvider.user?.uid == comment.userId;
 
                     // Start loading profile if not already loaded or loading
+                    // Use postFrameCallback to avoid calling setState during build
                     if (!_userProfiles.containsKey(comment.userId) && !isLoading) {
-                      _loadUserProfile(comment.userId);
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && !_userProfiles.containsKey(comment.userId) && 
+                            _loadingProfiles[comment.userId] != true) {
+                          _loadUserProfile(comment.userId);
+                        }
+                      });
                     }
 
                     // Show skeleton ONLY if we're actively loading AND haven't shown comment yet
