@@ -843,11 +843,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     // Wardrobe filter button
                     GestureDetector(
                       onTap: () async {
-                        // Navigate to wardrobe list screen
+                        // Navigate to wardrobe list screen in selection mode (no edit/delete)
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const WardrobeListScreen()),
+                              builder: (_) => const WardrobeListScreen(selectionMode: true)),
                         );
                         // Reload clothes after returning (wardrobe might have been selected)
                         if (mounted) {

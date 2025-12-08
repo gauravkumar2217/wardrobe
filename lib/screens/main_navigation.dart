@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/filter_provider.dart';
+import '../providers/wardrobe_provider.dart';
 import '../services/app_state_service.dart';
 import '../services/fcm_service.dart';
 import 'home/home_screen.dart';
@@ -135,6 +137,16 @@ class _MainNavigationState extends State<MainNavigation>
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: navigationProvider.currentIndex,
         onTap: (index) {
+          // If tapping home icon (index 0), clear all filters
+          if (index == 0) {
+            final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+            final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+            
+            // Clear all filters and selected wardrobe
+            filterProvider.clearFilters();
+            wardrobeProvider.setSelectedWardrobe(null);
+          }
+          
           navigationProvider.setCurrentIndex(index);
         },
         type: BottomNavigationBarType.fixed,

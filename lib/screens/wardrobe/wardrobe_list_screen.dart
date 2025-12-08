@@ -10,7 +10,14 @@ import 'create_wardrobe_screen.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
-  const WardrobeListScreen({super.key});
+  /// If true, shows only wardrobe labels for selection (no edit/delete)
+  /// If false, shows full management options (edit/delete)
+  final bool selectionMode;
+
+  const WardrobeListScreen({
+    super.key,
+    this.selectionMode = false,
+  });
 
   @override
   State<WardrobeListScreen> createState() => _WardrobeListScreenState();
@@ -42,19 +49,21 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Wardrobes'),
+        title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
-              ).then((_) => _loadWardrobes());
-            },
-          ),
+          // Only show add button when not in selection mode
+          if (!widget.selectionMode)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
+                ).then((_) => _loadWardrobes());
+              },
+            ),
         ],
       ),
       body: wardrobeProvider.isLoading
@@ -138,16 +147,27 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                           return WardrobeCard(
                             wardrobe: wardrobe,
                             onTap: () {
-                              // Set selected wardrobe and navigate to home
+                              // Set selected wardrobe
                               wardrobeProvider.setSelectedWardrobe(wardrobe);
-                              // Switch to Home tab in main navigation
+                              
                               final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-                              navigationProvider.navigateToHome();
+                              
+                              // Check if we're currently in the wardrobe tab (index 1) or if we were pushed
+                              // If we're in the tab, switch to home tab
+                              // If we were pushed (from filter icon), pop back to home
+                              if (navigationProvider.currentIndex == 1) {
+                                // We're in the wardrobe tab, switch to home tab
+                                navigationProvider.navigateToHome();
+                              } else {
+                                // We were pushed (from filter icon or other screen), pop back
+                                Navigator.of(context).pop();
+                              }
                             },
-                            onEdit: () {
+                            // Only show edit/delete buttons if not in selection mode
+                            onEdit: widget.selectionMode ? null : () {
                               _editWardrobe(wardrobe, authProvider.user!.uid);
                             },
-                            onDelete: () {
+                            onDelete: widget.selectionMode ? null : () {
                               _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
                             },
                           );
