@@ -133,24 +133,24 @@ class _WornHistoryScreenState extends State<WornHistoryScreen> {
                   ),
                 )
               : _history.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.history,
                             color: Colors.white54,
                             size: 64,
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
+                          SizedBox(height: 16),
+                          Text(
                             'No wear history yet',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 18,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Text(
                             'This cloth hasn\'t been marked as worn',
                             style: TextStyle(
@@ -208,7 +208,7 @@ class _WornHistoryScreenState extends State<WornHistoryScreen> {
                                       const SizedBox(height: 4),
                                       Row(
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.access_time,
                                             size: 14,
                                             color: Colors.white54,

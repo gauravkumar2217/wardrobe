@@ -131,8 +131,8 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    const Color(0xFF7C3AED).withOpacity(0.1),
-                                    const Color(0xFF9F7AEA).withOpacity(0.1),
+                                    const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                                    const Color(0xFF9F7AEA).withValues(alpha: 0.1),
                                   ],
                                 ),
                                 shape: BoxShape.circle,
@@ -176,7 +176,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF7C3AED).withOpacity(0.3),
+                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -277,8 +277,10 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
       if (clothesCount > 0) {
         // Show warning dialog if wardrobe has clothes
         if (!context.mounted) return;
+        final dialogContext = context;
+        if (!dialogContext.mounted) return;
         await showDialog(
-          context: context,
+          context: dialogContext,
           builder: (context) => Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -292,7 +294,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -305,7 +307,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.orange.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -380,7 +382,9 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     } catch (e) {
       // If check fails, show error and return
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      final snackContext = context;
+      if (!snackContext.mounted) return;
+      ScaffoldMessenger.of(snackContext).showSnackBar(
         SnackBar(
           content: Text('Failed to check wardrobe: $e'),
           backgroundColor: Colors.red,
@@ -390,8 +394,10 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     }
 
     // If no clothes, show confirmation dialog
+    if (!context.mounted) return;
+    final dialogContext = context;
     final confirmed = await showDialog<bool>(
-      context: context,
+      context: dialogContext,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -405,7 +411,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -418,7 +424,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -477,7 +483,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.red.withOpacity(0.3),
+                            color: Colors.red.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -513,18 +519,21 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     );
 
     if (confirmed == true) {
-      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
-      await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
       if (!context.mounted) return;
+      final providerContext = context;
+      final wardrobeProvider = Provider.of<WardrobeProvider>(providerContext, listen: false);
+      await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
+      if (!providerContext.mounted) return;
       if (wardrobeProvider.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(providerContext).showSnackBar(
           SnackBar(
             content: Text(wardrobeProvider.errorMessage!),
             backgroundColor: Colors.red,
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!providerContext.mounted) return;
+        ScaffoldMessenger.of(providerContext).showSnackBar(
           const SnackBar(
             content: Text('Wardrobe deleted successfully'),
             backgroundColor: Colors.green,
@@ -657,7 +666,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -836,7 +845,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C3AED).withOpacity(0.3),
+                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),

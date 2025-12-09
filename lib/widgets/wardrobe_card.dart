@@ -62,12 +62,12 @@ class _WardrobeCardState extends State<WardrobeCard>
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              const Color(0xFF7C3AED).withOpacity(0.02),
+              const Color(0xFF7C3AED).withValues(alpha: 0.02),
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -111,7 +111,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C3AED).withOpacity(0.3),
+                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -173,23 +173,23 @@ class _WardrobeCardState extends State<WardrobeCard>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              const Color(0xFF7C3AED).withOpacity(0.15),
-                              const Color(0xFF9F7AEA).withOpacity(0.15),
+                              const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                              const Color(0xFF9F7AEA).withValues(alpha: 0.15),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFF7C3AED).withOpacity(0.2),
+                            color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.checkroom,
                               size: 16,
-                              color: const Color(0xFF7C3AED),
+                              color: Color(0xFF7C3AED),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -277,10 +277,10 @@ class _ActionButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

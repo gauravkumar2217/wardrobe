@@ -444,7 +444,7 @@ class _ClothCardState extends State<ClothCard> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const SizedBox(
+                                SizedBox(
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
@@ -452,8 +452,8 @@ class _ClothCardState extends State<ClothCard> {
                                     color: Colors.white70,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                const Text(
+                                SizedBox(width: 8),
+                                Text(
                                   'Refreshing wear history...',
                                   style: TextStyle(
                                     color: Colors.white70,

@@ -111,9 +111,13 @@ class _MainNavigationState extends State<MainNavigation>
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       
-      final screenWidth = MediaQuery.of(context).size.width;
-      final screenHeight = MediaQuery.of(context).size.height;
-      final bottomNavHeight = 60.0;
+      if (!mounted) return;
+      if (!mounted) return;
+      final navContext = this.context;
+      if (!mounted) return;
+      final screenWidth = MediaQuery.of(navContext).size.width;
+      final screenHeight = MediaQuery.of(navContext).size.height;
+      const bottomNavHeight = 60.0;
       final itemWidth = screenWidth / 5;
       
       // Calculate center positions for each navigation item

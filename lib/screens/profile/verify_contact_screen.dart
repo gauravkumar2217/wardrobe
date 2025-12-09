@@ -334,8 +334,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: _emailVerified
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.grey.withOpacity(0.1),
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -460,8 +460,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: _phoneVerified
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.grey.withOpacity(0.1),
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -530,7 +530,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.1),
+                                    color: Colors.orange.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Row(

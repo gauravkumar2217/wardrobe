@@ -247,7 +247,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 title: Text(entry.key),
                 trailing: Chip(
                   label: Text('${entry.value}'),
-                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.1),
+                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
@@ -264,14 +264,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildWardrobesSection() {
     if (_isLoadingWardrobes) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.inventory_2, color: Colors.grey),
-              const SizedBox(width: 12),
-              const Text(
+              Icon(Icons.inventory_2, color: Colors.grey),
+              SizedBox(width: 12),
+              Text(
                 'Loading wardrobes...',
                 style: TextStyle(color: Colors.grey),
               ),
@@ -309,11 +309,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
+                SizedBox(width: 8),
+                Text(
                   'My Wardrobes',
                   style: TextStyle(
                     fontSize: 18,
@@ -331,7 +331,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     : null,
                 trailing: Chip(
                   label: Text('${wardrobe.totalItems}'),
-                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.1),
+                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,

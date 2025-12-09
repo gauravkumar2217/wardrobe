@@ -293,7 +293,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
                 )
               else
                 DropdownButtonFormField<String>(
-                  value: _selectedWardrobeId,
+                  initialValue: _selectedWardrobeId,
                   decoration: const InputDecoration(
                     labelText: 'Wardrobe *',
                     prefixIcon: Icon(Icons.inventory_2),
@@ -322,7 +322,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Cloth Type
               DropdownButtonFormField<String>(
-                value: _selectedClothType,
+                initialValue: _selectedClothType,
                 decoration: const InputDecoration(
                   labelText: 'Cloth Type *',
                   prefixIcon: Icon(Icons.checkroom),
@@ -338,7 +338,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: Icon(Icons.category),
@@ -354,7 +354,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Primary Color
               DropdownButtonFormField<String>(
-                value: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
@@ -378,7 +378,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Season
               DropdownButtonFormField<String>(
-                value: _selectedSeason,
+                initialValue: _selectedSeason,
                 decoration: const InputDecoration(
                   labelText: 'Season *',
                   prefixIcon: Icon(Icons.wb_sunny),
@@ -394,7 +394,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Placement
               DropdownButtonFormField<String>(
-                value: _selectedPlacement,
+                initialValue: _selectedPlacement,
                 decoration: const InputDecoration(
                   labelText: 'Placement *',
                   prefixIcon: Icon(Icons.location_on),

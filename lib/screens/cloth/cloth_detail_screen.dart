@@ -220,7 +220,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to update worn status'),
         ),
       );
@@ -415,9 +415,9 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: Colors.black,
-        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
 
@@ -461,23 +461,22 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
             );
             
             // Refresh comment count after returning from comment screen
-            if (mounted && _cloth != null) {
-              try {
-                final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-                final actualCount = await clothProvider.getCommentCount(
-                  ownerId: _cloth!.ownerId,
-                  wardrobeId: _cloth!.wardrobeId,
-                  clothId: _cloth!.id,
-                );
-                
-                if (mounted && actualCount != _cloth!.commentsCount) {
-                  setState(() {
-                    _cloth = _cloth!.copyWith(commentsCount: actualCount);
-                  });
-                }
-              } catch (e) {
-                debugPrint('Failed to refresh comment count: $e');
+            if (!mounted || _cloth == null) return;
+            try {
+              final clothProvider = Provider.of<ClothProvider>(this.context, listen: false);
+              final actualCount = await clothProvider.getCommentCount(
+                ownerId: _cloth!.ownerId,
+                wardrobeId: _cloth!.wardrobeId,
+                clothId: _cloth!.id,
+              );
+              
+              if (mounted && actualCount != _cloth!.commentsCount) {
+                setState(() {
+                  _cloth = _cloth!.copyWith(commentsCount: actualCount);
+                });
               }
+            } catch (e) {
+              debugPrint('Failed to refresh comment count: $e');
             }
           } : null,
           // Both users can share if not already shared, but only owner can actually share

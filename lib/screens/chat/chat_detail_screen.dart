@@ -225,7 +225,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor: Colors.white.withOpacity(0.3),
+                        backgroundColor: Colors.white.withValues(alpha: 0.3),
                         backgroundImage: _otherParticipantProfile?.photoUrl != null
                             ? NetworkImage(_otherParticipantProfile!.photoUrl!)
                             : null,

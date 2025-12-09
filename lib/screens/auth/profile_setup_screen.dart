@@ -346,7 +346,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 16),
                 // Gender field
                 DropdownButtonFormField<String>(
-                  value: _selectedGender,
+                  initialValue: _selectedGender,
                   decoration: const InputDecoration(
                     labelText: 'Gender *',
                     prefixIcon: Icon(Icons.person_outline),

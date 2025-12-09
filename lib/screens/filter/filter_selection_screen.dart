@@ -245,7 +245,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 4,
                         offset: const Offset(0, -2),
                       ),
@@ -306,11 +306,11 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
+                SizedBox(width: 8),
+                Text(
                   'My Wardrobes',
                   style: TextStyle(
                     fontSize: 18,
@@ -336,7 +336,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                 activeColor: const Color(0xFF7C3AED),
                 secondary: Chip(
                   label: Text('${wardrobe.totalItems}'),
-                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.1),
+                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
@@ -409,7 +409,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                 activeColor: const Color(0xFF7C3AED),
                 secondary: Chip(
                   label: Text('${entry.value}'),
-                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.1),
+                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,

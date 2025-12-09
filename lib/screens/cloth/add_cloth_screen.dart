@@ -34,7 +34,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
   String? _selectedPlacement;
   String? _selectedCategory;
   List<String> _selectedOccasions = [];
-  String _visibility = 'private';
+  final String _visibility = 'private';
 
   // Placement details for Laundry, DryCleaning, Repairing
   final TextEditingController _shopNameController = TextEditingController();
@@ -242,12 +242,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
             wardrobeId: widget.wardrobeId,
           );
           
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cloth added successfully!'),
               backgroundColor: Colors.green,
             ),
           );
+          if (!mounted) return;
           Navigator.of(context).pop();
         } else {
           _showErrorSnackBar(clothProvider.errorMessage ?? 'Failed to add cloth');
@@ -276,8 +278,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingTags) {
-      return Scaffold(
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -330,7 +332,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Cloth Type
               DropdownButtonFormField<String>(
-                value: _selectedClothType,
+                initialValue: _selectedClothType,
                 decoration: const InputDecoration(
                   labelText: 'Cloth Type *',
                   prefixIcon: Icon(Icons.checkroom),
@@ -346,7 +348,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: Icon(Icons.category),
@@ -362,7 +364,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Primary Color
               DropdownButtonFormField<String>(
-                value: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
@@ -386,7 +388,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Season
               DropdownButtonFormField<String>(
-                value: _selectedSeason,
+                initialValue: _selectedSeason,
                 decoration: const InputDecoration(
                   labelText: 'Season *',
                   prefixIcon: Icon(Icons.wb_sunny),
@@ -402,7 +404,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Placement
               DropdownButtonFormField<String>(
-                value: _selectedPlacement,
+                initialValue: _selectedPlacement,
                 decoration: const InputDecoration(
                   labelText: 'Placement *',
                   prefixIcon: Icon(Icons.location_on),

@@ -153,7 +153,7 @@ class _DarkOverlayPainter extends CustomPainter {
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     // Create hole for target (with padding)
-    final padding = 12.0;
+    const padding = 12.0;
     final hole = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
@@ -295,7 +295,7 @@ class _TooltipWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${step.id[0].toUpperCase()}',
+                    step.id[0].toUpperCase(),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

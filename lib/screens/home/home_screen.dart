@@ -411,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to update worn status'),
         ),
       );
@@ -933,19 +933,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
 
           // If wardrobe selected, use it; otherwise show dialog to select
-          String? wardrobeId = wardrobeProvider.selectedWardrobe?.id;
-          if (wardrobeId == null) {
-            wardrobeId = await showDialog<String>(
-              context: context,
-              builder: (context) => _SelectWardrobeDialog(
-                wardrobes: wardrobeProvider.wardrobes,
-              ),
-            );
-          }
+          final wardrobeId = wardrobeProvider.selectedWardrobe?.id ?? await showDialog<String>(
+            context: context,
+            builder: (context) => _SelectWardrobeDialog(
+              wardrobes: wardrobeProvider.wardrobes,
+            ),
+          );
 
           if (wardrobeId != null) {
             if (!mounted) return;
-            final navigator = Navigator.of(context);
+            if (!mounted) return;
+            final navContext = context;
+            if (!mounted) return;
+            final navigator = Navigator.of(navContext);
             await navigator.push(
               MaterialPageRoute(
                 builder: (_) => AddClothScreen(wardrobeId: wardrobeId!),
