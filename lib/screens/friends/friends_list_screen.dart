@@ -36,8 +36,11 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
     if (authProvider.user != null) {
-      await friendProvider.loadFriends(authProvider.user!.uid);
-      friendProvider.watchFriends(authProvider.user!.uid);
+      // Only load and watch if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        await friendProvider.loadFriends(authProvider.user!.uid);
+        friendProvider.watchFriends(authProvider.user!.uid);
+      }
 
       // Load profiles for all friends
       for (var friendId in friendProvider.friends) {
@@ -51,8 +54,11 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
     if (authProvider.user != null) {
-      await friendProvider.loadFriendRequests(authProvider.user!.uid);
-      friendProvider.watchFriendRequests(authProvider.user!.uid);
+      // Only load and watch if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        await friendProvider.loadFriendRequests(authProvider.user!.uid);
+        friendProvider.watchFriendRequests(authProvider.user!.uid);
+      }
 
       // Load profiles for all incoming requests
       for (var request in friendProvider.incomingRequests) {

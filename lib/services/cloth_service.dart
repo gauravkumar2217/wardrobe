@@ -20,6 +20,7 @@ class ClothService {
     required File imageFile,
     required String season,
     required String placement,
+    PlacementDetails? placementDetails,
     required ColorTags colorTags,
     required String clothType,
     required String category,
@@ -51,6 +52,7 @@ class ClothService {
         'imageUrl': imageUrl,
         'season': season,
         'placement': placement,
+        if (placementDetails != null) 'placementDetails': placementDetails.toJson(),
         'colorTags': colorTags.toJson(),
         'clothType': clothType,
         'category': category,
@@ -296,6 +298,63 @@ class ClothService {
     }
   }
 
+  /// Move cloth to a different wardrobe
+  static Future<void> moveClothToWardrobe({
+    required String userId,
+    required String oldWardrobeId,
+    required String newWardrobeId,
+    required String clothId,
+  }) async {
+    try {
+      // Get the cloth from old wardrobe
+      final cloth = await getCloth(
+        userId: userId,
+        wardrobeId: oldWardrobeId,
+        clothId: clothId,
+      );
+
+      if (cloth == null) {
+        throw Exception('Cloth not found');
+      }
+
+      // Create cloth data with new wardrobe ID
+      final clothData = cloth.toJson();
+      clothData['wardrobeId'] = newWardrobeId;
+      clothData['updatedAt'] = FieldValue.serverTimestamp();
+
+      // Use batch to ensure atomicity
+      final batch = _firestore.batch();
+
+      // Delete from old wardrobe subcollection
+      final oldClothRef = _firestore
+          .collection(_clothesPath(userId, oldWardrobeId))
+          .doc(clothId);
+      batch.delete(oldClothRef);
+
+      // Add to new wardrobe subcollection
+      final newClothRef = _firestore
+          .collection(_clothesPath(userId, newWardrobeId))
+          .doc(clothId);
+      batch.set(newClothRef, clothData);
+
+      // Update top-level collection
+      final topLevelRef = _firestore.collection('clothes').doc(clothId);
+      batch.update(topLevelRef, {
+        'wardrobeId': newWardrobeId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      if (kDebugMode) {
+        debugPrint('Cloth moved from wardrobe $oldWardrobeId to $newWardrobeId');
+      }
+    } catch (e) {
+      debugPrint('Failed to move cloth: $e');
+      rethrow;
+    }
+  }
+
   /// Delete cloth
   static Future<void> deleteCloth({
     required String userId,
@@ -360,18 +419,20 @@ class ClothService {
         'source': 'manual',
       });
 
-      // Update cloth's wornAt (when worn) and updatedAt (last update time)
+      // Update cloth's wornAt (when worn), placement (OutWardrobe), and updatedAt (last update time)
       await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)
           .update({
         'wornAt': Timestamp.fromDate(now),
+        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Also update top-level collection
       await _firestore.collection('clothes').doc(clothId).update({
         'wornAt': Timestamp.fromDate(now),
+        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -466,8 +527,12 @@ class ClothService {
 
     if (wornAt != null) {
       updates['wornAt'] = Timestamp.fromDate(wornAt);
+      // If there's a wornAt date, keep placement as OutWardrobe
+      updates['placement'] = 'OutWardrobe';
     } else {
       updates['wornAt'] = FieldValue.delete();
+      // If no wornAt date, set placement back to InWardrobe
+      updates['placement'] = 'InWardrobe';
     }
 
     await _firestore
@@ -519,16 +584,29 @@ class ClothService {
         throw Exception('Cloth not found');
       }
 
-      await clothRef.update({
-        'likesCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Update likesCount on subcollection cloth document
+      // Wrap in try-catch to handle permission errors gracefully
+      // The like document is already created, so this is just for count sync
+      try {
+        await clothRef.update({
+          'likesCount': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Failed to update likesCount in subcollection (non-critical): $e');
+        // Continue - like document is already created
+      }
 
       // Update likesCount on top-level cloth document
-      await _firestore.collection('clothes').doc(clothId).update({
-        'likesCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      try {
+        await _firestore.collection('clothes').doc(clothId).update({
+          'likesCount': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Failed to update likesCount in top-level collection (non-critical): $e');
+        // Continue - like document is already created
+      }
     } catch (e) {
       debugPrint('Failed to like cloth: $e');
       rethrow;
@@ -566,16 +644,29 @@ class ClothService {
       // Check if cloth exists before updating
       final clothDoc = await clothRef.get();
       if (clothDoc.exists) {
-        await clothRef.update({
-          'likesCount': FieldValue.increment(-1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        // Update likesCount on subcollection cloth document
+        // Wrap in try-catch to handle permission errors gracefully
+        // The like document is already deleted, so this is just for count sync
+        try {
+          await clothRef.update({
+            'likesCount': FieldValue.increment(-1),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('Failed to update likesCount in subcollection (non-critical): $e');
+          // Continue - like document is already deleted
+        }
 
         // Update likesCount on top-level cloth document
-        await _firestore.collection('clothes').doc(clothId).update({
-          'likesCount': FieldValue.increment(-1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        try {
+          await _firestore.collection('clothes').doc(clothId).update({
+            'likesCount': FieldValue.increment(-1),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('Failed to update likesCount in top-level collection (non-critical): $e');
+          // Continue - like document is already deleted
+        }
       }
       // If cloth doesn't exist, that's okay - the like is already deleted
     } catch (e) {
@@ -668,16 +759,29 @@ class ClothService {
         throw Exception('Cloth not found');
       }
 
-      await clothRef.update({
-        'commentsCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Update commentsCount on subcollection cloth document
+      // Wrap in try-catch to handle permission errors gracefully
+      // The comment document is already created, so this is just for count sync
+      try {
+        await clothRef.update({
+          'commentsCount': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Failed to update commentsCount in subcollection (non-critical): $e');
+        // Continue - comment document is already created
+      }
 
       // Update commentsCount on top-level cloth document
-      await _firestore.collection('clothes').doc(clothId).update({
-        'commentsCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      try {
+        await _firestore.collection('clothes').doc(clothId).update({
+          'commentsCount': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Failed to update commentsCount in top-level collection (non-critical): $e');
+        // Continue - comment document is already created
+      }
 
       return commentId;
     } catch (e) {

@@ -47,8 +47,11 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
     if (authProvider.user != null) {
-      await friendProvider.loadFriendRequests(authProvider.user!.uid);
-      friendProvider.watchFriendRequests(authProvider.user!.uid);
+      // Only load and watch if user is authenticated
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        await friendProvider.loadFriendRequests(authProvider.user!.uid);
+        friendProvider.watchFriendRequests(authProvider.user!.uid);
+      }
 
       // Load profiles for all incoming requests
       for (var request in friendProvider.incomingRequests) {
@@ -192,6 +195,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         // Refresh the status to ensure it shows as friends
         await _checkFriendshipAndRequestStatus(request.fromUserId, forceRefresh: true);
         
+        if (!mounted) return;
         // Also reload friends list in the provider to ensure sync
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         if (authProvider.user != null) {
@@ -343,18 +347,18 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     }
 
     if (friendProvider.incomingRequests.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
               'No friend requests',
               style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Search for users to send friend requests',
               style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
@@ -489,18 +493,18 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     }
 
     if (friendProvider.searchResults.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.search_off, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
               'No users found',
               style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Try searching with a different name, email, or phone',
               style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,

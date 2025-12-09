@@ -119,6 +119,7 @@ class ClothProvider with ChangeNotifier {
     required File imageFile,
     required String season,
     required String placement,
+    PlacementDetails? placementDetails,
     required ColorTags colorTags,
     required String clothType,
     required String category,
@@ -137,6 +138,7 @@ class ClothProvider with ChangeNotifier {
         imageFile: imageFile,
         season: season,
         placement: placement,
+        placementDetails: placementDetails,
         colorTags: colorTags,
         clothType: clothType,
         category: category,
@@ -186,6 +188,37 @@ class ClothProvider with ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to update cloth: ${e.toString()}';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Move cloth to a different wardrobe
+  Future<void> moveClothToWardrobe({
+    required String userId,
+    required String oldWardrobeId,
+    required String newWardrobeId,
+    required String clothId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await ClothService.moveClothToWardrobe(
+        userId: userId,
+        oldWardrobeId: oldWardrobeId,
+        newWardrobeId: newWardrobeId,
+        clothId: clothId,
+      );
+      
+      // Remove from local list if it exists
+      _clothes.removeWhere((c) => c.id == clothId);
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = 'Failed to move cloth: ${e.toString()}';
+      debugPrint('Error moving cloth: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -245,9 +278,12 @@ class ClothProvider with ChangeNotifier {
         newWornAt = now;
       }
 
+      // Update placement based on worn status
+      final newPlacement = newWornAt != null ? 'OutWardrobe' : 'InWardrobe';
       _updateClothLocally(
         cloth.id,
         wornAt: newWornAt,
+        placement: newPlacement,
       );
       _errorMessage = null;
       notifyListeners();
@@ -495,6 +531,7 @@ class ClothProvider with ChangeNotifier {
   void _updateClothLocally(
     String clothId, {
     DateTime? wornAt,
+    String? placement,
     int? likesCount,
     int? commentsCount,
   }) {
@@ -503,6 +540,7 @@ class ClothProvider with ChangeNotifier {
 
     final updated = _clothes[index].copyWith(
       wornAt: wornAt ?? _clothes[index].wornAt,
+      placement: placement ?? _clothes[index].placement,
       updatedAt: DateTime.now(),
       likesCount: likesCount ?? _clothes[index].likesCount,
       commentsCount: commentsCount ?? _clothes[index].commentsCount,

@@ -34,7 +34,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
   String? _selectedPlacement;
   String? _selectedCategory;
   List<String> _selectedOccasions = [];
-  String _visibility = 'private';
+  final String _visibility = 'private';
+
+  // Placement details for Laundry, DryCleaning, Repairing
+  final TextEditingController _shopNameController = TextEditingController();
+  DateTime? _givenDate;
+  DateTime? _returnDate;
 
   bool _isUploading = false;
   bool _isLoadingTags = true;
@@ -43,6 +48,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
   void initState() {
     super.initState();
     _loadTagLists();
+  }
+
+  @override
+  void dispose() {
+    _shopNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTagLists() async {
@@ -138,6 +149,30 @@ class _AddClothScreenState extends State<AddClothScreen> {
       return;
     }
 
+    // Validate placement details only if placement requires them
+    final requiresPlacementDetails = _selectedPlacement == 'Laundry' || 
+                                      _selectedPlacement == 'DryCleaning' || 
+                                      _selectedPlacement == 'Repairing';
+    
+    if (requiresPlacementDetails) {
+      if (_shopNameController.text.trim().isEmpty) {
+        _showErrorSnackBar('Please enter shop name');
+        return;
+      }
+      if (_givenDate == null) {
+        _showErrorSnackBar('Please select given date');
+        return;
+      }
+      if (_returnDate == null) {
+        _showErrorSnackBar('Please select return date');
+        return;
+      }
+      if (_returnDate!.isBefore(_givenDate!)) {
+        _showErrorSnackBar('Return date must be after given date');
+        return;
+      }
+    }
+
     final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) {
@@ -165,12 +200,29 @@ class _AddClothScreenState extends State<AddClothScreen> {
         isMultiColor: colors.length > 1,
       );
 
+      // Create placement details only if placement requires them
+      PlacementDetails? placementDetails;
+      if (requiresPlacementDetails &&
+          _shopNameController.text.trim().isNotEmpty &&
+          _givenDate != null &&
+          _returnDate != null) {
+        placementDetails = PlacementDetails(
+          shopName: _shopNameController.text.trim(),
+          givenDate: _givenDate!,
+          returnDate: _returnDate!,
+        );
+      } else {
+        // Clear placement details if not required
+        placementDetails = null;
+      }
+
       final clothId = await clothProvider.addCloth(
         userId: user.uid,
         wardrobeId: widget.wardrobeId,
         imageFile: _selectedImage!,
         season: _selectedSeason!,
         placement: _selectedPlacement!,
+        placementDetails: placementDetails,
         colorTags: colorTags,
         clothType: _selectedClothType!,
         category: _selectedCategory!,
@@ -190,12 +242,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
             wardrobeId: widget.wardrobeId,
           );
           
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cloth added successfully!'),
               backgroundColor: Colors.green,
             ),
           );
+          if (!mounted) return;
           Navigator.of(context).pop();
         } else {
           _showErrorSnackBar(clothProvider.errorMessage ?? 'Failed to add cloth');
@@ -224,8 +278,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingTags) {
-      return Scaffold(
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -278,7 +332,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Cloth Type
               DropdownButtonFormField<String>(
-                value: _selectedClothType,
+                initialValue: _selectedClothType,
                 decoration: const InputDecoration(
                   labelText: 'Cloth Type *',
                   prefixIcon: Icon(Icons.checkroom),
@@ -294,7 +348,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: Icon(Icons.category),
@@ -310,7 +364,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Primary Color
               DropdownButtonFormField<String>(
-                value: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
@@ -334,7 +388,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Season
               DropdownButtonFormField<String>(
-                value: _selectedSeason,
+                initialValue: _selectedSeason,
                 decoration: const InputDecoration(
                   labelText: 'Season *',
                   prefixIcon: Icon(Icons.wb_sunny),
@@ -350,7 +404,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
               // Placement
               DropdownButtonFormField<String>(
-                value: _selectedPlacement,
+                initialValue: _selectedPlacement,
                 decoration: const InputDecoration(
                   labelText: 'Placement *',
                   prefixIcon: Icon(Icons.location_on),
@@ -359,10 +413,115 @@ class _AddClothScreenState extends State<AddClothScreen> {
                 items: tags.placements.map((placement) {
                   return DropdownMenuItem(value: placement, child: Text(placement));
                 }).toList(),
-                onChanged: (value) => setState(() => _selectedPlacement = value),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPlacement = value;
+                    // Clear placement details if placement changes to something other than Laundry, DryCleaning, or Repairing
+                    if (value != 'Laundry' && value != 'DryCleaning' && value != 'Repairing') {
+                      _shopNameController.clear();
+                      _givenDate = null;
+                      _returnDate = null;
+                    }
+                  });
+                },
                 validator: (value) => value == null ? 'Please select placement' : null,
               ),
               const SizedBox(height: 16),
+
+              // Placement Details (for Laundry, DryCleaning, Repairing only)
+              if (_selectedPlacement == 'Laundry' || 
+                  _selectedPlacement == 'DryCleaning' || 
+                  _selectedPlacement == 'Repairing')
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Placement Details *',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    // Shop Name
+                    TextFormField(
+                      controller: _shopNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Shop Name *',
+                        prefixIcon: Icon(Icons.store),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (_selectedPlacement == 'Laundry' || 
+                            _selectedPlacement == 'DryCleaning' || 
+                            _selectedPlacement == 'Repairing') {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter shop name';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Given Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _givenDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _givenDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Given Date *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _givenDate != null
+                              ? '${_givenDate!.day}/${_givenDate!.month}/${_givenDate!.year}'
+                              : 'Select given date',
+                          style: TextStyle(
+                            color: _givenDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Return Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _returnDate ?? (_givenDate ?? DateTime.now()).add(const Duration(days: 7)),
+                          firstDate: _givenDate ?? DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _returnDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Return Date *',
+                          prefixIcon: Icon(Icons.event_available),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _returnDate != null
+                              ? '${_returnDate!.day}/${_returnDate!.month}/${_returnDate!.year}'
+                              : 'Select return date',
+                          style: TextStyle(
+                            color: _returnDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
 
               // Occasions Multi-Select
               Column(

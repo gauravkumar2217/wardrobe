@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/friend_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
@@ -32,7 +34,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.userProfile?.settings != null) {
       setState(() {
-        _notificationSettings = authProvider.userProfile!.settings!.notifications;
+        _notificationSettings =
+            authProvider.userProfile!.settings!.notifications;
         _privacySettings = authProvider.userProfile!.settings!.privacy;
       });
     } else {
@@ -239,7 +242,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const EditProfileScreen()),
                     );
                     // Reload settings after editing profile
                     if (mounted) {
@@ -254,7 +258,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const VerifyContactScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const VerifyContactScreen()),
                     );
                   },
                 ),
@@ -263,7 +268,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const _SectionHeader(title: 'Notifications'),
                 if (_notificationSettings != null) ...[
                   SwitchListTile(
-                    secondary: const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
+                    secondary:
+                        const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
                     title: const Text('Friend Requests'),
                     value: _notificationSettings!.friendRequests,
                     onChanged: (value) {
@@ -275,7 +281,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: _notificationSettings!.clothLikes,
                           clothComments: _notificationSettings!.clothComments,
                           suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -283,7 +290,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   SwitchListTile(
-                    secondary: const Icon(Icons.check_circle, color: Color(0xFF7C3AED)),
+                    secondary: const Icon(Icons.check_circle,
+                        color: Color(0xFF7C3AED)),
                     title: const Text('Friend Accepts'),
                     value: _notificationSettings!.friendAccepts,
                     onChanged: (value) {
@@ -295,7 +303,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: _notificationSettings!.clothLikes,
                           clothComments: _notificationSettings!.clothComments,
                           suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -315,7 +324,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: _notificationSettings!.clothLikes,
                           clothComments: _notificationSettings!.clothComments,
                           suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -323,7 +333,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   SwitchListTile(
-                    secondary: const Icon(Icons.favorite, color: Color(0xFF7C3AED)),
+                    secondary:
+                        const Icon(Icons.favorite, color: Color(0xFF7C3AED)),
                     title: const Text('Cloth Likes'),
                     value: _notificationSettings!.clothLikes,
                     onChanged: (value) {
@@ -335,7 +346,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: value,
                           clothComments: _notificationSettings!.clothComments,
                           suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -343,7 +355,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   SwitchListTile(
-                    secondary: const Icon(Icons.comment, color: Color(0xFF7C3AED)),
+                    secondary:
+                        const Icon(Icons.comment, color: Color(0xFF7C3AED)),
                     title: const Text('Cloth Comments'),
                     value: _notificationSettings!.clothComments,
                     onChanged: (value) {
@@ -355,7 +368,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: _notificationSettings!.clothLikes,
                           clothComments: value,
                           suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -363,7 +377,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   SwitchListTile(
-                    secondary: const Icon(Icons.lightbulb, color: Color(0xFF7C3AED)),
+                    secondary:
+                        const Icon(Icons.lightbulb, color: Color(0xFF7C3AED)),
                     title: const Text('Suggestions'),
                     value: _notificationSettings!.suggestions,
                     onChanged: (value) {
@@ -375,7 +390,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           clothLikes: _notificationSettings!.clothLikes,
                           clothComments: _notificationSettings!.clothComments,
                           suggestions: value,
-                          quietHoursStart: _notificationSettings!.quietHoursStart,
+                          quietHoursStart:
+                              _notificationSettings!.quietHoursStart,
                           quietHoursEnd: _notificationSettings!.quietHoursEnd,
                         );
                       });
@@ -394,24 +410,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // About section
                 const _SectionHeader(title: 'About'),
                 ListTile(
-                  leading: const Icon(Icons.privacy_tip, color: Color(0xFF7C3AED)),
+                  leading:
+                      const Icon(Icons.privacy_tip, color: Color(0xFF7C3AED)),
                   title: const Text('Privacy Policy'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen()),
                     );
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.description, color: Color(0xFF7C3AED)),
+                  leading:
+                      const Icon(Icons.description, color: Color(0xFF7C3AED)),
                   title: const Text('Terms & Conditions'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const TermsConditionsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const TermsConditionsScreen()),
                     );
                   },
                 ),
@@ -425,7 +445,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const _SectionHeader(title: 'Danger Zone', color: Colors.red),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                  title:
+                      const Text('Logout', style: TextStyle(color: Colors.red)),
                   onTap: () async {
                     final confirmed = await showDialog<bool>(
                       context: context,
@@ -439,18 +460,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+                            child: const Text('Logout',
+                                style: TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
                     );
 
                     if (confirmed == true) {
+                      if (!mounted) return;
+                      final logoutContext = this.context;
+                      if (!mounted) return;
+                      // Clean up providers before signing out
+                      final chatProvider = Provider.of<ChatProvider>(
+                          logoutContext,
+                          listen: false);
+                      final friendProvider = Provider.of<FriendProvider>(
+                          logoutContext,
+                          listen: false);
+                      chatProvider.cleanup();
+                      friendProvider.cleanup();
+
                       await authProvider.signOut();
                       if (context.mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
                           (route) => false,
                         );
                       }
@@ -459,7 +495,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                  title: const Text('Delete Account',
+                      style: TextStyle(color: Colors.red)),
                   onTap: _deleteAccount,
                 ),
               ],
@@ -493,4 +530,3 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
-

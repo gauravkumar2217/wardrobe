@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../models/cloth.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/auth_provider.dart' as app_auth;
+import '../../providers/wardrobe_provider.dart';
 import '../../services/tag_list_service.dart';
+import '../../models/wardrobe.dart';
 
 /// Edit cloth screen
 class EditClothScreen extends StatefulWidget {
@@ -31,7 +33,14 @@ class _EditClothScreenState extends State<EditClothScreen> {
   String? _selectedPlacement;
   String? _selectedCategory;
   List<String> _selectedOccasions = [];
-  String _visibility = 'private';
+  String? _selectedWardrobeId;
+  List<Wardrobe> _wardrobes = [];
+  bool _isLoadingWardrobes = true;
+  
+  // Placement details for Laundry, DryCleaning, Repairing
+  final TextEditingController _shopNameController = TextEditingController();
+  DateTime? _givenDate;
+  DateTime? _returnDate;
   
   bool _isUpdating = false;
   bool _isLoadingTags = true;
@@ -40,7 +49,14 @@ class _EditClothScreenState extends State<EditClothScreen> {
   void initState() {
     super.initState();
     _loadTagLists();
+    _loadWardrobes();
     _initializeFields();
+  }
+
+  @override
+  void dispose() {
+    _shopNameController.dispose();
+    super.dispose();
   }
 
   void _initializeFields() {
@@ -49,12 +65,34 @@ class _EditClothScreenState extends State<EditClothScreen> {
     _selectedPlacement = widget.cloth.placement;
     _selectedCategory = widget.cloth.category;
     _selectedOccasions = List<String>.from(widget.cloth.occasions);
-    _visibility = widget.cloth.visibility;
+    _selectedWardrobeId = widget.cloth.wardrobeId;
+    
+    // Initialize placement details if they exist
+    if (widget.cloth.placementDetails != null) {
+      _shopNameController.text = widget.cloth.placementDetails!.shopName;
+      _givenDate = widget.cloth.placementDetails!.givenDate;
+      _returnDate = widget.cloth.placementDetails!.returnDate;
+    }
     
     final colorTags = widget.cloth.colorTags;
     _selectedPrimaryColor = colorTags.primary;
     _selectedSecondaryColor = colorTags.secondary;
     _selectedColors = List<String>.from(colorTags.colors);
+  }
+
+  Future<void> _loadWardrobes() async {
+    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    
+    if (authProvider.user != null) {
+      await wardrobeProvider.loadWardrobes(authProvider.user!.uid);
+      if (mounted) {
+        setState(() {
+          _wardrobes = wardrobeProvider.wardrobes;
+          _isLoadingWardrobes = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadTagLists() async {
@@ -84,6 +122,39 @@ class _EditClothScreenState extends State<EditClothScreen> {
       return;
     }
 
+    // Check if placement requires details
+    final requiresPlacementDetails = _selectedPlacement == 'Laundry' || 
+                                      _selectedPlacement == 'DryCleaning' || 
+                                      _selectedPlacement == 'Repairing';
+    
+    // Validate placement details only if placement requires them
+    if (requiresPlacementDetails) {
+      if (_shopNameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter shop name')),
+        );
+        return;
+      }
+      if (_givenDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select given date')),
+        );
+        return;
+      }
+      if (_returnDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select return date')),
+        );
+        return;
+      }
+      if (_returnDate!.isBefore(_givenDate!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Return date must be after given date')),
+        );
+        return;
+      }
+    }
+
     final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) return;
@@ -106,23 +177,59 @@ class _EditClothScreenState extends State<EditClothScreen> {
         isMultiColor: colors.length > 1,
       );
 
+      // Create placement details only if placement requires them
+      PlacementDetails? placementDetails;
+      if (requiresPlacementDetails &&
+          _shopNameController.text.trim().isNotEmpty &&
+          _givenDate != null &&
+          _returnDate != null) {
+        placementDetails = PlacementDetails(
+          shopName: _shopNameController.text.trim(),
+          givenDate: _givenDate!,
+          returnDate: _returnDate!,
+        );
+      } else {
+        // Clear placement details if not required
+        placementDetails = null;
+      }
+
       final updatedCloth = widget.cloth.copyWith(
         clothType: _selectedClothType,
         season: _selectedSeason,
         placement: _selectedPlacement,
+        placementDetails: placementDetails,
         category: _selectedCategory,
         occasions: _selectedOccasions,
-        visibility: _visibility,
         colorTags: colorTags,
         updatedAt: DateTime.now(),
       );
 
-      await clothProvider.updateCloth(
-        userId: user.uid,
-        wardrobeId: widget.wardrobeId,
-        clothId: widget.cloth.id,
-        cloth: updatedCloth,
-      );
+      // Check if wardrobe changed
+      if (_selectedWardrobeId != null && _selectedWardrobeId != widget.wardrobeId) {
+        // Move cloth to new wardrobe
+        await clothProvider.moveClothToWardrobe(
+          userId: user.uid,
+          oldWardrobeId: widget.wardrobeId,
+          newWardrobeId: _selectedWardrobeId!,
+          clothId: widget.cloth.id,
+        );
+        
+        // Update cloth in new wardrobe
+        await clothProvider.updateCloth(
+          userId: user.uid,
+          wardrobeId: _selectedWardrobeId!,
+          clothId: widget.cloth.id,
+          cloth: updatedCloth,
+        );
+      } else {
+        // Just update cloth in same wardrobe
+        await clothProvider.updateCloth(
+          userId: user.uid,
+          wardrobeId: widget.wardrobeId,
+          clothId: widget.cloth.id,
+          cloth: updatedCloth,
+        );
+      }
 
       if (mounted) {
         setState(() {
@@ -176,9 +283,46 @@ class _EditClothScreenState extends State<EditClothScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Wardrobe Selection
+              if (_isLoadingWardrobes)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedWardrobeId,
+                  decoration: const InputDecoration(
+                    labelText: 'Wardrobe *',
+                    prefixIcon: Icon(Icons.inventory_2),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _wardrobes.map((wardrobe) {
+                    return DropdownMenuItem(
+                      value: wardrobe.id,
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2, size: 18, color: Colors.grey[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${wardrobe.name} - ${wardrobe.location}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => _selectedWardrobeId = value),
+                  validator: (value) => value == null ? 'Please select a wardrobe' : null,
+                ),
+              const SizedBox(height: 16),
+
               // Cloth Type
               DropdownButtonFormField<String>(
-                value: _selectedClothType,
+                initialValue: _selectedClothType,
                 decoration: const InputDecoration(
                   labelText: 'Cloth Type *',
                   prefixIcon: Icon(Icons.checkroom),
@@ -194,7 +338,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: Icon(Icons.category),
@@ -210,7 +354,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Primary Color
               DropdownButtonFormField<String>(
-                value: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
@@ -234,7 +378,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Season
               DropdownButtonFormField<String>(
-                value: _selectedSeason,
+                initialValue: _selectedSeason,
                 decoration: const InputDecoration(
                   labelText: 'Season *',
                   prefixIcon: Icon(Icons.wb_sunny),
@@ -250,7 +394,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
               // Placement
               DropdownButtonFormField<String>(
-                value: _selectedPlacement,
+                initialValue: _selectedPlacement,
                 decoration: const InputDecoration(
                   labelText: 'Placement *',
                   prefixIcon: Icon(Icons.location_on),
@@ -259,10 +403,115 @@ class _EditClothScreenState extends State<EditClothScreen> {
                 items: tags.placements.map((placement) {
                   return DropdownMenuItem(value: placement, child: Text(placement));
                 }).toList(),
-                onChanged: (value) => setState(() => _selectedPlacement = value),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPlacement = value;
+                    // Clear placement details if placement changes to something other than Laundry, DryCleaning, or Repairing
+                    if (value != 'Laundry' && value != 'DryCleaning' && value != 'Repairing') {
+                      _shopNameController.clear();
+                      _givenDate = null;
+                      _returnDate = null;
+                    }
+                  });
+                },
                 validator: (value) => value == null ? 'Please select placement' : null,
               ),
               const SizedBox(height: 16),
+
+              // Placement Details (for Laundry, DryCleaning, Repairing only)
+              if (_selectedPlacement == 'Laundry' || 
+                  _selectedPlacement == 'DryCleaning' || 
+                  _selectedPlacement == 'Repairing')
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Placement Details *',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    // Shop Name
+                    TextFormField(
+                      controller: _shopNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Shop Name *',
+                        prefixIcon: Icon(Icons.store),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (_selectedPlacement == 'Laundry' || 
+                            _selectedPlacement == 'DryCleaning' || 
+                            _selectedPlacement == 'Repairing') {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter shop name';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Given Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _givenDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _givenDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Given Date *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _givenDate != null
+                              ? '${_givenDate!.day}/${_givenDate!.month}/${_givenDate!.year}'
+                              : 'Select given date',
+                          style: TextStyle(
+                            color: _givenDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Return Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _returnDate ?? (_givenDate ?? DateTime.now()).add(const Duration(days: 7)),
+                          firstDate: _givenDate ?? DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _returnDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Return Date *',
+                          prefixIcon: Icon(Icons.event_available),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _returnDate != null
+                              ? '${_returnDate!.day}/${_returnDate!.month}/${_returnDate!.year}'
+                              : 'Select return date',
+                          style: TextStyle(
+                            color: _returnDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
 
               // Occasions Multi-Select
               Column(
@@ -291,23 +540,6 @@ class _EditClothScreenState extends State<EditClothScreen> {
                     }).toList(),
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-
-              // Visibility
-              DropdownButtonFormField<String>(
-                value: _visibility,
-                decoration: const InputDecoration(
-                  labelText: 'Visibility',
-                  prefixIcon: Icon(Icons.visibility),
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'private', child: Text('Private')),
-                  DropdownMenuItem(value: 'friends', child: Text('Friends Only')),
-                  DropdownMenuItem(value: 'public', child: Text('Public')),
-                ],
-                onChanged: (value) => setState(() => _visibility = value ?? 'private'),
               ),
               const SizedBox(height: 32),
 

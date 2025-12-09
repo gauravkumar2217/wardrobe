@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
 import 'push_notification_service.dart';
@@ -7,6 +8,7 @@ import 'user_service.dart';
 /// Chat service for managing chats and messages
 class ChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Create or get existing chat between two users
   static Future<String> getOrCreateChat({
@@ -461,6 +463,18 @@ class ChatService {
     required String userId,
     required String chatId,
   }) async {
+    // Check if user is authenticated before making query
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, return 0
+        return 0;
+      }
+    } catch (e) {
+      // If auth check fails, don't make query
+      return 0;
+    }
+    
     try {
       // Get all messages and filter client-side
       // Note: Firestore doesn't support isNotEqualTo, so we get all and filter
@@ -495,6 +509,18 @@ class ChatService {
 
   /// Get unread message counts for all chats
   static Future<Map<String, int>> getAllUnreadCounts(String userId) async {
+    // Check if user is authenticated before making query
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null || currentUser.uid != userId) {
+        // User is not authenticated, return empty map
+        return {};
+      }
+    } catch (e) {
+      // If auth check fails, don't make query
+      return {};
+    }
+    
     try {
       final chatsSnapshot = await _firestore
           .collection('users')

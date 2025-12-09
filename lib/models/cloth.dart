@@ -8,6 +8,7 @@ class Cloth {
   final String imageUrl;
   final String season;
   final String placement;
+  final PlacementDetails? placementDetails; // Details for Laundry, DryCleaning, Repairing
   final ColorTags colorTags;
   final String clothType;
   final String category;
@@ -28,6 +29,7 @@ class Cloth {
     required this.imageUrl,
     required this.season,
     required this.placement,
+    this.placementDetails,
     required this.colorTags,
     required this.clothType,
     required this.category,
@@ -50,6 +52,9 @@ class Cloth {
       imageUrl: json['imageUrl'] as String,
       season: json['season'] as String,
       placement: json['placement'] as String,
+      placementDetails: json['placementDetails'] != null
+          ? PlacementDetails.fromJson(json['placementDetails'] as Map<String, dynamic>)
+          : null,
       colorTags: json['colorTags'] != null
           ? ColorTags.fromJson(json['colorTags'] as Map<String, dynamic>)
           : ColorTags(primary: json['color'] as String? ?? 'Unknown'),
@@ -87,6 +92,7 @@ class Cloth {
       'imageUrl': imageUrl,
       'season': season,
       'placement': placement,
+      if (placementDetails != null) 'placementDetails': placementDetails!.toJson(),
       'colorTags': colorTags.toJson(),
       'clothType': clothType,
       'category': category,
@@ -108,6 +114,7 @@ class Cloth {
     String? imageUrl,
     String? season,
     String? placement,
+    PlacementDetails? placementDetails,
     ColorTags? colorTags,
     String? clothType,
     String? category,
@@ -128,6 +135,7 @@ class Cloth {
       imageUrl: imageUrl ?? this.imageUrl,
       season: season ?? this.season,
       placement: placement ?? this.placement,
+      placementDetails: placementDetails ?? this.placementDetails,
       colorTags: colorTags ?? this.colorTags,
       clothType: clothType ?? this.clothType,
       category: category ?? this.category,
@@ -141,6 +149,35 @@ class Cloth {
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
     );
+  }
+}
+
+/// Placement details for Laundry, DryCleaning, Repairing
+class PlacementDetails {
+  final String shopName;
+  final DateTime givenDate;
+  final DateTime returnDate;
+
+  PlacementDetails({
+    required this.shopName,
+    required this.givenDate,
+    required this.returnDate,
+  });
+
+  factory PlacementDetails.fromJson(Map<String, dynamic> json) {
+    return PlacementDetails(
+      shopName: json['shopName'] as String,
+      givenDate: (json['givenDate'] as Timestamp).toDate(),
+      returnDate: (json['returnDate'] as Timestamp).toDate(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'shopName': shopName,
+      'givenDate': Timestamp.fromDate(givenDate),
+      'returnDate': Timestamp.fromDate(returnDate),
+    };
   }
 }
 

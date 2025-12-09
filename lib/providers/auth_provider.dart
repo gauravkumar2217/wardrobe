@@ -342,15 +342,21 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// Sign out
+  /// Note: This will trigger auth state change which should clean up providers
   Future<void> signOut() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      await AuthService.signOut();
+      // Clear user data first to prevent queries during sign out
       _user = null;
       _userProfile = null;
       _errorMessage = null;
+      notifyListeners();
+      
+      // Then sign out from Firebase
+      // This will trigger auth state change listener which will update _user to null
+      await AuthService.signOut();
     } catch (e) {
       _errorMessage = 'Failed to sign out: $e';
     } finally {

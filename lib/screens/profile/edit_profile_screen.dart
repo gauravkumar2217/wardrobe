@@ -336,7 +336,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 16),
                 // Gender field
                 DropdownButtonFormField<String>(
-                  value: _selectedGender,
+                  initialValue: _selectedGender,
                   decoration: const InputDecoration(
                     labelText: 'Gender',
                     prefixIcon: Icon(Icons.person_outline),

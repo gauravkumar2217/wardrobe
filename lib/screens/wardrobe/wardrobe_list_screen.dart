@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/navigation_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import '../../services/wardrobe_service.dart';
+import '../../models/wardrobe.dart';
 import 'create_wardrobe_screen.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
-  const WardrobeListScreen({super.key});
+  /// If true, shows only wardrobe labels for selection (no edit/delete)
+  /// If false, shows full management options (edit/delete)
+  final bool selectionMode;
+
+  const WardrobeListScreen({
+    super.key,
+    this.selectionMode = false,
+  });
 
   @override
   State<WardrobeListScreen> createState() => _WardrobeListScreenState();
@@ -41,23 +48,43 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Wardrobes'),
+        title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
-              ).then((_) => _loadWardrobes());
-            },
-          ),
+          // Only show add button when not in selection mode
+          if (!widget.selectionMode)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
+                ).then((_) => _loadWardrobes());
+              },
+            ),
         ],
       ),
       body: wardrobeProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Loading wardrobes...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : wardrobeProvider.errorMessage != null
               ? Center(
                   child: Column(
@@ -91,37 +118,106 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 )
               : wardrobeProvider.wardrobes.isEmpty
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.inventory_2, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No wardrobes yet',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Create your first wardrobe to organize your clothes!',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
-                              ).then((_) => _loadWardrobes());
-                            },
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create Wardrobe'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7C3AED),
-                              foregroundColor: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                                    const Color(0xFF9F7AEA).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.inventory_2_rounded,
+                                size: 64,
+                                color: Color(0xFF7C3AED),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 32),
+                            const Text(
+                              'No Wardrobes Yet',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Create your first wardrobe to organize\nyour clothes and keep them organized!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF7C3AED),
+                                    Color(0xFF9F7AEA),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => const CreateWardrobeScreen()),
+                                    ).then((_) => _loadWardrobes());
+                                  },
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 32, vertical: 16),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add_rounded,
+                                            color: Colors.white, size: 24),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          'Create Your First Wardrobe',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : RefreshIndicator(
@@ -129,23 +225,40 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         _loadWardrobes();
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
+                      color: const Color(0xFF7C3AED),
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: wardrobeProvider.wardrobes.length,
                         itemBuilder: (context, index) {
                           final wardrobe = wardrobeProvider.wardrobes[index];
-                          return WardrobeCard(
-                            wardrobe: wardrobe,
-                            onTap: () {
-                              // Set selected wardrobe and navigate to home
-                              wardrobeProvider.setSelectedWardrobe(wardrobe);
-                              // Switch to Home tab in main navigation
-                              final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-                              navigationProvider.navigateToHome();
+                          return TweenAnimationBuilder<double>(
+                            duration: Duration(milliseconds: 300 + (index * 50)),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            curve: Curves.easeOut,
+                            builder: (context, value, child) {
+                              return Opacity(
+                                opacity: value,
+                                child: Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: child,
+                                ),
+                              );
                             },
-                            onDelete: () {
-                              _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
-                            },
+                            child: WardrobeCard(
+                              wardrobe: wardrobe,
+                              onTap: widget.selectionMode ? () {
+                                // In selection mode, set selected wardrobe and pop back
+                                wardrobeProvider.setSelectedWardrobe(wardrobe);
+                                Navigator.of(context).pop();
+                              } : null, // No action in normal mode - just view wardrobes
+                              // Only show edit/delete buttons if not in selection mode
+                              onEdit: widget.selectionMode ? null : () {
+                                _editWardrobe(wardrobe, authProvider.user!.uid);
+                              },
+                              onDelete: widget.selectionMode ? null : () {
+                                _deleteWardrobe(wardrobe.id, authProvider.user!.uid);
+                              },
+                            ),
                           );
                         },
                       ),
@@ -164,20 +277,104 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
       if (clothesCount > 0) {
         // Show warning dialog if wardrobe has clothes
         if (!context.mounted) return;
+        final dialogContext = context;
+        if (!dialogContext.mounted) return;
         await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Cannot Delete Wardrobe'),
-            content: Text(
-              'This wardrobe contains $clothesCount item(s).\n\n'
-              'You need to arrange your clothes in the right place before removing the wardrobe.',
+          context: dialogContext,
+          builder: (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_rounded,
+                      color: Colors.orange,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Cannot Delete Wardrobe',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This wardrobe contains $clothesCount item(s).\n\n'
+                    'You need to arrange your clothes in the right place before removing the wardrobe.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey[600],
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF7C3AED),
+                            Color(0xFF9F7AEA),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: const Text(
+                              'OK',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
         return;
@@ -185,7 +382,9 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     } catch (e) {
       // If check fails, show error and return
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      final snackContext = context;
+      if (!snackContext.mounted) return;
+      ScaffoldMessenger.of(snackContext).showSnackBar(
         SnackBar(
           content: Text('Failed to check wardrobe: $e'),
           backgroundColor: Colors.red,
@@ -195,37 +394,146 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     }
 
     // If no clothes, show confirmation dialog
+    if (!context.mounted) return;
+    final dialogContext = context;
     final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Wardrobe'),
-        content: const Text('Are you sure you want to delete this wardrobe?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      context: dialogContext,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_rounded,
+                  color: Colors.red,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Delete Wardrobe?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Are you sure you want to delete this wardrobe?\nThis action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.pop(context, true),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: const Text(
+                              'Delete',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
 
     if (confirmed == true) {
-      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
-      await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
       if (!context.mounted) return;
+      final providerContext = context;
+      final wardrobeProvider = Provider.of<WardrobeProvider>(providerContext, listen: false);
+      await wardrobeProvider.deleteWardrobe(userId: userId, wardrobeId: wardrobeId);
+      if (!providerContext.mounted) return;
       if (wardrobeProvider.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(providerContext).showSnackBar(
           SnackBar(
             content: Text(wardrobeProvider.errorMessage!),
             backgroundColor: Colors.red,
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!providerContext.mounted) return;
+        ScaffoldMessenger.of(providerContext).showSnackBar(
           const SnackBar(
             content: Text('Wardrobe deleted successfully'),
             backgroundColor: Colors.green,
@@ -233,6 +541,366 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
         );
       }
     }
+  }
+
+  Future<void> _editWardrobe(Wardrobe wardrobe, String userId) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditWardrobeDialog(
+        wardrobe: wardrobe,
+        userId: userId,
+        onSuccess: () {
+          _loadWardrobes();
+        },
+      ),
+    );
+  }
+}
+
+/// Dialog widget for editing wardrobe
+class _EditWardrobeDialog extends StatefulWidget {
+  final Wardrobe wardrobe;
+  final String userId;
+  final VoidCallback onSuccess;
+
+  const _EditWardrobeDialog({
+    required this.wardrobe,
+    required this.userId,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_EditWardrobeDialog> createState() => _EditWardrobeDialogState();
+}
+
+class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _locationController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.wardrobe.name);
+    _locationController = TextEditingController(text: widget.wardrobe.location);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveWardrobe() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final wardrobeProvider = Provider.of<WardrobeProvider>(
+        context,
+        listen: false);
+
+    try {
+      await wardrobeProvider.updateWardrobe(
+        userId: widget.userId,
+        wardrobeId: widget.wardrobe.id,
+        updates: {
+          'name': _nameController.text.trim(),
+          'location': _locationController.text.trim(),
+        },
+      );
+
+      if (!mounted) return;
+
+      if (wardrobeProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(wardrobeProvider.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      } else {
+        Navigator.pop(context);
+        widget.onSuccess();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wardrobe updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update wardrobe: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with icon
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF7C3AED),
+                            Color(0xFF9F7AEA),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Edit Wardrobe',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      color: Colors.grey[600],
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Name field
+                TextFormField(
+                  controller: _nameController,
+                  style: const TextStyle(fontSize: 16),
+                  decoration: InputDecoration(
+                    labelText: 'Wardrobe Name',
+                    labelStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: Icon(Icons.title_rounded, color: Colors.grey[600]),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF7C3AED),
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                // Location field
+                TextFormField(
+                  controller: _locationController,
+                  style: const TextStyle(fontSize: 16),
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    labelStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: Icon(Icons.location_on_rounded, color: Colors.grey[600]),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF7C3AED),
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a location';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 28),
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: TextButton(
+                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF7C3AED),
+                              Color(0xFF9F7AEA),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _isLoading ? null : _saveWardrobe,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.check_rounded,
+                                            color: Colors.white, size: 18),
+                                        SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Save',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

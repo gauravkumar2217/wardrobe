@@ -4,6 +4,7 @@ import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/cloth_card.dart';
 import '../cloth/comment_screen.dart';
+import '../cloth/worn_history_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../providers/cloth_provider.dart';
@@ -219,7 +220,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to update worn status'),
         ),
       );
@@ -414,9 +415,9 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: Colors.black,
-        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
 
@@ -460,23 +461,22 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
             );
             
             // Refresh comment count after returning from comment screen
-            if (mounted && _cloth != null) {
-              try {
-                final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-                final actualCount = await clothProvider.getCommentCount(
-                  ownerId: _cloth!.ownerId,
-                  wardrobeId: _cloth!.wardrobeId,
-                  clothId: _cloth!.id,
-                );
-                
-                if (mounted && actualCount != _cloth!.commentsCount) {
-                  setState(() {
-                    _cloth = _cloth!.copyWith(commentsCount: actualCount);
-                  });
-                }
-              } catch (e) {
-                debugPrint('Failed to refresh comment count: $e');
+            if (!mounted || _cloth == null) return;
+            try {
+              final clothProvider = Provider.of<ClothProvider>(this.context, listen: false);
+              final actualCount = await clothProvider.getCommentCount(
+                ownerId: _cloth!.ownerId,
+                wardrobeId: _cloth!.wardrobeId,
+                clothId: _cloth!.id,
+              );
+              
+              if (mounted && actualCount != _cloth!.commentsCount) {
+                setState(() {
+                  _cloth = _cloth!.copyWith(commentsCount: actualCount);
+                });
               }
+            } catch (e) {
+              debugPrint('Failed to refresh comment count: $e');
             }
           } : null,
           // Both users can share if not already shared, but only owner can actually share
@@ -484,6 +484,15 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           onShare: isShared ? null : (isOwner ? _handleShare : null),
           // Both users can mark as worn if shared (friends can mark each other's shared clothes)
           onMarkWorn: isShared ? _handleToggleWorn : (isOwner ? _handleToggleWorn : null),
+          // Anyone who can see the cloth can view wear history
+          onWornHistory: isAuthenticated ? () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => WornHistoryScreen(cloth: _cloth!),
+              ),
+            );
+          } : null,
           // Only owner can edit
           onEdit: null, // Edit is handled elsewhere
           // Only owner can delete, and not if shared

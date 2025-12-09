@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/friend_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/navigation_provider.dart';
@@ -97,6 +99,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true && mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+      
+      // Clean up providers before signing out
+      chatProvider.cleanup();
+      friendProvider.cleanup();
+      
       await authProvider.signOut();
 
       if (mounted) {
@@ -299,8 +308,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           MaterialPageRoute(builder: (_) => const StatisticsScreen()),
                         );
                         // If filter was selected, navigate to home with filter
-                        if (result != null && mounted) {
-                          final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+                        if (result != null) {
+                          if (!mounted) return;
+                          if (!mounted) return;
+                          if (!mounted) return;
+                          final navContext = this.context;
+                          if (!mounted) return;
+                          final navigationProvider = Provider.of<NavigationProvider>(navContext, listen: false);
                           navigationProvider.setCurrentIndex(0); // Navigate to home
                           // The filter will be applied when home screen loads
                         }
@@ -324,12 +338,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                         );
                         // Reload profile after editing
-                        if (mounted) {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          if (authProvider.user != null) {
-                            // Profile is automatically updated via AuthProvider when updateProfile is called
-                            _loadStats(); // Reload stats to reflect any changes
-                          }
+                        if (!mounted) return;
+                        if (!mounted) return;
+                        if (!mounted) return;
+                        final authContext = this.context;
+                        if (!mounted) return;
+                        final authProvider = Provider.of<AuthProvider>(authContext, listen: false);
+                        if (authProvider.user != null) {
+                          // Profile is automatically updated via AuthProvider when updateProfile is called
+                          _loadStats(); // Reload stats to reflect any changes
                         }
                       },
                     ),

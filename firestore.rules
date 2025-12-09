@@ -259,6 +259,8 @@ service cloud.firestore {
       
       // Friends subcollection: users/{userId}/friends/{friendId}
       match /friends/{friendId} {
+        // Allow list queries for the owner (needed for loading friends list)
+        allow list: if isOwner(userId);
         allow read: if isOwner(userId);
         // Allow create if:
         // 1. User owns the userId path (adding friend to their own list), OR
@@ -372,32 +374,28 @@ service cloud.firestore {
           allow create: if isOwner(userId) && isValidCloth(request.resource.data);
           
           // Allow authenticated users to update likesCount when liking/unliking
-          // This allows any authenticated user who can read the cloth to update likesCount
+          // Simplified: If user can read the cloth, they can update likesCount
+          // This allows friends and anyone with access to like/unlike clothes
+          // Note: We don't check likesCount/commentsCount equality since FieldValue.increment() changes them
           allow update: if isAuthenticated() &&
                            canReadCloth(resource.data) &&
-                           request.resource.data.commentsCount == resource.data.commentsCount &&
                            'updatedAt' in request.resource.data &&
-                           // Only allow updating likesCount and updatedAt
-                           // Note: FieldValue.increment() may not work with diff(), so we check that
-                           // other critical fields are unchanged
+                           // Ensure only critical immutable fields are unchanged (prevents tampering)
                            request.resource.data.ownerId == resource.data.ownerId &&
                            request.resource.data.wardrobeId == resource.data.wardrobeId &&
-                           request.resource.data.imageUrl == resource.data.imageUrl &&
-                           request.resource.data.likesCount is int;
+                           request.resource.data.imageUrl == resource.data.imageUrl;
           
           // Allow authenticated users to update commentsCount when adding/deleting comments
-          // This allows any authenticated user who can read the cloth to update commentsCount
+          // Simplified: If user can read the cloth, they can update commentsCount
+          // This allows friends and anyone with access to comment on clothes
+          // Note: We don't check likesCount/commentsCount equality since FieldValue.increment() changes them
           allow update: if isAuthenticated() &&
                            canReadCloth(resource.data) &&
-                           request.resource.data.likesCount == resource.data.likesCount &&
                            'updatedAt' in request.resource.data &&
-                           // Only allow updating commentsCount and updatedAt
-                           // Note: FieldValue.increment() may not work with diff(), so we check that
-                           // other critical fields are unchanged
+                           // Ensure only critical immutable fields are unchanged (prevents tampering)
                            request.resource.data.ownerId == resource.data.ownerId &&
                            request.resource.data.wardrobeId == resource.data.wardrobeId &&
-                           request.resource.data.imageUrl == resource.data.imageUrl &&
-                           request.resource.data.commentsCount is int;
+                           request.resource.data.imageUrl == resource.data.imageUrl;
           
           // Allow partial update for wear tracking (wornAt + updatedAt)
           // Ensure system fields (likes/comments) are unchanged
@@ -455,14 +453,18 @@ service cloud.firestore {
             
             // Others can create likes if they can read the cloth
             // This is the main security check - users can only like clothes they can read
-            // Check top-level collection (works for both owner and shared clothes)
+            // Check both subcollection and top-level collection paths
             allow create: if isAuthenticated() &&
                            likeId == request.auth.uid &&
                            request.resource.data.keys().hasAll(['userId', 'createdAt']) &&
                            request.resource.data.userId == request.auth.uid &&
                            request.resource.data.createdAt is timestamp &&
-                           exists(/databases/$(database)/documents/clothes/$(clothId)) &&
-                           canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data);
+                           // Check if cloth exists in subcollection (current path) and is readable
+                           ((exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
+                             canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data)) ||
+                            // Or check if cloth exists in top-level collection and is readable
+                            (exists(/databases/$(database)/documents/clothes/$(clothId)) &&
+                             canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data)));
             
             // Users can delete their own likes
             allow delete: if isAuthenticated() && likeId == request.auth.uid;
@@ -487,14 +489,17 @@ service cloud.firestore {
                       );
             
             // Others can create comments if they can read the cloth
+            // Check both subcollection and top-level collection paths
             allow create: if isAuthenticated() && 
                            request.resource.data.keys().hasAll(['userId', 'text', 'createdAt']) &&
                            request.resource.data.userId == request.auth.uid &&
                            request.resource.data.text is string &&
                            request.resource.data.text.size() > 0 &&
                            request.resource.data.createdAt is timestamp &&
+                           // Check if cloth exists in subcollection and is readable
                            ((exists(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)) &&
                              canReadCloth(get(/databases/$(database)/documents/users/$(userId)/wardrobes/$(wardrobeId)/clothes/$(clothId)).data)) ||
+                            // Or check if cloth exists in top-level collection and is readable
                             (exists(/databases/$(database)/documents/clothes/$(clothId)) &&
                              canReadCloth(get(/databases/$(database)/documents/clothes/$(clothId)).data)));
             
@@ -527,6 +532,7 @@ service cloud.firestore {
       // Chats subcollection: users/{userId}/chats/{chatId}
       match /chats/{chatId} {
         // Allow list queries for the owner (needed for chat list)
+        // Note: Individual document access is still controlled by get rule
         allow list: if isOwner(userId);
         
         // Allow read if user is a participant
@@ -554,8 +560,10 @@ service cloud.firestore {
         // Messages subcollection: chats/{chatId}/messages/{messageId}
         match /messages/{messageId} {
           // Allow list queries for participants (needed for loading messages)
+          // Check if chat exists and user is a participant
           allow list: if isAuthenticated() && 
-                         request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants;
+                         (exists(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.participants);
           
           // Allow read if user is a participant in parent chat
           allow read: if isAuthenticated() && 
@@ -590,6 +598,7 @@ service cloud.firestore {
     match /friendRequests/{requestId} {
       // Allow list queries (for querying by toUserId/fromUserId)
       // User can query for requests where they are sender or receiver
+      // Note: The where clauses in the query will filter results, but we need to allow the query itself
       allow list: if isAuthenticated();
       
       // Allow read if user is sender or receiver

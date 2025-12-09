@@ -9,11 +9,12 @@ import '../../providers/filter_provider.dart';
 import '../../models/cloth.dart';
 import '../../widgets/cloth_card.dart';
 import '../wardrobe/wardrobe_list_screen.dart';
+import '../filter/filter_selection_screen.dart';
 import '../cloth/add_cloth_screen.dart';
 import '../cloth/edit_cloth_screen.dart';
 import '../cloth/comment_screen.dart';
+import '../cloth/worn_history_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../profile/profile_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../models/wardrobe.dart';
@@ -34,11 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _hasInitialLoad = false;
   int _lastNavigationIndex = -1;
   
-  // Filter state
-  String? _filterType;
-  String? _filterOccasion;
-  String? _filterSeason;
-  String? _filterColor;
+  // Search state
   String? _searchQuery;
   final TextEditingController _searchController = TextEditingController();
   bool _showSearchBar = false;
@@ -64,23 +61,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _clearFilters() {
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
     filterProvider.clearFilters();
-    setState(() {
-      _filterType = null;
-      _filterOccasion = null;
-      _filterSeason = null;
-      _filterColor = null;
-    });
   }
 
   String _getFilterLabel() {
     final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+    
     if (wardrobeProvider.selectedWardrobe != null) {
       return wardrobeProvider.selectedWardrobe!.name;
     }
-    if (_filterType != null) return _filterType!;
-    if (_filterOccasion != null) return _filterOccasion!;
-    if (_filterSeason != null) return _filterSeason!;
-    if (_filterColor != null) return _filterColor!;
+    
+    // Count total active filters
+    final totalFilters = filterProvider.filterTypes.length +
+        filterProvider.filterOccasions.length +
+        filterProvider.filterSeasons.length +
+        filterProvider.filterColors.length;
+    
+    if (totalFilters > 0) {
+      return '$totalFilters filter${totalFilters > 1 ? 's' : ''}';
+    }
+    
     return '';
   }
 
@@ -411,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to update worn status'),
         ),
       );
@@ -534,11 +534,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final navigationProvider = Provider.of<NavigationProvider>(context);
     final filterProvider = Provider.of<FilterProvider>(context);
     
-    // Sync filter state from provider
-    _filterType = filterProvider.filterType;
-    _filterOccasion = filterProvider.filterOccasion;
-    _filterSeason = filterProvider.filterSeason;
-    _filterColor = filterProvider.filterColor;
+    // Get multiple filter values from provider
+    final filterTypes = filterProvider.filterTypes;
+    final filterOccasions = filterProvider.filterOccasions;
+    final filterSeasons = filterProvider.filterSeasons;
+    final filterColors = filterProvider.filterColors;
 
     // Refresh counts when navigating back to home screen (index 0)
     if (_hasInitialLoad &&
@@ -562,31 +562,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           .toList();
     }
 
-    // Filter by type
-    if (_filterType != null) {
+    // Filter by type (multiple selections)
+    if (filterTypes.isNotEmpty) {
       filteredClothes = filteredClothes
-          .where((c) => c.clothType == _filterType)
+          .where((c) => filterTypes.contains(c.clothType))
           .toList();
     }
 
-    // Filter by occasion
-    if (_filterOccasion != null) {
+    // Filter by occasion (multiple selections)
+    if (filterOccasions.isNotEmpty) {
       filteredClothes = filteredClothes
-          .where((c) => c.occasions.contains(_filterOccasion))
+          .where((c) => c.occasions.any((occ) => filterOccasions.contains(occ)))
           .toList();
     }
 
-    // Filter by season
-    if (_filterSeason != null) {
+    // Filter by season (multiple selections)
+    if (filterSeasons.isNotEmpty) {
       filteredClothes = filteredClothes
-          .where((c) => c.season == _filterSeason)
+          .where((c) => filterSeasons.contains(c.season))
           .toList();
     }
 
-    // Filter by color
-    if (_filterColor != null) {
+    // Filter by color (multiple selections)
+    if (filterColors.isNotEmpty) {
       filteredClothes = filteredClothes
-          .where((c) => c.colorTags.colors.contains(_filterColor))
+          .where((c) => c.colorTags.colors.any((color) => filterColors.contains(color)))
           .toList();
     }
 
@@ -725,6 +725,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       onMarkWorn: isOwner
                                           ? () => _handleToggleWorn(cloth)
                                           : null,
+                                      onWornHistory: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => WornHistoryScreen(cloth: cloth),
+                                          ),
+                                        );
+                                      },
                                       onEdit: isOwner
                                           ? () {
                                               Navigator.push(
@@ -824,32 +832,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     // Don't show back button on home screen (it's part of MainNavigation)
                     // Only show spacer to maintain layout
                     const SizedBox(width: 48),
-                    // Search button
-                    IconButton(
-                      icon: Icon(
-                        _showSearchBar ? Icons.close : Icons.search,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showSearchBar = !_showSearchBar;
-                          if (!_showSearchBar) {
-                            _searchQuery = null;
-                            _searchController.clear();
-                          }
-                        });
-                      },
-                    ),
-                    // Wardrobe filter button
+                    // Filter button
                     GestureDetector(
                       onTap: () async {
-                        // Navigate to wardrobe list screen
+                        // Navigate to filter selection screen
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const WardrobeListScreen()),
+                              builder: (_) => const FilterSelectionScreen()),
                         );
-                        // Reload clothes after returning (wardrobe might have been selected)
+                        // Reload clothes after returning (filters might have been applied)
                         if (mounted) {
                           await _loadClothes();
                         }
@@ -858,11 +850,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: wardrobeProvider.selectedWardrobe != null ||
-                                  _filterType != null ||
-                                  _filterOccasion != null ||
-                                  _filterSeason != null ||
-                                  _filterColor != null
+                          color: filterProvider.hasActiveFilter ||
+                                  wardrobeProvider.selectedWardrobe != null
                               ? Colors.purple.withValues(alpha: 0.8)
                               : Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -872,11 +861,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             const Icon(Icons.filter_list,
                                 color: Colors.white, size: 20),
-                            if (wardrobeProvider.selectedWardrobe != null ||
-                                _filterType != null ||
-                                _filterOccasion != null ||
-                                _filterSeason != null ||
-                                _filterColor != null) ...[
+                            if (filterProvider.hasActiveFilter ||
+                                wardrobeProvider.selectedWardrobe != null) ...[
                               const SizedBox(width: 4),
                               Text(
                                 _getFilterLabel(),
@@ -888,7 +874,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    // Notification and profile buttons
+                    // Notification and search buttons
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -909,19 +895,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.person_outline,
-                              color: Colors.white),
-                          onPressed: () async {
-                            // Navigate to profile screen
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const ProfileScreen()),
-                            );
-                            // Refresh counts when returning from profile screen
-                            if (mounted && _hasInitialLoad) {
-                              await _refreshCountsOnly();
-                            }
+                          icon: Icon(
+                            _showSearchBar ? Icons.close : Icons.search,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showSearchBar = !_showSearchBar;
+                              if (!_showSearchBar) {
+                                _searchQuery = null;
+                                _searchController.clear();
+                              }
+                            });
                           },
                         ),
                       ],
@@ -948,19 +933,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
 
           // If wardrobe selected, use it; otherwise show dialog to select
-          String? wardrobeId = wardrobeProvider.selectedWardrobe?.id;
-          if (wardrobeId == null) {
-            wardrobeId = await showDialog<String>(
-              context: context,
-              builder: (context) => _SelectWardrobeDialog(
-                wardrobes: wardrobeProvider.wardrobes,
-              ),
-            );
-          }
+          final wardrobeId = wardrobeProvider.selectedWardrobe?.id ?? await showDialog<String>(
+            context: context,
+            builder: (context) => _SelectWardrobeDialog(
+              wardrobes: wardrobeProvider.wardrobes,
+            ),
+          );
 
           if (wardrobeId != null) {
             if (!mounted) return;
-            final navigator = Navigator.of(context);
+            if (!mounted) return;
+            final navContext = context;
+            if (!mounted) return;
+            final navigator = Navigator.of(navContext);
             await navigator.push(
               MaterialPageRoute(
                 builder: (_) => AddClothScreen(wardrobeId: wardrobeId!),
