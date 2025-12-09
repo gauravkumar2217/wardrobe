@@ -417,18 +417,20 @@ class ClothService {
         'source': 'manual',
       });
 
-      // Update cloth's wornAt (when worn) and updatedAt (last update time)
+      // Update cloth's wornAt (when worn), placement (OutWardrobe), and updatedAt (last update time)
       await _firestore
           .collection(_clothesPath(userId, wardrobeId))
           .doc(clothId)
           .update({
         'wornAt': Timestamp.fromDate(now),
+        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Also update top-level collection
       await _firestore.collection('clothes').doc(clothId).update({
         'wornAt': Timestamp.fromDate(now),
+        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -523,8 +525,12 @@ class ClothService {
 
     if (wornAt != null) {
       updates['wornAt'] = Timestamp.fromDate(wornAt);
+      // If there's a wornAt date, keep placement as OutWardrobe
+      updates['placement'] = 'OutWardrobe';
     } else {
       updates['wornAt'] = FieldValue.delete();
+      // If no wornAt date, set placement back to InWardrobe
+      updates['placement'] = 'InWardrobe';
     }
 
     await _firestore

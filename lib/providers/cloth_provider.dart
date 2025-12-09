@@ -276,9 +276,12 @@ class ClothProvider with ChangeNotifier {
         newWornAt = now;
       }
 
+      // Update placement based on worn status
+      final newPlacement = newWornAt != null ? 'OutWardrobe' : 'InWardrobe';
       _updateClothLocally(
         cloth.id,
         wornAt: newWornAt,
+        placement: newPlacement,
       );
       _errorMessage = null;
       notifyListeners();
@@ -526,6 +529,7 @@ class ClothProvider with ChangeNotifier {
   void _updateClothLocally(
     String clothId, {
     DateTime? wornAt,
+    String? placement,
     int? likesCount,
     int? commentsCount,
   }) {
@@ -534,6 +538,7 @@ class ClothProvider with ChangeNotifier {
 
     final updated = _clothes[index].copyWith(
       wornAt: wornAt ?? _clothes[index].wornAt,
+      placement: placement ?? _clothes[index].placement,
       updatedAt: DateTime.now(),
       likesCount: likesCount ?? _clothes[index].likesCount,
       commentsCount: commentsCount ?? _clothes[index].commentsCount,

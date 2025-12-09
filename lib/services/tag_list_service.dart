@@ -94,6 +94,7 @@ class TagListService {
       ],
       placements: [
         'InWardrobe',
+        'OutWardrobe',
         'DryCleaning',
         'Repairing',
         'Laundry',
