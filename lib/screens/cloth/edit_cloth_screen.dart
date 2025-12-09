@@ -37,6 +37,11 @@ class _EditClothScreenState extends State<EditClothScreen> {
   List<Wardrobe> _wardrobes = [];
   bool _isLoadingWardrobes = true;
   
+  // Placement details for Laundry, DryCleaning, Repairing
+  final TextEditingController _shopNameController = TextEditingController();
+  DateTime? _givenDate;
+  DateTime? _returnDate;
+  
   bool _isUpdating = false;
   bool _isLoadingTags = true;
 
@@ -48,6 +53,12 @@ class _EditClothScreenState extends State<EditClothScreen> {
     _initializeFields();
   }
 
+  @override
+  void dispose() {
+    _shopNameController.dispose();
+    super.dispose();
+  }
+
   void _initializeFields() {
     _selectedClothType = widget.cloth.clothType;
     _selectedSeason = widget.cloth.season;
@@ -55,6 +66,13 @@ class _EditClothScreenState extends State<EditClothScreen> {
     _selectedCategory = widget.cloth.category;
     _selectedOccasions = List<String>.from(widget.cloth.occasions);
     _selectedWardrobeId = widget.cloth.wardrobeId;
+    
+    // Initialize placement details if they exist
+    if (widget.cloth.placementDetails != null) {
+      _shopNameController.text = widget.cloth.placementDetails!.shopName;
+      _givenDate = widget.cloth.placementDetails!.givenDate;
+      _returnDate = widget.cloth.placementDetails!.returnDate;
+    }
     
     final colorTags = widget.cloth.colorTags;
     _selectedPrimaryColor = colorTags.primary;
@@ -104,6 +122,39 @@ class _EditClothScreenState extends State<EditClothScreen> {
       return;
     }
 
+    // Check if placement requires details
+    final requiresPlacementDetails = _selectedPlacement == 'Laundry' || 
+                                      _selectedPlacement == 'DryCleaning' || 
+                                      _selectedPlacement == 'Repairing';
+    
+    // Validate placement details only if placement requires them
+    if (requiresPlacementDetails) {
+      if (_shopNameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter shop name')),
+        );
+        return;
+      }
+      if (_givenDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select given date')),
+        );
+        return;
+      }
+      if (_returnDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select return date')),
+        );
+        return;
+      }
+      if (_returnDate!.isBefore(_givenDate!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Return date must be after given date')),
+        );
+        return;
+      }
+    }
+
     final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) return;
@@ -126,10 +177,27 @@ class _EditClothScreenState extends State<EditClothScreen> {
         isMultiColor: colors.length > 1,
       );
 
+      // Create placement details only if placement requires them
+      PlacementDetails? placementDetails;
+      if (requiresPlacementDetails &&
+          _shopNameController.text.trim().isNotEmpty &&
+          _givenDate != null &&
+          _returnDate != null) {
+        placementDetails = PlacementDetails(
+          shopName: _shopNameController.text.trim(),
+          givenDate: _givenDate!,
+          returnDate: _returnDate!,
+        );
+      } else {
+        // Clear placement details if not required
+        placementDetails = null;
+      }
+
       final updatedCloth = widget.cloth.copyWith(
         clothType: _selectedClothType,
         season: _selectedSeason,
         placement: _selectedPlacement,
+        placementDetails: placementDetails,
         category: _selectedCategory,
         occasions: _selectedOccasions,
         colorTags: colorTags,
@@ -335,10 +403,115 @@ class _EditClothScreenState extends State<EditClothScreen> {
                 items: tags.placements.map((placement) {
                   return DropdownMenuItem(value: placement, child: Text(placement));
                 }).toList(),
-                onChanged: (value) => setState(() => _selectedPlacement = value),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPlacement = value;
+                    // Clear placement details if placement changes to something other than Laundry, DryCleaning, or Repairing
+                    if (value != 'Laundry' && value != 'DryCleaning' && value != 'Repairing') {
+                      _shopNameController.clear();
+                      _givenDate = null;
+                      _returnDate = null;
+                    }
+                  });
+                },
                 validator: (value) => value == null ? 'Please select placement' : null,
               ),
               const SizedBox(height: 16),
+
+              // Placement Details (for Laundry, DryCleaning, Repairing only)
+              if (_selectedPlacement == 'Laundry' || 
+                  _selectedPlacement == 'DryCleaning' || 
+                  _selectedPlacement == 'Repairing')
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Placement Details *',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    // Shop Name
+                    TextFormField(
+                      controller: _shopNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Shop Name *',
+                        prefixIcon: Icon(Icons.store),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (_selectedPlacement == 'Laundry' || 
+                            _selectedPlacement == 'DryCleaning' || 
+                            _selectedPlacement == 'Repairing') {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter shop name';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Given Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _givenDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _givenDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Given Date *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _givenDate != null
+                              ? '${_givenDate!.day}/${_givenDate!.month}/${_givenDate!.year}'
+                              : 'Select given date',
+                          style: TextStyle(
+                            color: _givenDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Return Date
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _returnDate ?? (_givenDate ?? DateTime.now()).add(const Duration(days: 7)),
+                          firstDate: _givenDate ?? DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _returnDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Return Date *',
+                          prefixIcon: Icon(Icons.event_available),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _returnDate != null
+                              ? '${_returnDate!.day}/${_returnDate!.month}/${_returnDate!.year}'
+                              : 'Select return date',
+                          style: TextStyle(
+                            color: _returnDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
 
               // Occasions Multi-Select
               Column(
