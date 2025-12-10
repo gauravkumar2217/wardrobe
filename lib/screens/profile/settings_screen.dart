@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_provider.dart';
+import '../../providers/scheduler_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
@@ -10,6 +11,7 @@ import 'verify_contact_screen.dart';
 import '../auth/login_screen.dart';
 import '../privacy_policy_screen.dart';
 import '../terms_conditions_screen.dart';
+import '../scheduler/scheduler_list_screen.dart';
 
 /// Settings screen with Account, Notifications, Privacy, About, and Danger Zone
 class SettingsScreen extends StatefulWidget {
@@ -30,18 +32,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
+  /// Helper method to update notification settings
+  void _updateNotificationSettings({
+    bool? friendRequests,
+    bool? friendAccepts,
+    bool? dmMessages,
+    bool? clothLikes,
+    bool? clothComments,
+    bool? suggestions,
+    bool? scheduledNotifications,
+  }) {
+    if (_notificationSettings == null) return;
+    
+    setState(() {
+      _notificationSettings = NotificationSettings(
+        friendRequests: friendRequests ?? _notificationSettings!.friendRequests,
+        friendAccepts: friendAccepts ?? _notificationSettings!.friendAccepts,
+        dmMessages: dmMessages ?? _notificationSettings!.dmMessages,
+        clothLikes: clothLikes ?? _notificationSettings!.clothLikes,
+        clothComments: clothComments ?? _notificationSettings!.clothComments,
+        suggestions: suggestions ?? _notificationSettings!.suggestions,
+        scheduledNotifications: scheduledNotifications ?? _notificationSettings!.scheduledNotifications,
+        quietHoursStart: _notificationSettings!.quietHoursStart,
+        quietHoursEnd: _notificationSettings!.quietHoursEnd,
+      );
+    });
+    _saveNotificationSettings();
+  }
+
   Future<void> _loadSettings() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.userProfile?.settings != null) {
+      final existingNotifications = authProvider.userProfile!.settings!.notifications;
       setState(() {
-        _notificationSettings =
-            authProvider.userProfile!.settings!.notifications;
+        // Recreate NotificationSettings by serializing and deserializing
+        // This ensures all fields (including scheduledNotifications) are properly initialized
+        final json = existingNotifications.toJson();
+        _notificationSettings = NotificationSettings.fromJson(json);
         _privacySettings = authProvider.userProfile!.settings!.privacy;
       });
     } else {
       setState(() {
         _notificationSettings = NotificationSettings();
-        // Set default privacy settings (friends, friends, false)
         _privacySettings = PrivacySettings(
           profileVisibility: 'friends',
           wardrobeVisibility: 'friends',
@@ -266,139 +298,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 16),
                 // Notifications section
                 const _SectionHeader(title: 'Notifications'),
-                if (_notificationSettings != null) ...[
-                  SwitchListTile(
-                    secondary:
-                        const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
-                    title: const Text('Friend Requests'),
-                    value: _notificationSettings!.friendRequests,
-                    onChanged: (value) {
+                // Always show notification toggles - initialize if null
+                SwitchListTile(
+                  secondary: const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
+                  title: const Text('Friend Requests'),
+                  value: _notificationSettings?.friendRequests ?? true,
+                  onChanged: (value) => _updateNotificationSettings(friendRequests: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.check_circle, color: Color(0xFF7C3AED)),
+                  title: const Text('Friend Accepts'),
+                  value: _notificationSettings?.friendAccepts ?? true,
+                  onChanged: (value) => _updateNotificationSettings(friendAccepts: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.chat, color: Color(0xFF7C3AED)),
+                  title: const Text('DM Messages'),
+                  value: _notificationSettings?.dmMessages ?? true,
+                  onChanged: (value) => _updateNotificationSettings(dmMessages: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.favorite, color: Color(0xFF7C3AED)),
+                  title: const Text('Cloth Likes'),
+                  value: _notificationSettings?.clothLikes ?? true,
+                  onChanged: (value) => _updateNotificationSettings(clothLikes: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.comment, color: Color(0xFF7C3AED)),
+                  title: const Text('Cloth Comments'),
+                  value: _notificationSettings?.clothComments ?? true,
+                  onChanged: (value) => _updateNotificationSettings(clothComments: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.lightbulb, color: Color(0xFF7C3AED)),
+                  title: const Text('Suggestions'),
+                  value: _notificationSettings?.suggestions ?? true,
+                  onChanged: (value) => _updateNotificationSettings(suggestions: value),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.schedule, color: Color(0xFF7C3AED)),
+                  title: const Text('Scheduled Notifications'),
+                  subtitle: const Text('Daily reminders and scheduled alerts'),
+                  value: _notificationSettings?.scheduledNotifications ?? true,
+                  onChanged: (value) async {
+                    // Initialize if null
+                    if (_notificationSettings == null) {
                       setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: value,
-                          friendAccepts: _notificationSettings!.friendAccepts,
-                          dmMessages: _notificationSettings!.dmMessages,
-                          clothLikes: _notificationSettings!.clothLikes,
-                          clothComments: _notificationSettings!.clothComments,
-                          suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
+                        _notificationSettings = NotificationSettings();
                       });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.check_circle,
-                        color: Color(0xFF7C3AED)),
-                    title: const Text('Friend Accepts'),
-                    value: _notificationSettings!.friendAccepts,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: _notificationSettings!.friendRequests,
-                          friendAccepts: value,
-                          dmMessages: _notificationSettings!.dmMessages,
-                          clothLikes: _notificationSettings!.clothLikes,
-                          clothComments: _notificationSettings!.clothComments,
-                          suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
-                      });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.chat, color: Color(0xFF7C3AED)),
-                    title: const Text('DM Messages'),
-                    value: _notificationSettings!.dmMessages,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: _notificationSettings!.friendRequests,
-                          friendAccepts: _notificationSettings!.friendAccepts,
-                          dmMessages: value,
-                          clothLikes: _notificationSettings!.clothLikes,
-                          clothComments: _notificationSettings!.clothComments,
-                          suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
-                      });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary:
-                        const Icon(Icons.favorite, color: Color(0xFF7C3AED)),
-                    title: const Text('Cloth Likes'),
-                    value: _notificationSettings!.clothLikes,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: _notificationSettings!.friendRequests,
-                          friendAccepts: _notificationSettings!.friendAccepts,
-                          dmMessages: _notificationSettings!.dmMessages,
-                          clothLikes: value,
-                          clothComments: _notificationSettings!.clothComments,
-                          suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
-                      });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary:
-                        const Icon(Icons.comment, color: Color(0xFF7C3AED)),
-                    title: const Text('Cloth Comments'),
-                    value: _notificationSettings!.clothComments,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: _notificationSettings!.friendRequests,
-                          friendAccepts: _notificationSettings!.friendAccepts,
-                          dmMessages: _notificationSettings!.dmMessages,
-                          clothLikes: _notificationSettings!.clothLikes,
-                          clothComments: value,
-                          suggestions: _notificationSettings!.suggestions,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
-                      });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary:
-                        const Icon(Icons.lightbulb, color: Color(0xFF7C3AED)),
-                    title: const Text('Suggestions'),
-                    value: _notificationSettings!.suggestions,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationSettings = NotificationSettings(
-                          friendRequests: _notificationSettings!.friendRequests,
-                          friendAccepts: _notificationSettings!.friendAccepts,
-                          dmMessages: _notificationSettings!.dmMessages,
-                          clothLikes: _notificationSettings!.clothLikes,
-                          clothComments: _notificationSettings!.clothComments,
-                          suggestions: value,
-                          quietHoursStart:
-                              _notificationSettings!.quietHoursStart,
-                          quietHoursEnd: _notificationSettings!.quietHoursEnd,
-                        );
-                      });
-                      _saveNotificationSettings();
-                    },
-                  ),
-                ],
+                    }
+                    _updateNotificationSettings(scheduledNotifications: value);
+                    
+                    // Update scheduler provider
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+                    if (authProvider.user != null) {
+                      await schedulerProvider.setScheduledNotificationsEnabled(
+                        authProvider.user!.uid,
+                        value,
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.schedule, color: Color(0xFF7C3AED)),
+                  title: const Text('Manage Schedules'),
+                  subtitle: const Text('Create and edit notification schedules'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SchedulerListScreen(),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
                 // Privacy section - Hidden as per requirements (defaults are set automatically)
                 // Privacy settings are set to defaults:
