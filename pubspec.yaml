@@ -63,6 +63,10 @@ dependencies:
   sqflite: ^2.3.0
   connectivity_plus: ^5.0.0
   
+  # App Updates
+  upgrader: ^12.3.0
+  package_info_plus: ^8.0.0
+  
   # Payments (Phase 6)
   # in_app_purchase: ^3.1.11
 

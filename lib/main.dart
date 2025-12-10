@@ -20,6 +20,7 @@ import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
 import 'services/ai_detection_service.dart';
 import 'services/local_notification_service.dart';
+import 'services/update_service.dart';
 
 // Global navigator key for navigation from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -198,18 +199,20 @@ class WardrobeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
         ChangeNotifierProvider(create: (_) => SchedulerProvider()),
       ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'Wardrobe',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF7C3AED),
-            brightness: Brightness.light,
+      child: UpdateService.buildUpgrader(
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Wardrobe',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF7C3AED),
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
           ),
-          useMaterial3: true,
+          home: const SplashScreen(),
         ),
-        home: const SplashScreen(),
       ),
     );
   }

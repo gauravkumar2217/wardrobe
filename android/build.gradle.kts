@@ -12,8 +12,8 @@ buildscript {
         classpath("com.google.gms:google-services:4.4.2")
         // ✅ Kotlin Gradle plugin (latest stable compatible with AGP 8.5+)
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
-        // ✅ Android Gradle Plugin (ensure this matches your Gradle version)
-        classpath("com.android.tools.build:gradle:8.5.2")
+        // ✅ Android Gradle Plugin (updated to meet dependency requirements)
+        classpath("com.android.tools.build:gradle:8.9.1")
     }
 }
 
