@@ -17,6 +17,7 @@ import 'providers/filter_provider.dart';
 import 'providers/onboarding_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
+import 'services/ai_detection_service.dart';
 
 // Global navigator key for navigation from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -36,6 +37,10 @@ void main() async {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
     debugPrint('✅ Firebase initialized successfully');
+
+    // Initialize AI detection service
+    await AiDetectionService.initialize();
+    debugPrint('✅ AI Detection Service initialized');
   } catch (e) {
     debugPrint('❌ Firebase initialization failed: $e');
   }
