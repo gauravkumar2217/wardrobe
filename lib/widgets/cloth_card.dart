@@ -280,7 +280,7 @@ class _ClothCardState extends State<ClothCard> {
                             icon: isWornToday
                                 ? Icons.check_circle
                                 : Icons.check_circle_outline,
-                            label: isWornToday ? 'Worn Today' : 'Worn',
+                            label: isWornToday ? 'Worn' : 'Worn',
                             color:
                                 isWornToday ? Colors.greenAccent : Colors.white,
                             onTap: widget.onMarkWorn,
@@ -519,7 +519,7 @@ class _ActionButton extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 22),
+          Icon(icon, color: color, size: 30),
           const SizedBox(height: 2),
           Text(
             label,
