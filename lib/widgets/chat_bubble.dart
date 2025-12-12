@@ -407,7 +407,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
               ),
               // Cloth details
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -420,7 +420,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                           size: 16,
                           color: Colors.grey[700],
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             cloth.clothType,
@@ -435,7 +435,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     // Season
                     Row(
                       children: [
@@ -531,7 +531,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
 
   Widget _buildSimpleCard(String text, {bool showLoader = false}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(12),

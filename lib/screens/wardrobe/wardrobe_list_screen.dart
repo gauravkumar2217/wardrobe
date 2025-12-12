@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/navigation_provider.dart';
+import '../../providers/filter_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import '../../services/wardrobe_service.dart';
 import '../../models/wardrobe.dart';
@@ -41,6 +43,25 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     }
   }
 
+  void _navigateToHomeWithWardrobe(Wardrobe wardrobe) {
+    // Set selected wardrobe in provider
+    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    wardrobeProvider.setSelectedWardrobe(wardrobe);
+    
+    // Clear any other filters
+    final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+    filterProvider.clearFilters();
+    
+    // Navigate to home screen
+    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+    navigationProvider.navigateToHome();
+    
+    // Pop wardrobe list screen if it was pushed (i.e., not from main navigation tab)
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -77,7 +98,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   Text(
                     'Loading wardrobes...',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
                     ),
@@ -90,13 +111,13 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
                       const SizedBox(height: 16),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           wardrobeProvider.errorMessage!,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -139,7 +160,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               ),
                               child: const Icon(
                                 Icons.inventory_2_rounded,
-                                size: 64,
+                                size: 48,
                                 color: Color(0xFF7C3AED),
                               ),
                             ),
@@ -147,7 +168,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                             const Text(
                               'No Wardrobes Yet',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1A1A1A),
                               ),
@@ -156,7 +177,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                             Text(
                               'Create your first wardrobe to organize\nyour clothes and keep them organized!',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 color: Colors.grey[600],
                                 height: 1.5,
                               ),
@@ -200,12 +221,12 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.add_rounded,
-                                            color: Colors.white, size: 24),
+                                            color: Colors.white, size: 20),
                                         SizedBox(width: 12),
                                         Text(
                                           'Create Your First Wardrobe',
                                           style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.white,
                                           ),
@@ -250,7 +271,10 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                 // In selection mode, set selected wardrobe and pop back
                                 wardrobeProvider.setSelectedWardrobe(wardrobe);
                                 Navigator.of(context).pop();
-                              } : null, // No action in normal mode - just view wardrobes
+                              } : () {
+                                // In normal mode, navigate to home screen with wardrobe filter
+                                _navigateToHomeWithWardrobe(wardrobe);
+                              },
                               // Only show edit/delete buttons if not in selection mode
                               onEdit: widget.selectionMode ? null : () {
                                 _editWardrobe(wardrobe, authProvider.user!.uid);
@@ -313,14 +337,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                     child: const Icon(
                       Icons.warning_rounded,
                       color: Colors.orange,
-                      size: 32,
+                      size: 28,
                     ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
                     'Cannot Delete Wardrobe',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
                     ),
@@ -331,7 +355,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                     'You need to arrange your clothes in the right place before removing the wardrobe.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       color: Colors.grey[600],
                       height: 1.5,
                     ),
@@ -362,7 +386,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               'OK',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -430,14 +454,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 child: const Icon(
                   Icons.delete_rounded,
                   color: Colors.red,
-                  size: 32,
+                  size: 28,
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
                 'Delete Wardrobe?',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1A1A1A),
                 ),
@@ -447,7 +471,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 'Are you sure you want to delete this wardrobe?\nThis action cannot be undone.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   color: Colors.grey[600],
                   height: 1.5,
                 ),
@@ -465,14 +489,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                           side: BorderSide(color: Colors.grey[300]!),
                         ),
                       ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
                         ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -500,7 +524,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               'Delete',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -660,7 +684,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -683,8 +707,8 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                 Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
@@ -694,20 +718,20 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                             Color(0xFF9F7AEA),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.edit_rounded,
                         color: Colors.white,
-                        size: 20,
+                        size: 16,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
                         'Edit Wardrobe',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1A1A1A),
                         ),
@@ -716,7 +740,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
+                      icon: const Icon(Icons.close_rounded, size: 16),
                       onPressed: _isLoading ? null : () => Navigator.pop(context),
                       color: Colors.grey[600],
                       padding: EdgeInsets.zero,
@@ -724,11 +748,11 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 // Name field
                 TextFormField(
                   controller: _nameController,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Wardrobe Name',
                     labelStyle: TextStyle(color: Colors.grey[600]),
@@ -766,11 +790,11 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 // Location field
                 TextFormField(
                   controller: _locationController,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Location',
                     labelStyle: TextStyle(color: Colors.grey[600]),
@@ -808,7 +832,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 16),
                 // Action buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -818,12 +842,12 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                         onPressed: _isLoading ? null : () => Navigator.pop(context),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
+                              horizontal: 16, vertical: 10),
                         ),
                         child: Text(
                           'Cancel',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[700],
                           ),
@@ -858,11 +882,11 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
+                                  horizontal: 16, vertical: 10),
                               child: _isLoading
                                   ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
+                                      height: 18,
+                                      width: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
                                         color: Colors.white,
@@ -873,13 +897,13 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.check_rounded,
-                                            color: Colors.white, size: 18),
-                                        SizedBox(width: 6),
+                                            color: Colors.white, size: 14),
+                                        SizedBox(width: 4),
                                         Flexible(
                                           child: Text(
                                             'Save',
                                             style: TextStyle(
-                                              fontSize: 15,
+                                              fontSize: 12,
                                               fontWeight: FontWeight.bold,
                                               color: Colors.white,
                                             ),
