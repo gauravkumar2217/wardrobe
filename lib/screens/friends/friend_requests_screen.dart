@@ -206,21 +206,22 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 32),
                             child: Text(
                               friendProvider.errorMessage!,
-                              style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              style: const TextStyle(fontSize: 14, color: Colors.grey),
                               textAlign: TextAlign.center,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           ElevatedButton.icon(
                             onPressed: () {
                               friendProvider.clearError();
                               _loadFriendRequests();
                             },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Retry', style: TextStyle(fontSize: 14)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF7C3AED),
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             ),
                           ),
                         ],
@@ -231,11 +232,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-                              SizedBox(height: 16),
+                              Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                              SizedBox(height: 12),
                               Text(
                                 'No incoming requests',
-                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
                               ),
                               SizedBox(height: 8),
                               Text(
@@ -309,11 +310,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send_outlined, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
+                          Icon(Icons.send_outlined, size: 48, color: Colors.grey),
+                          SizedBox(height: 12),
                           Text(
                             'No outgoing requests',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                           SizedBox(height: 8),
                           Text(

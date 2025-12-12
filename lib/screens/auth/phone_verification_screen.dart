@@ -231,47 +231,47 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 const Icon(
                   Icons.phone_android,
-                  size: 80,
+                  size: 64,
                   color: Color(0xFF7C3AED),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 const Text(
                   'Verify Your Phone Number',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'We sent a verification code to',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   widget.phoneNumber,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF7C3AED),
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 TextFormField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 8,
                   ),
@@ -313,7 +313,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                         )
                       : const Text(
                           'Verify & Complete',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 14),
                         ),
                 ),
                 const SizedBox(height: 16),
@@ -343,7 +343,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                   onPressed: _isLoading ? null : _skipVerification,
                   child: const Text(
                     'Skip for now',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
               ],

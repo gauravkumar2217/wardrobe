@@ -168,7 +168,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                             const Text(
                               'No Wardrobes Yet',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1A1A1A),
                               ),
@@ -312,7 +312,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
             elevation: 0,
             backgroundColor: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -344,7 +344,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   const Text(
                     'Cannot Delete Wardrobe',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
                     ),
@@ -428,8 +428,8 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
         ),
         elevation: 0,
         backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
+          child: Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -445,8 +445,8 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: Colors.red.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
@@ -454,14 +454,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 child: const Icon(
                   Icons.delete_rounded,
                   color: Colors.red,
-                  size: 28,
+                  size: 24,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               const Text(
                 'Delete Wardrobe?',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1A1A1A),
                 ),

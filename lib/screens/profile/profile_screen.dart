@@ -145,18 +145,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: RefreshIndicator(
         onRefresh: _loadStats,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Profile header
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(10),
                   child: Row(
                     children: [
                       CircleAvatar(
-                        radius: 40,
+                        radius: 30,
                         backgroundColor: const Color(0xFF7C3AED),
                         backgroundImage: profile?.photoUrl != null
                             ? NetworkImage(profile!.photoUrl!)
@@ -167,12 +167,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 user?.email?.substring(0, 1).toUpperCase() ?? '?',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 32,
+                                  fontSize: 24,
                                 ),
                               )
                             : null,
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,22 +180,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               profile?.displayName ?? user?.email ?? 'User',
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             if (user?.email != null) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 user!.email!,
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
                               ),
                             ],
                             if (user?.phoneNumber != null) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 user!.phoneNumber!,
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
                               ),
                             ],
                           ],
@@ -205,22 +205,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Stats
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Statistics',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -237,17 +237,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       if (_mostWornCloth != null) ...[
-                        const SizedBox(height: 16),
-                        const Divider(),
                         const SizedBox(height: 8),
+                        const Divider(),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 20),
-                            const SizedBox(width: 8),
+                            const Icon(Icons.star, color: Colors.amber, size: 16),
+                            const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 'Most worn: ${_mostWornCloth!.clothType}',
-                                style: const TextStyle(fontSize: 14),
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ),
                           ],
@@ -257,15 +257,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Quick actions
               Card(
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                      title: const Text('My Wardrobes'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.inventory_2, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('My Wardrobes', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -275,9 +277,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.people, color: Color(0xFF7C3AED)),
-                      title: const Text('Friends'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.people, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('Friends', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -287,9 +291,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
-                      title: const Text('Friend Requests'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.person_add, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('Friend Requests', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -299,9 +305,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.bar_chart, color: Color(0xFF7C3AED)),
-                      title: const Text('Statistics'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.bar_chart, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('Statistics', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
                         final result = await Navigator.push(
                           context,
@@ -323,15 +331,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Account actions
               Card(
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.edit, color: Color(0xFF7C3AED)),
-                      title: const Text('Edit Profile'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.edit, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('Edit Profile', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
                         await Navigator.push(
                           context,
@@ -352,9 +362,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.settings, color: Color(0xFF7C3AED)),
-                      title: const Text('Settings'),
-                      trailing: const Icon(Icons.chevron_right),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.settings, color: Color(0xFF7C3AED), size: 18),
+                      title: const Text('Settings', style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -364,8 +376,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.red),
-                      title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.logout, color: Colors.red, size: 18),
+                      title: const Text('Logout', style: TextStyle(color: Colors.red, fontSize: 13)),
                       onTap: _logout,
                     ),
                   ],
@@ -394,19 +408,19 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFF7C3AED), size: 32),
-        const SizedBox(height: 8),
+        Icon(icon, color: const Color(0xFF7C3AED), size: 24),
+        const SizedBox(height: 6),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: Colors.grey[600],
           ),
         ),

@@ -351,16 +351,16 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
             Text(
               'No friend requests',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 6),
             Text(
               'Search for users to send friend requests',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -378,12 +378,12 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
                 children: [
-                  const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 24),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 18),
+                  const SizedBox(width: 6),
                   Text(
                     'Friend Requests (${friendProvider.incomingRequests.length})',
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF7C3AED),
                     ),
@@ -403,12 +403,12 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                   margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   elevation: 2,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Row(
                       children: [
                         // Avatar
                         CircleAvatar(
-                          radius: 30,
+                          radius: 24,
                           backgroundColor: const Color(0xFF7C3AED),
                           backgroundImage: profile?.photoUrl != null
                               ? NetworkImage(profile!.photoUrl!)
@@ -418,13 +418,13 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                                   profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 20,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 )
                               : null,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         // Name and date
                         Expanded(
                           child: Column(
@@ -433,7 +433,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                               Text(
                                 profile?.displayName ?? 'Unknown User',
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -497,11 +497,11 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            Icon(Icons.search_off, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
             Text(
               'No users found',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             SizedBox(height: 8),
             Text(

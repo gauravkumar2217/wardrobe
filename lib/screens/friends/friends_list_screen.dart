@@ -268,28 +268,29 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
                           friendProvider.errorMessage!,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () {
                           friendProvider.clearError();
                           _loadFriends();
                           _loadFriendRequests();
                         },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7C3AED),
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
@@ -309,12 +310,12 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Row(
                               children: [
-                                const Icon(Icons.inbox, color: Color(0xFF7C3AED)),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 18),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Friend Requests (${friendProvider.incomingRequests.length})',
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF7C3AED),
                                   ),
@@ -385,12 +386,12 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Row(
                               children: [
-                                const Icon(Icons.people, color: Color(0xFF7C3AED)),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.people, color: Color(0xFF7C3AED), size: 18),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Friends (${friendProvider.friends.length})',
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF7C3AED),
                                   ),
@@ -479,16 +480,16 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                                const SizedBox(height: 16),
+                                const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                                const SizedBox(height: 12),
                                 const Text(
                                   'No friends yet',
-                                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                                  style: TextStyle(fontSize: 14, color: Colors.grey),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 const Text(
                                   'Add friends to share your wardrobe!',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: TextStyle(fontSize: 13, color: Colors.grey),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),

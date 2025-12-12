@@ -92,24 +92,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
                       Text(
                         chatProvider.errorMessage!,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        style: const TextStyle(fontSize: 14, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () {
                           chatProvider.clearError();
                           _loadChats();
                         },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7C3AED),
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
@@ -120,16 +121,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
+                          Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey),
+                          SizedBox(height: 12),
                           Text(
                             'No chats yet',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
-                          SizedBox(height: 8),
+                          SizedBox(height: 6),
                           Text(
                             'Start a conversation with a friend!',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
                           ),
                         ],
                       ),

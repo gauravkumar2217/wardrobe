@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isRefreshingCounts = false;
   bool _hasInitialLoad = false;
   int _lastNavigationIndex = -1;
-  
+
   // Search state
   String? _searchQuery;
   final TextEditingController _searchController = TextEditingController();
@@ -64,23 +64,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   String _getFilterLabel() {
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
-    
+
     if (wardrobeProvider.selectedWardrobe != null) {
       return wardrobeProvider.selectedWardrobe!.name;
     }
-    
+
     // Count total active filters
     final totalFilters = filterProvider.filterTypes.length +
         filterProvider.filterOccasions.length +
         filterProvider.filterSeasons.length +
-        filterProvider.filterColors.length;
-    
+        filterProvider.filterColors.length +
+        filterProvider.filterPlacements.length;
+
     if (totalFilters > 0) {
       return '$totalFilters filter${totalFilters > 1 ? 's' : ''}';
     }
-    
+
     return '';
   }
 
@@ -533,12 +535,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final wardrobeProvider = Provider.of<WardrobeProvider>(context);
     final navigationProvider = Provider.of<NavigationProvider>(context);
     final filterProvider = Provider.of<FilterProvider>(context);
-    
+
     // Get multiple filter values from provider
     final filterTypes = filterProvider.filterTypes;
     final filterOccasions = filterProvider.filterOccasions;
     final filterSeasons = filterProvider.filterSeasons;
     final filterColors = filterProvider.filterColors;
+    final filterPlacements = filterProvider.filterPlacements;
 
     // Refresh counts when navigating back to home screen (index 0)
     if (_hasInitialLoad &&
@@ -586,7 +589,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Filter by color (multiple selections)
     if (filterColors.isNotEmpty) {
       filteredClothes = filteredClothes
-          .where((c) => c.colorTags.colors.any((color) => filterColors.contains(color)))
+          .where((c) =>
+              c.colorTags.colors.any((color) => filterColors.contains(color)))
+          .toList();
+    }
+
+    // Filter by placement (multiple selections)
+    if (filterPlacements.isNotEmpty) {
+      filteredClothes = filteredClothes
+          .where((c) => filterPlacements.contains(c.placement))
           .toList();
     }
 
@@ -598,7 +609,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             c.category.toLowerCase().contains(query) ||
             c.season.toLowerCase().contains(query) ||
             c.occasions.any((occ) => occ.toLowerCase().contains(query)) ||
-            c.colorTags.colors.any((color) => color.toLowerCase().contains(query));
+            c.colorTags.colors
+                .any((color) => color.toLowerCase().contains(query));
       }).toList();
     }
 
@@ -622,25 +634,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.error_outline,
-                                  size: 64, color: Colors.red),
-                              const SizedBox(height: 16),
+                                  size: 48, color: Colors.red),
+                              const SizedBox(height: 12),
                               Text(
                                 clothProvider.errorMessage!,
                                 style: const TextStyle(
-                                    color: Colors.white70, fontSize: 16),
+                                    color: Colors.white70, fontSize: 14),
                                 textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 onPressed: () {
                                   clothProvider.clearError();
                                   _loadClothes();
                                 },
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Retry'),
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Retry',
+                                    style: TextStyle(fontSize: 14)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF7C3AED),
                                   foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                 ),
                               ),
                             ],
@@ -652,14 +667,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.checkroom,
-                                      size: 64, color: Colors.white54),
-                                  const SizedBox(height: 16),
+                                      size: 48, color: Colors.white54),
+                                  const SizedBox(height: 12),
                                   Text(
                                     wardrobeProvider.selectedWardrobe != null
                                         ? 'No clothes in this wardrobe'
                                         : 'No clothes found',
                                     style: const TextStyle(
-                                        color: Colors.white54, fontSize: 18),
+                                        color: Colors.white54, fontSize: 14),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -729,7 +744,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => WornHistoryScreen(cloth: cloth),
+                                            builder: (_) =>
+                                                WornHistoryScreen(cloth: cloth),
                                           ),
                                         );
                                       },
@@ -780,11 +796,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Search by type, occasion, season, color...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                      hintStyle:
+                          TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                       prefixIcon: const Icon(Icons.search, color: Colors.white),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.white),
+                              icon:
+                                  const Icon(Icons.clear, color: Colors.white),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {
@@ -933,22 +951,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
 
           // If wardrobe selected, use it; otherwise show dialog to select
-          final wardrobeId = wardrobeProvider.selectedWardrobe?.id ?? await showDialog<String>(
-            context: context,
-            builder: (context) => _SelectWardrobeDialog(
-              wardrobes: wardrobeProvider.wardrobes,
-            ),
-          );
+          final wardrobeId = wardrobeProvider.selectedWardrobe?.id ??
+              await showDialog<String>(
+                context: context,
+                builder: (context) => _SelectWardrobeDialog(
+                  wardrobes: wardrobeProvider.wardrobes,
+                ),
+              );
 
           if (wardrobeId != null) {
             if (!mounted) return;
-            if (!mounted) return;
             final navContext = context;
-            if (!mounted) return;
             final navigator = Navigator.of(navContext);
             await navigator.push(
               MaterialPageRoute(
-                builder: (_) => AddClothScreen(wardrobeId: wardrobeId!),
+                builder: (_) => AddClothScreen(wardrobeId: wardrobeId),
               ),
             );
             if (mounted) {
@@ -989,23 +1006,24 @@ class _ShareDialog extends StatelessWidget {
                     future: UserService.getUserProfile(friendId),
                     builder: (context, snapshot) {
                       final profile = snapshot.data;
-                      final displayName = profile?.displayName ?? 
-                                        (profile?.username != null 
-                                          ? '@${profile!.username}' 
-                                          : 'Friend');
-                      
+                      final displayName = profile?.displayName ??
+                          (profile?.username != null
+                              ? '@${profile!.username}'
+                              : 'Friend');
+
                       return ListTile(
                         leading: profile?.photoUrl != null
                             ? CircleAvatar(
-                                backgroundImage: NetworkImage(profile!.photoUrl!),
+                                backgroundImage:
+                                    NetworkImage(profile!.photoUrl!),
                                 radius: 20,
                               )
                             : CircleAvatar(
                                 backgroundColor: Colors.grey[700],
                                 radius: 20,
                                 child: Text(
-                                  displayName.isNotEmpty 
-                                      ? displayName[0].toUpperCase() 
+                                  displayName.isNotEmpty
+                                      ? displayName[0].toUpperCase()
                                       : 'F',
                                   style: const TextStyle(color: Colors.white),
                                 ),
