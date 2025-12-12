@@ -55,8 +55,22 @@ class _ClothCardState extends State<ClothCard> {
   @override
   void didUpdateWidget(covariant ClothCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.cloth.id != widget.cloth.id ||
-        oldWidget.cloth.wornAt != widget.cloth.wornAt) {
+
+    // Check if wornAt changed (handle null cases properly)
+    final oldWornAt = oldWidget.cloth.wornAt;
+    final newWornAt = widget.cloth.wornAt;
+    final wornAtChanged = (oldWornAt == null) != (newWornAt == null) ||
+        (oldWornAt != null &&
+            newWornAt != null &&
+            !_isSameDay(oldWornAt, newWornAt));
+
+    if (oldWidget.cloth.id != widget.cloth.id || wornAtChanged) {
+      // Update _isWornToday immediately based on widget.cloth.wornAt
+      final now = DateTime.now();
+      setState(() {
+        _isWornToday = widget.cloth.wornAt != null &&
+            _isSameDay(widget.cloth.wornAt!, now);
+      });
       _loadInfo();
     }
   }
@@ -103,10 +117,24 @@ class _ClothCardState extends State<ClothCard> {
         }
       }
     } else if (mounted) {
+      final now = DateTime.now();
       setState(() {
         _isWornToday = widget.cloth.wornAt != null &&
-            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+            _isSameDay(widget.cloth.wornAt!, now);
       });
+    }
+
+    // Always update _isWornToday from widget.cloth.wornAt as a fallback
+    // This ensures it's always in sync even if getWearHistoryInfo fails or is slow
+    if (mounted) {
+      final now = DateTime.now();
+      final isWornFromCloth =
+          widget.cloth.wornAt != null && _isSameDay(widget.cloth.wornAt!, now);
+      if (_isWornToday != isWornFromCloth) {
+        setState(() {
+          _isWornToday = isWornFromCloth;
+        });
+      }
     }
 
     if (mounted) {
@@ -140,10 +168,11 @@ class _ClothCardState extends State<ClothCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isWornToday = widget.isOwner
-        ? _isWornToday
-        : widget.cloth.wornAt != null &&
-            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+    // Always calculate isWornToday from widget.cloth.wornAt to ensure it's always in sync
+    // This ensures the icon updates immediately when wornAt changes
+    final now = DateTime.now();
+    final isWornToday =
+        widget.cloth.wornAt != null && _isSameDay(widget.cloth.wornAt!, now);
 
     return Container(
       width: double.infinity,
