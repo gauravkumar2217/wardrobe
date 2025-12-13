@@ -461,7 +461,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                   leading: const Icon(Icons.info, color: Color(0xFF7C3AED), size: 18),
                   title: const Text('About', style: TextStyle(fontSize: 13)),
-                  subtitle: const Text('Wardrobe App v1.0.0', style: TextStyle(fontSize: 11)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SizedBox(height: 4),
+                      Text('Wardrobe App v1.0.0', style: TextStyle(fontSize: 11)),
+                      SizedBox(height: 8),
+                      Text('Conceptualized By: Rakesh Maheshwari', style: TextStyle(fontSize: 11)),
+                      Text('App Designed By: Dr. Sandhya Kumari Singh', style: TextStyle(fontSize: 11)),
+                      Text('App Developed By: GeniusWebSolution (Gaurav Kumar)', style: TextStyle(fontSize: 11)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 8),
                 // Danger Zone
