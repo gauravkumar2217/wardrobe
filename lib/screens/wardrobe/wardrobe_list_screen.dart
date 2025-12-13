@@ -94,11 +94,11 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   const CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   Text(
                     'Loading wardrobes...',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
                     ),
