@@ -2,8 +2,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:convert';
 import '../models/schedule.dart';
+import '../screens/suggestions/outfit_suggestion_screen.dart';
+import '../utils/navigator_key.dart' show navigatorKey;
 
 /// Local notification service for scheduling notifications
 /// Uses approximate scheduling to avoid exact timer issues with app stores
@@ -21,7 +25,8 @@ class LocalNotificationService {
       tz.initializeTimeZones();
       
       // Android initialization settings
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      // Use launcher_icon which exists in mipmap folders
+      const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
       
       // iOS initialization settings
       const iosSettings = DarwinInitializationSettings(
@@ -90,7 +95,34 @@ class LocalNotificationService {
     if (kDebugMode) {
       debugPrint('Notification tapped: ${response.payload}');
     }
-    // Handle navigation if needed
+    
+    // Handle navigation based on payload
+    if (response.payload != null && response.payload!.isNotEmpty) {
+      try {
+        final payloadData = jsonDecode(response.payload!);
+        if (payloadData is Map<String, dynamic>) {
+          final type = payloadData['type'] as String?;
+          
+          if (type == 'outfit_suggestion') {
+            // Navigate to outfit suggestion screen using global navigator key
+            if (kDebugMode) {
+              debugPrint('Outfit suggestion notification tapped - navigating to suggestion screen');
+            }
+            
+            // Use the global navigator key from main.dart
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => const OutfitSuggestionScreen(),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Error parsing notification payload: $e');
+        }
+      }
+    }
   }
 
   /// Schedule a notification based on schedule configuration
@@ -131,6 +163,7 @@ class LocalNotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
+        // Icon is set during initialization, don't need to set it here
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -275,19 +308,218 @@ class LocalNotificationService {
     }
   }
 
+  /// Check if notification permissions are granted
+  static Future<bool> checkPermissions() async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🔍 CHECKING NOTIFICATION PERMISSIONS');
+    print('═══════════════════════════════════════════════════════');
+    print('⏰ Time: ${DateTime.now().toIso8601String()}');
+    print('📱 Platform: ${defaultTargetPlatform}');
+    print('');
+    
+    try {
+      if (kDebugMode) {
+        debugPrint('🔍 Checking notification permissions...');
+        debugPrint('   Platform: ${defaultTargetPlatform}');
+      }
+      print('🔍 Checking notification permissions...');
+      print('   Platform: ${defaultTargetPlatform}');
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final androidImplementation = _notifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        
+        if (androidImplementation == null) {
+          print('❌ Android implementation not available');
+          if (kDebugMode) {
+            debugPrint('❌ Android implementation not available');
+          }
+          return false;
+        }
+
+        print('📱 Requesting Android notification permission...');
+        if (kDebugMode) {
+          debugPrint('📱 Requesting Android notification permission...');
+        }
+
+        final granted = await androidImplementation.requestNotificationsPermission();
+        print('📱 Permission request completed. Result: $granted');
+        
+        if (kDebugMode) {
+        debugPrint('📱 Android notification permission result: $granted');
+        print('📱 Android notification permission result: $granted');
+        if (granted == null) {
+          debugPrint('⚠️ Permission request returned null - may need manual permission');
+          print('⚠️ Permission request returned null - may need manual permission');
+        } else if (granted == false) {
+          debugPrint('❌ Permission DENIED - User needs to enable in device settings');
+          print('❌ Permission DENIED - User needs to enable in device settings');
+        } else {
+          debugPrint('✅ Permission GRANTED');
+          print('✅ Permission GRANTED');
+        }
+        }
+        
+        return granted ?? false;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final iosImplementation = _notifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>();
+        
+        if (iosImplementation == null) {
+          print('❌ iOS implementation not available');
+          if (kDebugMode) {
+            debugPrint('❌ iOS implementation not available');
+          }
+          return false;
+        }
+
+        print('📱 Requesting iOS notification permission...');
+        if (kDebugMode) {
+          debugPrint('📱 Requesting iOS notification permission...');
+        }
+
+        final granted = await iosImplementation.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        print('📱 Permission request completed. Result: $granted');
+        
+        if (kDebugMode) {
+        debugPrint('📱 iOS notification permission result: $granted');
+        print('📱 iOS notification permission result: $granted');
+        if (granted == null) {
+          debugPrint('⚠️ Permission request returned null');
+          print('⚠️ Permission request returned null');
+        } else if (granted == false) {
+          debugPrint('❌ Permission DENIED - User needs to enable in device settings');
+          print('❌ Permission DENIED - User needs to enable in device settings');
+        } else {
+          debugPrint('✅ Permission GRANTED');
+          print('✅ Permission GRANTED');
+        }
+        }
+        
+        return granted ?? false;
+      }
+      
+      if (kDebugMode) {
+        debugPrint('⚠️ Unknown platform: ${defaultTargetPlatform}');
+      }
+      return false;
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ Error checking permissions: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
+      return false;
+    }
+  }
+
   /// Send an immediate notification (not scheduled)
   /// Used by background workers to send notifications right away
-  static Future<void> sendImmediateNotification({
+  static Future<bool> sendImmediateNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🔔 SENDING IMMEDIATE NOTIFICATION');
+    print('═══════════════════════════════════════════════════════');
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('🔔 SENDING IMMEDIATE NOTIFICATION');
+      debugPrint('═══════════════════════════════════════════════════════');
+    }
+
     if (!_isInitialized) {
+      if (kDebugMode) {
+        debugPrint('⚠️ Service not initialized, initializing now...');
+      }
       await initialize();
+    } else {
+      if (kDebugMode) {
+        debugPrint('✅ Service already initialized');
+      }
     }
 
     try {
+      // Check and request permissions
+      print('🔍 Step 1: Checking permissions...');
+      if (kDebugMode) {
+        debugPrint('🔍 Step 1: Checking permissions...');
+      }
+      final hasPermission = await checkPermissions();
+      print('📊 Permission check result: $hasPermission');
+      
+      if (!hasPermission) {
+      print('❌ Step 1 FAILED: Notification permission not granted');
+      print('   → User needs to enable notifications in device settings');
+      print('   → Android: Settings → Apps → Wardrobe → Notifications');
+      print('   → iOS: Settings → Wardrobe → Notifications');
+      if (kDebugMode) {
+        debugPrint('❌ Step 1 FAILED: Notification permission not granted');
+        debugPrint('   → User needs to enable notifications in device settings');
+        debugPrint('   → Android: Settings → Apps → Wardrobe → Notifications');
+        debugPrint('   → iOS: Settings → Wardrobe → Notifications');
+      }
+      return false;
+      }
+      
+      print('✅ Step 1 PASSED: Permissions granted');
+      if (kDebugMode) {
+        debugPrint('✅ Step 1 PASSED: Permissions granted');
+      }
+
+      // Ensure notification channel exists (Android)
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        print('🔍 Step 2: Creating/verifying Android notification channel...');
+        if (kDebugMode) {
+          debugPrint('🔍 Step 2: Creating/verifying Android notification channel...');
+        }
+        
+        const androidChannel = AndroidNotificationChannel(
+          'scheduled_notifications',
+          'Scheduled Notifications',
+          description: 'Notifications for scheduled wardrobe reminders',
+          importance: Importance.high,
+          playSound: true,
+        );
+
+        final androidImplementation = _notifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        
+        if (androidImplementation != null) {
+          await androidImplementation.createNotificationChannel(androidChannel);
+          print('✅ Step 2 PASSED: Notification channel created/verified');
+          if (kDebugMode) {
+            debugPrint('✅ Step 2 PASSED: Notification channel created/verified');
+          }
+        } else {
+          print('⚠️ Step 2 WARNING: Android implementation not available');
+          if (kDebugMode) {
+            debugPrint('⚠️ Step 2 WARNING: Android implementation not available');
+          }
+        }
+      } else {
+        print('⏭️ Step 2 SKIPPED: Not Android platform');
+        if (kDebugMode) {
+          debugPrint('⏭️ Step 2 SKIPPED: Not Android platform');
+        }
+      }
+
       // Create notification details
+      print('🔍 Step 3: Creating notification details...');
+      if (kDebugMode) {
+        debugPrint('🔍 Step 3: Creating notification details...');
+      }
+      
       final androidDetails = AndroidNotificationDetails(
         'scheduled_notifications',
         'Scheduled Notifications',
@@ -296,6 +528,9 @@ class LocalNotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
+        showWhen: true,
+        when: DateTime.now().millisecondsSinceEpoch,
+        // Icon is set during initialization, don't need to set it here
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -309,10 +544,35 @@ class LocalNotificationService {
         iOS: iosDetails,
       );
 
+      print('✅ Step 3 PASSED: Notification details created');
+      if (kDebugMode) {
+        debugPrint('✅ Step 3 PASSED: Notification details created');
+      }
+
       // Generate a unique notification ID
       final notificationId = DateTime.now().millisecondsSinceEpoch % 2147483647;
 
+      print('🔍 Step 4: Preparing notification...');
+      print('   📋 Notification ID: $notificationId');
+      print('   📋 Title: "$title"');
+      print('   📋 Body: "$body"');
+      print('   📋 Payload: ${payload ?? "none"}');
+      print('   📋 Platform: ${defaultTargetPlatform}');
+      if (kDebugMode) {
+        debugPrint('🔍 Step 4: Preparing notification...');
+        debugPrint('   📋 Notification ID: $notificationId');
+        debugPrint('   📋 Title: "$title"');
+        debugPrint('   📋 Body: "$body"');
+        debugPrint('   📋 Payload: ${payload ?? "none"}');
+        debugPrint('   📋 Platform: ${defaultTargetPlatform}');
+      }
+
       // Show notification immediately
+      print('🔍 Step 5: Calling _notifications.show()...');
+      if (kDebugMode) {
+        debugPrint('🔍 Step 5: Calling _notifications.show()...');
+      }
+      
       await _notifications.show(
         notificationId,
         title,
@@ -321,14 +581,60 @@ class LocalNotificationService {
         payload: payload,
       );
 
+      print('✅ Step 5 PASSED: show() completed without errors');
+      print('✅ SUCCESS: Notification should appear on device');
+      print('═══════════════════════════════════════════════════════');
+      print('');
       if (kDebugMode) {
-        debugPrint('✅ Sent immediate notification: $title');
+        debugPrint('✅ Step 5 PASSED: show() completed without errors');
+        debugPrint('✅ SUCCESS: Notification should appear on device');
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('');
       }
-    } catch (e) {
+
+      return true;
+    } catch (e, stackTrace) {
+      print('❌ ERROR: Failed to send immediate notification');
+      print('   Error: $e');
+      print('   Stack trace:');
+      print('   $stackTrace');
+      print('═══════════════════════════════════════════════════════');
+      print('');
       if (kDebugMode) {
-        debugPrint('❌ Failed to send immediate notification: $e');
+        debugPrint('❌ ERROR: Failed to send immediate notification');
+        debugPrint('   Error: $e');
+        debugPrint('   Stack trace:');
+        debugPrint('   $stackTrace');
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('');
       }
+      return false;
     }
+  }
+
+  /// Send a test notification to verify permissions and setup
+  static Future<bool> sendTestNotification() async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🧪 SEND TEST NOTIFICATION CALLED');
+    print('═══════════════════════════════════════════════════════');
+    print('⏰ Time: ${DateTime.now().toIso8601String()}');
+    print('');
+    
+    final result = await sendImmediateNotification(
+      title: 'Test Notification',
+      body: 'If you see this, notifications are working!',
+      payload: 'test',
+    );
+    
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🧪 TEST NOTIFICATION COMPLETE');
+    print('   Result: $result');
+    print('═══════════════════════════════════════════════════════');
+    print('');
+    
+    return result;
   }
 }
 

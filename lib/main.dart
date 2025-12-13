@@ -23,8 +23,7 @@ import 'services/local_notification_service.dart';
 import 'services/update_service.dart';
 import 'services/schedule_notification_worker.dart';
 
-// Global navigator key for navigation from notifications
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+import 'utils/navigator_key.dart' show navigatorKey;
 
 // Background message handler for FCM
 @pragma('vm:entry-point')
