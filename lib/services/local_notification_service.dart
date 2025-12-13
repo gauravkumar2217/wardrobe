@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import '../models/schedule.dart';
 import '../screens/suggestions/outfit_suggestion_screen.dart';
 import '../utils/navigator_key.dart' show navigatorKey;
@@ -154,7 +156,7 @@ class LocalNotificationService {
       final variance = random.nextInt(5) - 2; // -2 to +2 minutes
       final scheduledTime = nextTime.add(Duration(minutes: variance));
 
-      // Create notification details
+      // Create notification details with modern styling
       final androidDetails = AndroidNotificationDetails(
         'scheduled_notifications',
         'Scheduled Notifications',
@@ -163,7 +165,11 @@ class LocalNotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
-        // Icon is set during initialization, don't need to set it here
+        color: const Color(0xFF7C3AED), // Purple theme color
+        colorized: true, // Use color for notification background
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+        icon: '@mipmap/launcher_icon',
+        showWhen: true,
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -419,12 +425,30 @@ class LocalNotificationService {
     }
   }
 
+  /// Download image from URL and convert to Uint8List for notification
+  static Future<Uint8List?> _downloadImage(String imageUrl) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to download image: $e');
+      }
+      return null;
+    }
+  }
+
   /// Send an immediate notification (not scheduled)
   /// Used by background workers to send notifications right away
+  /// [imageUrl] - Optional cloth image URL to display in notification
   static Future<bool> sendImmediateNotification({
     required String title,
     required String body,
     String? payload,
+    String? imageUrl,
   }) async {
     print('');
     print('═══════════════════════════════════════════════════════');
@@ -514,10 +538,51 @@ class LocalNotificationService {
         }
       }
 
+      // Download image if provided
+      Uint8List? imageData;
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        print('🔍 Step 3a: Downloading cloth image...');
+        if (kDebugMode) {
+          debugPrint('🔍 Step 3a: Downloading cloth image from: $imageUrl');
+        }
+        imageData = await _downloadImage(imageUrl);
+        if (imageData != null) {
+          print('✅ Step 3a PASSED: Image downloaded successfully');
+          if (kDebugMode) {
+            debugPrint('✅ Step 3a PASSED: Image downloaded successfully');
+          }
+        } else {
+          print('⚠️ Step 3a WARNING: Failed to download image, using default');
+          if (kDebugMode) {
+            debugPrint('⚠️ Step 3a WARNING: Failed to download image, using default');
+          }
+        }
+      }
+
       // Create notification details
       print('🔍 Step 3: Creating notification details...');
       if (kDebugMode) {
         debugPrint('🔍 Step 3: Creating notification details...');
+      }
+      
+      // Create BigPictureStyle for modern look with cloth image
+      BigPictureStyleInformation? bigPictureStyle;
+      AndroidBitmap<Object>? largeIconBitmap;
+      
+      if (imageData != null) {
+        final imageBitmap = ByteArrayAndroidBitmap(imageData);
+        bigPictureStyle = BigPictureStyleInformation(
+          imageBitmap,
+          largeIcon: imageBitmap,
+          contentTitle: title,
+          summaryText: body,
+          htmlFormatContentTitle: false,
+          htmlFormatSummaryText: false,
+        );
+        largeIconBitmap = imageBitmap;
+      } else {
+        // Use app icon as large icon with white background
+        largeIconBitmap = const DrawableResourceAndroidBitmap('@mipmap/launcher_icon');
       }
       
       final androidDetails = AndroidNotificationDetails(
@@ -530,7 +595,12 @@ class LocalNotificationService {
         enableVibration: true,
         showWhen: true,
         when: DateTime.now().millisecondsSinceEpoch,
-        // Icon is set during initialization, don't need to set it here
+        styleInformation: bigPictureStyle,
+        color: const Color(0xFF7C3AED), // Purple theme color
+        colorized: true, // Use color for notification background
+        largeIcon: largeIconBitmap,
+        // Small icon with white background
+        icon: '@mipmap/launcher_icon',
       );
 
       const iosDetails = DarwinNotificationDetails(

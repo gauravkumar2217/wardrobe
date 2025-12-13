@@ -539,11 +539,25 @@ class ScheduleNotificationWorker {
         debugPrint('   Payload: $payload');
       }
 
+      // Get first cloth image for notification thumbnail
+      String? clothImageUrl;
+      if (filteredClothes.isNotEmpty) {
+        // Use the first unworn cloth, or first cloth if all are worn
+        final unwornCloth = filteredClothes.firstWhere(
+          (c) =>
+              c.wornAt == null ||
+              DateTime.now().difference(c.wornAt!).inDays >= 7,
+          orElse: () => filteredClothes.first,
+        );
+        clothImageUrl = unwornCloth.imageUrl;
+      }
+
       final notificationSent =
           await LocalNotificationService.sendImmediateNotification(
         title: schedule.title,
         body: notificationBody,
         payload: payload,
+        imageUrl: clothImageUrl, // Add cloth thumbnail
       );
 
       if (kDebugMode) {
