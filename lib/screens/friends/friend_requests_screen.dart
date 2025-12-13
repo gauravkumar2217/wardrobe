@@ -250,16 +250,19 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                       : RefreshIndicator(
                       onRefresh: _loadFriendRequests,
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(10),
                         itemCount: friendProvider.incomingRequests.length,
                         itemBuilder: (context, index) {
                           final request = friendProvider.incomingRequests[index];
                           final profile = _userProfiles[request.fromUserId];
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               leading: CircleAvatar(
+                                radius: 20,
                                 backgroundColor: const Color(0xFF7C3AED),
                                 backgroundImage: profile?.photoUrl != null
                                     ? NetworkImage(profile!.photoUrl!)
@@ -267,33 +270,34 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                                 child: profile?.photoUrl == null
                                     ? Text(
                                         profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                        style: const TextStyle(color: Colors.white),
+                                        style: const TextStyle(color: Colors.white, fontSize: 14),
                                       )
                                     : null,
                               ),
                               title: Text(
                                 profile?.displayName ?? 'Unknown User',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               subtitle: Text(
                                 'Sent ${_formatDate(request.createdAt)}',
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   TextButton(
                                     onPressed: () => _rejectRequest(request),
-                                    child: const Text('Reject', style: TextStyle(color: Colors.red)),
+                                    child: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 4),
                                   ElevatedButton(
                                     onPressed: () => _acceptRequest(request),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF7C3AED),
                                       foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     ),
-                                    child: const Text('Accept'),
+                                    child: const Text('Accept', style: TextStyle(fontSize: 12)),
                                   ),
                                 ],
                               ),
@@ -328,16 +332,19 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                   : RefreshIndicator(
                       onRefresh: _loadFriendRequests,
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(10),
                         itemCount: friendProvider.outgoingRequests.length,
                         itemBuilder: (context, index) {
                           final request = friendProvider.outgoingRequests[index];
                           final profile = _userProfiles[request.toUserId];
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               leading: CircleAvatar(
+                                radius: 20,
                                 backgroundColor: const Color(0xFF7C3AED),
                                 backgroundImage: profile?.photoUrl != null
                                     ? NetworkImage(profile!.photoUrl!)
@@ -345,21 +352,21 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                                 child: profile?.photoUrl == null
                                     ? Text(
                                         profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                        style: const TextStyle(color: Colors.white),
+                                        style: const TextStyle(color: Colors.white, fontSize: 14),
                                       )
                                     : null,
                               ),
                               title: Text(
                                 profile?.displayName ?? 'Unknown User',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               subtitle: Text(
                                 'Sent ${_formatDate(request.createdAt)}',
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
                               ),
                               trailing: TextButton(
                                 onPressed: () => _cancelRequest(request),
-                                child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                                child: const Text('Cancel', style: TextStyle(color: Colors.red, fontSize: 12)),
                               ),
                             ),
                           );

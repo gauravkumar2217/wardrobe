@@ -19,9 +19,12 @@ class SearchUsersScreen extends StatefulWidget {
 class _SearchUsersScreenState extends State<SearchUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Map<String, bool> _friendshipStatus = {};
-  final Map<String, String> _requestStatus = {}; // 'none', 'outgoing', 'incoming', 'friends'
-  final Map<String, String?> _requestIds = {}; // Store request IDs for accepting
-  final Map<String, UserProfile?> _requestProfiles = {}; // Profiles for friend requests
+  final Map<String, String> _requestStatus =
+      {}; // 'none', 'outgoing', 'incoming', 'friends'
+  final Map<String, String?> _requestIds =
+      {}; // Store request IDs for accepting
+  final Map<String, UserProfile?> _requestProfiles =
+      {}; // Profiles for friend requests
   bool _isSearching = false;
   bool _hasLoadedRequests = false;
 
@@ -42,7 +45,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
   Future<void> _loadFriendRequests() async {
     if (_hasLoadedRequests) return;
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
@@ -57,7 +60,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
       for (var request in friendProvider.incomingRequests) {
         _loadRequestProfile(request.fromUserId);
       }
-      
+
       if (mounted) {
         setState(() {
           _hasLoadedRequests = true;
@@ -94,7 +97,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
   Future<void> _searchUsers(String query) async {
     if (query.trim().isEmpty) {
-      final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+      final friendProvider =
+          Provider.of<FriendProvider>(context, listen: false);
       friendProvider.clearSearchResults();
       return;
     }
@@ -123,7 +127,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     });
   }
 
-  Future<void> _checkFriendshipAndRequestStatus(String userId, {bool forceRefresh = false}) async {
+  Future<void> _checkFriendshipAndRequestStatus(String userId,
+      {bool forceRefresh = false}) async {
     if (!forceRefresh && _requestStatus.containsKey(userId)) return;
 
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
@@ -174,7 +179,9 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           _checkFriendshipAndRequestStatus(userId);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to send request')),
+            SnackBar(
+                content: Text(
+                    friendProvider.errorMessage ?? 'Failed to send request')),
           );
         }
       }
@@ -191,22 +198,25 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request accepted')),
         );
-        
+
         // Refresh the status to ensure it shows as friends
-        await _checkFriendshipAndRequestStatus(request.fromUserId, forceRefresh: true);
-        
+        await _checkFriendshipAndRequestStatus(request.fromUserId,
+            forceRefresh: true);
+
         if (!mounted) return;
         // Also reload friends list in the provider to ensure sync
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         if (authProvider.user != null) {
           await friendProvider.loadFriends(authProvider.user!.uid);
         }
-        
+
         // Reload friend requests
         await _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
+          SnackBar(
+              content: Text(
+                  friendProvider.errorMessage ?? 'Failed to accept request')),
         );
       }
     }
@@ -228,7 +238,9 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         await _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to reject request')),
+          SnackBar(
+              content: Text(
+                  friendProvider.errorMessage ?? 'Failed to reject request')),
         );
       }
     }
@@ -284,15 +296,17 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             child: TextField(
               controller: _searchController,
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search by name, email, or phone',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(fontSize: 13),
+                prefixIcon: const Icon(Icons.search, size: 18),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear, size: 18),
                         onPressed: () {
                           _searchController.clear();
                           friendProvider.clearSearchResults();
@@ -309,6 +323,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
               onChanged: (value) {
                 setState(() {});
@@ -341,7 +357,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     );
   }
 
-  Widget _buildFriendRequestsView(FriendProvider friendProvider, AuthProvider authProvider) {
+  Widget _buildFriendRequestsView(
+      FriendProvider friendProvider, AuthProvider authProvider) {
     if (!_hasLoadedRequests) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -375,15 +392,15 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           // Header
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
               child: Row(
                 children: [
-                  const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 18),
+                  const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 16),
                   const SizedBox(width: 6),
                   Text(
                     'Friend Requests (${friendProvider.incomingRequests.length})',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF7C3AED),
                     ),
@@ -400,31 +417,34 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                 final profile = _requestProfiles[request.fromUserId];
 
                 return Card(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  elevation: 2,
+                  margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                  elevation: 1,
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     child: Row(
                       children: [
                         // Avatar
                         CircleAvatar(
-                          radius: 24,
+                          radius: 20,
                           backgroundColor: const Color(0xFF7C3AED),
                           backgroundImage: profile?.photoUrl != null
                               ? NetworkImage(profile!.photoUrl!)
                               : null,
                           child: profile?.photoUrl == null
                               ? Text(
-                                  profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
+                                  profile?.displayName
+                                          ?.substring(0, 1)
+                                          .toUpperCase() ??
+                                      '?',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 )
                               : null,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         // Name and date
                         Expanded(
                           child: Column(
@@ -437,11 +457,11 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 'Sent ${_formatDate(request.createdAt)}',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -454,11 +474,14 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                           children: [
                             // Reject button
                             IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
+                              icon: const Icon(Icons.close,
+                                  color: Colors.red, size: 18),
                               onPressed: () => _rejectFriendRequest(request),
                               tooltip: 'Reject',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             // Accept button
                             ElevatedButton(
                               onPressed: () => _acceptFriendRequest(request),
@@ -466,11 +489,12 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                                 backgroundColor: const Color(0xFF7C3AED),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
                               ),
-                              child: const Text('Accept'),
+                              child: const Text('Accept',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ],
                         ),
@@ -487,7 +511,8 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     );
   }
 
-  Widget _buildSearchResults(FriendProvider friendProvider, AuthProvider authProvider) {
+  Widget _buildSearchResults(
+      FriendProvider friendProvider, AuthProvider authProvider) {
     if (_isSearching) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -501,12 +526,12 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
             SizedBox(height: 12),
             Text(
               'No users found',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 6),
             Text(
               'Try searching with a different name, email, or phone',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -515,14 +540,13 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       itemCount: friendProvider.searchResults.length,
       itemBuilder: (context, index) {
         final result = friendProvider.searchResults[index];
         final userId = result['userId'] as String;
         final displayName = result['displayName'] as String?;
         final photoUrl = result['photoUrl'] as String?;
-        final email = result['email'] as String?;
         final isCurrentUser = authProvider.user?.uid == userId;
         final requestStatus = _requestStatus[userId] ?? 'none';
 
@@ -573,44 +597,47 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         }
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 8),
           elevation: 1,
           child: ListTile(
+            dense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             leading: CircleAvatar(
-              radius: 25,
+              radius: 20,
               backgroundColor: const Color(0xFF7C3AED),
-              backgroundImage: photoUrl != null
-                  ? NetworkImage(photoUrl)
-                  : null,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
               child: photoUrl == null
                   ? Text(
                       displayName?.isNotEmpty == true
                           ? displayName!.substring(0, 1).toUpperCase()
                           : '?',
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
                     )
                   : null,
             ),
             title: Text(
               displayName ?? 'Unknown User',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             subtitle: Text(
-              result['username'] != null 
+              result['username'] != null &&
+                      result['username'].toString().isNotEmpty
                   ? '@${result['username']}'
-                  : (email ?? result['phone'] ?? userId.substring(0, 8)),
-              style: TextStyle(color: Colors.grey[600]),
+                  : (result['phone'] ?? userId.substring(0, 8)),
+              style: TextStyle(color: Colors.grey[600], fontSize: 11),
             ),
             trailing: ElevatedButton.icon(
               onPressed: isButtonEnabled ? buttonAction : null,
-              icon: Icon(buttonIcon, size: 18),
-              label: Text(buttonText),
+              icon: Icon(buttonIcon, size: 14),
+              label: Text(buttonText, style: const TextStyle(fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: buttonColor,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.grey[300],
                 disabledForegroundColor: Colors.grey[600],
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               ),
             ),
           ),
@@ -619,4 +646,3 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     );
   }
 }
-
