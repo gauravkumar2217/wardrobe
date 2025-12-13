@@ -144,38 +144,46 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
 
   Future<void> _selectDays() async {
     final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    Set<int> tempSelectedDays = Set<int>.from(_selectedDays);
     final selected = await showDialog<Set<int>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Days'),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(7, (index) {
-                return CheckboxListTile(
-                  title: Text(dayNames[index]),
-                  value: _selectedDays.contains(index),
-                  onChanged: (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedDays.add(index);
-                      } else {
-                        _selectedDays.remove(index);
-                      }
-                    });
-                  },
-                );
-              }),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Select Days', style: TextStyle(fontSize: 14)),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(7, (index) {
+                    return CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(dayNames[index], style: const TextStyle(fontSize: 13)),
+                      value: tempSelectedDays.contains(index),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          if (value == true) {
+                            tempSelectedDays.add(index);
+                          } else {
+                            tempSelectedDays.remove(index);
+                          }
+                        });
+                      },
+                    );
+                  }),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, tempSelectedDays),
+                child: const Text('Done', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (selected != null) {
@@ -294,6 +302,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   // Title
                   TextFormField(
                     controller: _titleController,
+                    style: const TextStyle(fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'Title *',
                       hintText: 'e.g., Office Clothes Reminder',
@@ -312,6 +321,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   // Description
                   TextFormField(
                     controller: _descriptionController,
+                    style: const TextStyle(fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'Description (optional)',
                       hintText: 'Add a note about this schedule',
@@ -326,10 +336,10 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.access_time, color: Color(0xFF7C3AED)),
-                      title: const Text('Time'),
+                      title: const Text('Time', style: TextStyle(fontSize: 13)),
                       subtitle: Text(
                         _selectedTime.format(context),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _selectTime,
@@ -341,10 +351,10 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.calendar_today, color: Color(0xFF7C3AED)),
-                      title: const Text('Days'),
+                      title: const Text('Days', style: TextStyle(fontSize: 13)),
                       subtitle: Text(
                         _getDaysText(),
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 13),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _selectDays,
@@ -356,8 +366,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   Card(
                     child: SwitchListTile(
                       secondary: const Icon(Icons.notifications_active, color: Color(0xFF7C3AED)),
-                      title: const Text('Enable Schedule'),
-                      subtitle: const Text('Turn on/off this schedule'),
+                      title: const Text('Enable Schedule', style: TextStyle(fontSize: 13)),
+                      subtitle: const Text('Turn on/off this schedule', style: TextStyle(fontSize: 11)),
                       value: _isEnabled,
                       onChanged: (value) {
                         setState(() {
@@ -372,7 +382,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   const Text(
                     'Filter Settings',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -380,7 +390,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   const Text(
                     'Select filters to apply when this notification triggers',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 11,
                       color: Colors.grey,
                     ),
                   ),
@@ -475,12 +485,12 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                     onPressed: _isLoading ? null : _saveSchedule,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7C3AED),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                            height: 18,
+                            width: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -489,7 +499,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                         : const Text(
                             'Save Schedule',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -529,7 +539,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
             const Text(
               'Wardrobe',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -537,9 +547,9 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
             ..._wardrobes.map((wardrobe) {
               final isSelected = _selectedWardrobeId == wardrobe.id;
               return RadioListTile<String>(
-                title: Text(wardrobe.name),
+                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location)
+                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
                     : null,
                 value: wardrobe.id,
                 groupValue: _selectedWardrobeId,
@@ -554,7 +564,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
               );
             }),
             RadioListTile<String?>(
-              title: const Text('All Wardrobes'),
+              title: const Text('All Wardrobes', style: TextStyle(fontSize: 13)),
               value: null,
               groupValue: _selectedWardrobeId,
               onChanged: (value) {
@@ -587,7 +597,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
             ),

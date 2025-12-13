@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/schedule.dart';
 import '../services/scheduler_service.dart';
 import '../services/local_notification_service.dart';
+import '../services/schedule_notification_worker.dart';
 
 /// Provider for managing schedules
 class SchedulerProvider with ChangeNotifier {
@@ -29,11 +30,18 @@ class SchedulerProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _scheduledNotificationsEnabled = prefs.getBool('scheduled_notifications_enabled_$userId') ?? true;
       
+      // Store userId for background worker
+      await prefs.setString('current_user_id', userId);
+      
       // Reschedule all notifications if enabled
       if (_scheduledNotificationsEnabled) {
         await LocalNotificationService.rescheduleAll(_schedules);
+        // Register background worker for periodic checks
+        await ScheduleNotificationWorker.registerPeriodicTask();
       } else {
         await LocalNotificationService.cancelAllNotifications();
+        // Cancel background worker
+        await ScheduleNotificationWorker.cancelPeriodicTask();
       }
       
       _errorMessage = null;
@@ -126,8 +134,12 @@ class SchedulerProvider with ChangeNotifier {
     // Reschedule or cancel all notifications
     if (enabled) {
       await LocalNotificationService.rescheduleAll(_schedules);
+      // Register background worker
+      await ScheduleNotificationWorker.registerPeriodicTask();
     } else {
       await LocalNotificationService.cancelAllNotifications();
+      // Cancel background worker
+      await ScheduleNotificationWorker.cancelPeriodicTask();
     }
     
     notifyListeners();

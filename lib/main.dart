@@ -21,6 +21,7 @@ import 'services/tag_list_service.dart';
 import 'services/ai_detection_service.dart';
 import 'services/local_notification_service.dart';
 import 'services/update_service.dart';
+import 'services/schedule_notification_worker.dart';
 
 // Global navigator key for navigation from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -169,6 +170,14 @@ void main() async {
     debugPrint('✅ Local Notification Service initialized');
   } catch (e) {
     debugPrint('❌ Local Notification Service initialization failed: $e');
+  }
+
+  // Initialize Schedule Notification Worker
+  try {
+    await ScheduleNotificationWorker.initialize();
+    debugPrint('✅ Schedule Notification Worker initialized');
+  } catch (e) {
+    debugPrint('❌ Schedule Notification Worker initialization failed: $e');
   }
 
   // Fetch tag lists in background

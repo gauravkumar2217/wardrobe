@@ -35,16 +35,19 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Schedule'),
-        content: Text('Are you sure you want to delete "${schedule.title}"?'),
+        title: const Text('Delete Schedule', style: TextStyle(fontSize: 14)),
+        content: Text(
+          'Are you sure you want to delete "${schedule.title}"?',
+          style: const TextStyle(fontSize: 13),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(fontSize: 13)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13)),
           ),
         ],
       ),
@@ -86,14 +89,14 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                     children: [
                       Icon(
                         Icons.notifications_none,
-                        size: 64,
+                        size: 48,
                         color: Colors.grey[400],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Text(
                         'No schedules yet',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -101,7 +104,7 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                       Text(
                         'Tap + to create your first schedule',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 11,
                           color: Colors.grey[500],
                         ),
                       ),
@@ -130,6 +133,7 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                         title: Text(
                           schedule.title,
                           style: TextStyle(
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             decoration: schedule.isEnabled
                                 ? null
@@ -140,13 +144,16 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 4),
-                            Text(schedule.scheduleDescription),
+                            Text(
+                              schedule.scheduleDescription,
+                              style: const TextStyle(fontSize: 11),
+                            ),
                             if (schedule.description != null) ...[
                               const SizedBox(height: 4),
                               Text(
                                 schedule.description!,
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -159,9 +166,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               value: 'edit',
                               child: const Row(
                                 children: [
-                                  Icon(Icons.edit, size: 20),
+                                  Icon(Icons.edit, size: 18),
                                   SizedBox(width: 8),
-                                  Text('Edit'),
+                                  Text('Edit', style: TextStyle(fontSize: 13)),
                                 ],
                               ),
                             ),
@@ -169,9 +176,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               value: 'delete',
                               child: const Row(
                                 children: [
-                                  Icon(Icons.delete, size: 20, color: Colors.red),
+                                  Icon(Icons.delete, size: 18, color: Colors.red),
                                   SizedBox(width: 8),
-                                  Text('Delete', style: TextStyle(color: Colors.red)),
+                                  Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13)),
                                 ],
                               ),
                             ),

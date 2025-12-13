@@ -274,5 +274,61 @@ class LocalNotificationService {
       }
     }
   }
+
+  /// Send an immediate notification (not scheduled)
+  /// Used by background workers to send notifications right away
+  static Future<void> sendImmediateNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Create notification details
+      final androidDetails = AndroidNotificationDetails(
+        'scheduled_notifications',
+        'Scheduled Notifications',
+        channelDescription: 'Notifications for scheduled wardrobe reminders',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      // Generate a unique notification ID
+      final notificationId = DateTime.now().millisecondsSinceEpoch % 2147483647;
+
+      // Show notification immediately
+      await _notifications.show(
+        notificationId,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+
+      if (kDebugMode) {
+        debugPrint('✅ Sent immediate notification: $title');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to send immediate notification: $e');
+      }
+    }
+  }
 }
 
