@@ -215,16 +215,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Text('Loading...'),
+                  SizedBox(width: 8),
+                  Text('Loading...', style: const TextStyle(fontSize: 14)),
                 ],
               )
             : widget.chat.isGroup
-                ? const Text('Group Chat')
+                ? const Text('Group Chat', style: TextStyle(fontSize: 14))
                 : Row(
                     children: [
                       CircleAvatar(
-                        radius: 18,
+                        radius: 16,
                         backgroundColor: Colors.white.withValues(alpha: 0.3),
                         backgroundImage: _otherParticipantProfile?.photoUrl != null
                             ? NetworkImage(_otherParticipantProfile!.photoUrl!)
@@ -236,11 +236,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               )
                             : null,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _otherParticipantProfile?.displayName ?? 
@@ -249,6 +250,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               : 'Chat'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
+                            fontSize: 14,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -305,19 +307,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                 SizedBox(height: 12),
                                 Text(
                                   'No messages yet',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: TextStyle(fontSize: 13, color: Colors.grey),
                                 ),
-                                SizedBox(height: 8),
+                                SizedBox(height: 6),
                                 Text(
                                   'Start the conversation!',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
                               ],
                             ),
                           )
                         : ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         itemCount: chatProvider.messages.length,
                         itemBuilder: (context, index) {
                           final message = chatProvider.messages[index];
@@ -335,7 +337,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           // Message input
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               boxShadow: [
@@ -352,17 +354,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
+                      hintStyle: const TextStyle(fontSize: 13),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                     ),
                     maxLines: null,
@@ -370,9 +374,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF7C3AED)),
+                  icon: const Icon(Icons.send, color: Color(0xFF7C3AED), size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   onPressed: _sendMessage,
                 ),
               ],

@@ -117,21 +117,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Image Source'),
+        title: const Text('Select Image Source', style: TextStyle(fontSize: 14)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              leading: const Icon(Icons.photo_library, size: 18),
+              title: const Text('Choose from Gallery', style: TextStyle(fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              leading: const Icon(Icons.camera_alt, size: 18),
+              title: const Text('Take Photo', style: TextStyle(fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
                 _takePhoto();
@@ -247,13 +251,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 // Profile photo
                 Center(
                   child: Stack(
                     children: [
                       CircleAvatar(
-                        radius: 60,
+                        radius: 45,
                         backgroundColor: const Color(0xFF7C3AED),
                         backgroundImage: _selectedImage != null
                             ? FileImage(_selectedImage!)
@@ -267,7 +271,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     : '?',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 48,
+                                  fontSize: 36,
                                 ),
                               )
                             : null,
@@ -276,10 +280,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         bottom: 0,
                         right: 0,
                         child: CircleAvatar(
-                          radius: 20,
+                          radius: 16,
                           backgroundColor: const Color(0xFF7C3AED),
                           child: IconButton(
-                            icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
+                            icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                             onPressed: _showImageSourceDialog,
                             padding: EdgeInsets.zero,
                           ),
@@ -288,13 +292,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 // Name field
                 TextFormField(
                   controller: _nameController,
+                  style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person),
+                    prefixIcon: Icon(Icons.person, size: 18),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -303,28 +308,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 // Username field (read-only)
                 TextFormField(
                   controller: _usernameController,
                   enabled: false,
+                  style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Username',
-                    prefixIcon: const Icon(Icons.alternate_email),
-                    suffixIcon: const Icon(Icons.lock, size: 20),
+                    prefixIcon: const Icon(Icons.alternate_email, size: 18),
+                    suffixIcon: const Icon(Icons.lock, size: 16),
                     helperText: 'Username cannot be changed',
+                    helperStyle: const TextStyle(fontSize: 11),
                     filled: true,
                     fillColor: Colors.grey[200],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 // Phone number field
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone),
+                    prefixIcon: Icon(Icons.phone, size: 18),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -333,18 +341,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 // Gender field
                 DropdownButtonFormField<String>(
                   initialValue: _selectedGender,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
                   decoration: const InputDecoration(
                     labelText: 'Gender',
-                    prefixIcon: Icon(Icons.person_outline),
+                    prefixIcon: Icon(Icons.person_outline, size: 18),
                   ),
+                  dropdownColor: Colors.white,
                   items: const [
-                    DropdownMenuItem(value: 'male', child: Text('Male')),
-                    DropdownMenuItem(value: 'female', child: Text('Female')),
-                    DropdownMenuItem(value: 'other', child: Text('Other')),
+                    DropdownMenuItem(
+                      value: 'male',
+                      child: Text('Male', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'female',
+                      child: Text('Female', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'other',
+                      child: Text('Other', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    ),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -352,20 +371,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     });
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 // Date of Birth field
                 InkWell(
                   onTap: _selectDateOfBirth,
                   child: InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Date of Birth',
-                      prefixIcon: Icon(Icons.calendar_today),
+                      prefixIcon: Icon(Icons.calendar_today, size: 18),
                     ),
                     child: Text(
                       _selectedDateOfBirth != null
                           ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
                           : 'Select date of birth',
                       style: TextStyle(
+                        fontSize: 14,
                         color: _selectedDateOfBirth != null
                             ? Colors.black
                             : Colors.grey[600],
@@ -373,24 +393,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Save Changes'),
+                      : const Text('Save Changes', style: TextStyle(fontSize: 14)),
                 ),
               ],
             ),

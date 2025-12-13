@@ -31,7 +31,7 @@ class ChatBubble extends StatelessWidget {
     }
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       child: Row(
         mainAxisAlignment:
             isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -39,25 +39,25 @@ class ChatBubble extends StatelessWidget {
         children: [
           if (!isCurrentUser && showAvatar) ...[
             CircleAvatar(
-              radius: 16,
+              radius: 14,
               backgroundColor: Colors.grey[300],
-              child: const Icon(Icons.person, size: 18),
+              child: const Icon(Icons.person, size: 16),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: isCurrentUser
                     ? Theme.of(context).primaryColor
                     : Colors.grey[200],
-                borderRadius: BorderRadius.circular(18).copyWith(
+                borderRadius: BorderRadius.circular(16).copyWith(
                   bottomRight: isCurrentUser
                       ? const Radius.circular(4)
-                      : const Radius.circular(18),
+                      : const Radius.circular(16),
                   bottomLeft: isCurrentUser
-                      ? const Radius.circular(18)
+                      ? const Radius.circular(16)
                       : const Radius.circular(4),
                 ),
               ),
@@ -69,7 +69,7 @@ class ChatBubble extends StatelessWidget {
                       message.text!,
                       style: TextStyle(
                         color: isCurrentUser ? Colors.white : Colors.black87,
-                        fontSize: 15,
+                        fontSize: 13,
                       ),
                     ),
                   if (message.isImage && message.imageUrl != null)
@@ -115,11 +115,11 @@ class ChatBubble extends StatelessWidget {
             ),
           ),
           if (isCurrentUser && showAvatar) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             CircleAvatar(
-              radius: 16,
+              radius: 14,
               backgroundColor: Colors.grey[300],
-              child: const Icon(Icons.person, size: 18),
+              child: const Icon(Icons.person, size: 16),
             ),
           ],
         ],
@@ -386,20 +386,20 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                 child: CachedNetworkImage(
                   imageUrl: cloth.imageUrl,
                   width: double.infinity,
-                  height: 180,
+                  height: 140,
                   fit: BoxFit.cover,
                   memCacheWidth: 400, // Resize to reduce memory usage
                   placeholder: (context, url) => Container(
-                    height: 180,
+                    height: 140,
                     color: Colors.grey[200],
                     child: const Center(child: CircularProgressIndicator()),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    height: 180,
+                    height: 140,
                     color: Colors.grey[300],
                     child: const Icon(
                       Icons.image_not_supported,
-                      size: 48,
+                      size: 36,
                       color: Colors.grey,
                     ),
                   ),
@@ -417,7 +417,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                       children: [
                         Icon(
                           Icons.checkroom,
-                          size: 16,
+                          size: 14,
                           color: Colors.grey[700],
                         ),
                         const SizedBox(width: 4),
@@ -426,7 +426,7 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                             cloth.clothType,
                             style: const TextStyle(
                               color: Colors.black87,
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
                             maxLines: 1,
@@ -435,37 +435,37 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     // Season
                     Row(
                       children: [
                         Icon(
                           Icons.wb_sunny,
-                          size: 16,
+                          size: 14,
                           color: Colors.grey[700],
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Text(
                           cloth.season,
                           style: TextStyle(
                             color: Colors.grey[700],
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         // Category
                         Icon(
                           Icons.category,
-                          size: 16,
+                          size: 14,
                           color: Colors.grey[700],
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             cloth.category,
                             style: TextStyle(
                               color: Colors.grey[700],
-                              fontSize: 13,
+                              fontSize: 12,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -474,25 +474,25 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                       ],
                     ),
                     if (cloth.occasions.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
+                        spacing: 3,
+                        runSpacing: 3,
                         children: cloth.occasions.take(2).map((occasion) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 2,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               occasion,
                               style: const TextStyle(
                                 color: Colors.black87,
-                                fontSize: 11,
+                                fontSize: 10,
                               ),
                             ),
                           );
@@ -501,20 +501,20 @@ class _ClothShareCardState extends State<_ClothShareCard> {
                     ],
                     // Comment count badge
                     if (cloth.commentsCount > 0) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
                           Icon(
                             Icons.comment_outlined,
-                            size: 14,
+                            size: 12,
                             color: Colors.grey[600],
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 3),
                           Text(
                             '${cloth.commentsCount} ${cloth.commentsCount == 1 ? 'comment' : 'comments'}',
                             style: TextStyle(
                               color: Colors.grey[600],
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -554,12 +554,12 @@ class _ClothShareCardState extends State<_ClothShareCard> {
               size: 20,
               color: Colors.black87,
             ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Text(
             text,
             style: const TextStyle(
               color: Colors.black87,
-              fontSize: 14,
+              fontSize: 13,
             ),
           ),
         ],
