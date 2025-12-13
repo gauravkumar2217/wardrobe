@@ -20,6 +20,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
   Set<String> _selectedOccasions = {};
   Set<String> _selectedSeasons = {};
   Set<String> _selectedColors = {};
+  Set<String> _selectedPlacements = {};
   String? _selectedWardrobeId;
 
   // Available options
@@ -27,6 +28,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
   Map<String, int> _occasionCounts = {};
   Map<String, int> _seasonCounts = {};
   Map<String, int> _colorCounts = {};
+  Map<String, int> _placementCounts = {};
   List<Wardrobe> _wardrobes = [];
   bool _isLoading = true;
 
@@ -59,6 +61,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
         final occasionCounts = <String, int>{};
         final seasonCounts = <String, int>{};
         final colorCounts = <String, int>{};
+        final placementCounts = <String, int>{};
 
         for (var cloth in clothes) {
           typeCounts[cloth.clothType] = (typeCounts[cloth.clothType] ?? 0) + 1;
@@ -69,6 +72,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
           for (var color in cloth.colorTags.colors) {
             colorCounts[color] = (colorCounts[color] ?? 0) + 1;
           }
+          placementCounts[cloth.placement] = (placementCounts[cloth.placement] ?? 0) + 1;
         }
 
         // Load wardrobes
@@ -79,6 +83,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
         _selectedOccasions = filterProvider.filterOccasions.toSet();
         _selectedSeasons = filterProvider.filterSeasons.toSet();
         _selectedColors = filterProvider.filterColors.toSet();
+        _selectedPlacements = filterProvider.filterPlacements.toSet();
         _selectedWardrobeId = filterProvider.selectedWardrobeId;
 
         setState(() {
@@ -86,6 +91,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
           _occasionCounts = occasionCounts;
           _seasonCounts = seasonCounts;
           _colorCounts = colorCounts;
+          _placementCounts = placementCounts;
           _wardrobes = wardrobeProvider.wardrobes;
           _isLoading = false;
         });
@@ -120,6 +126,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
       occasions: _selectedOccasions.toList(),
       seasons: _selectedSeasons.toList(),
       colors: _selectedColors.toList(),
+      placements: _selectedPlacements.toList(),
       wardrobeId: _selectedWardrobeId,
     );
 
@@ -132,6 +139,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
       _selectedOccasions.clear();
       _selectedSeasons.clear();
       _selectedColors.clear();
+      _selectedPlacements.clear();
       _selectedWardrobeId = null;
     });
   }
@@ -149,7 +157,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
               onPressed: _clearAllFilters,
               child: const Text(
                 'Clear All',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),
         ],
@@ -160,13 +168,13 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Wardrobes Section
                         _buildWardrobesSection(),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         // Type Section
                         _buildSection(
                           title: 'By Type',
@@ -183,7 +191,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         // Occasion Section
                         _buildSection(
                           title: 'By Occasion',
@@ -200,7 +208,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         // Season Section
                         _buildSection(
                           title: 'By Season',
@@ -217,7 +225,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         // Color Section
                         _buildSection(
                           title: 'By Color',
@@ -234,13 +242,30 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                             });
                           },
                         ),
+                        const SizedBox(height: 8),
+                        // Placement Section
+                        _buildSection(
+                          title: 'By Placement',
+                          icon: Icons.location_on,
+                          counts: _placementCounts,
+                          selected: _selectedPlacements,
+                          onToggle: (value) {
+                            setState(() {
+                              if (_selectedPlacements.contains(value)) {
+                                _selectedPlacements.remove(value);
+                              } else {
+                                _selectedPlacements.add(value);
+                              }
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ),
                 ),
                 // Apply Button
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
@@ -258,14 +283,14 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                         onPressed: _applyFilters,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7C3AED),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: Text(
                           _hasSelections()
                               ? 'Apply Filters (${_getTotalSelections()})'
                               : 'Apply Filters',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -284,6 +309,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
         _selectedOccasions.isNotEmpty ||
         _selectedSeasons.isNotEmpty ||
         _selectedColors.isNotEmpty ||
+        _selectedPlacements.isNotEmpty ||
         _selectedWardrobeId != null;
   }
 
@@ -292,6 +318,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
         _selectedOccasions.length +
         _selectedSeasons.length +
         _selectedColors.length +
+        _selectedPlacements.length +
         (_selectedWardrobeId != null ? 1 : 0);
   }
 
@@ -302,32 +329,34 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                SizedBox(width: 8),
-                Text(
+                Icon(Icons.inventory_2, color: const Color(0xFF7C3AED), size: 16),
+                const SizedBox(width: 6),
+                const Text(
                   'My Wardrobes',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             ..._wardrobes.map((wardrobe) {
               final isSelected = _selectedWardrobeId == wardrobe.id;
               return CheckboxListTile(
-                title: Text(wardrobe.name),
+                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location)
+                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
                     : null,
                 value: isSelected,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                dense: true,
                 onChanged: (value) {
                   setState(() {
                     _selectedWardrobeId = value == true ? wardrobe.id : null;
@@ -335,13 +364,14 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                 },
                 activeColor: const Color(0xFF7C3AED),
                 secondary: Chip(
-                  label: Text('${wardrobe.totalItems}'),
+                  label: Text('${wardrobe.totalItems}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
               );
             }),
@@ -361,14 +391,14 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
     if (counts.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              Icon(icon, color: Colors.grey),
-              const SizedBox(width: 12),
+              Icon(icon, color: Colors.grey, size: 14),
+              const SizedBox(width: 6),
               Text(
                 'No $title data available',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ],
           ),
@@ -382,39 +412,42 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF7C3AED)),
-                const SizedBox(width: 8),
+                Icon(icon, color: const Color(0xFF7C3AED), size: 16),
+                const SizedBox(width: 6),
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             ...sortedEntries.map((entry) {
               final isSelected = selected.contains(entry.key);
               return CheckboxListTile(
-                title: Text(entry.key),
+                title: Text(entry.key, style: const TextStyle(fontSize: 13)),
                 value: isSelected,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                dense: true,
                 onChanged: (value) => onToggle(entry.key),
                 activeColor: const Color(0xFF7C3AED),
                 secondary: Chip(
-                  label: Text('${entry.value}'),
+                  label: Text('${entry.value}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
               );
             }),

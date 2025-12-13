@@ -54,7 +54,7 @@ class _WardrobeCardState extends State<WardrobeCard>
         );
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
@@ -88,7 +88,7 @@ class _WardrobeCardState extends State<WardrobeCard>
             },
             borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -97,8 +97,8 @@ class _WardrobeCardState extends State<WardrobeCard>
                     children: [
                       // Wardrobe icon
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
@@ -108,22 +108,22 @@ class _WardrobeCardState extends State<WardrobeCard>
                               Color(0xFF9F7AEA),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.inventory_2,
                           color: Colors.white,
-                          size: 28,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 10),
                       // Name and location
                       Expanded(
                         child: Column(
@@ -132,7 +132,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                             Text(
                               widget.wardrobe.name,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1A1A1A),
                                 letterSpacing: -0.5,
@@ -140,20 +140,20 @@ class _WardrobeCardState extends State<WardrobeCard>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 3),
                             Row(
                               children: [
                                 Icon(
                                   Icons.location_on_rounded,
-                                  size: 16,
+                                  size: 12,
                                   color: Colors.grey[600],
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 3),
                                 Flexible(
                                   child: Text(
                                     widget.wardrobe.location,
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 11,
                                       color: Colors.grey[600],
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -169,7 +169,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                       // Item count badge
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -177,7 +177,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                               const Color(0xFF9F7AEA).withValues(alpha: 0.15),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
                             width: 1,
@@ -188,14 +188,14 @@ class _WardrobeCardState extends State<WardrobeCard>
                           children: [
                             const Icon(
                               Icons.checkroom,
-                              size: 16,
+                              size: 12,
                               color: Color(0xFF7C3AED),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 3),
                             Text(
                               '${widget.wardrobe.totalItems}',
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF7C3AED),
                               ),
@@ -207,7 +207,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                   ),
                   // Action buttons at the bottom
                   if (widget.onEdit != null || widget.onDelete != null) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
                     Container(
                       height: 1,
                       decoration: BoxDecoration(
@@ -220,7 +220,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -275,10 +275,10 @@ class _ActionButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: color.withValues(alpha: 0.3),
               width: 1,
@@ -287,12 +287,12 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: color,
                 ),

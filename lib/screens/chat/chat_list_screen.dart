@@ -92,24 +92,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
                       Text(
                         chatProvider.errorMessage!,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        style: const TextStyle(fontSize: 14, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () {
                           chatProvider.clearError();
                           _loadChats();
                         },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7C3AED),
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
@@ -120,16 +121,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
+                          Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey),
+                          SizedBox(height: 12),
                           Text(
                             'No chats yet',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
-                          SizedBox(height: 8),
+                          SizedBox(height: 6),
                           Text(
                             'Start a conversation with a friend!',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -140,7 +141,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
                       child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: chatProvider.chats.length,
                   itemBuilder: (context, index) {
                     final chat = chatProvider.chats[index];
@@ -187,8 +188,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     final unreadCount = chatProvider.getUnreadCount(chat.id);
 
                     return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       leading: CircleAvatar(
-                        radius: 28,
+                        radius: 22,
                         backgroundColor: const Color(0xFF7C3AED),
                         backgroundImage: photoUrl != null
                             ? NetworkImage(photoUrl)
@@ -199,6 +202,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               )
                             : null,
@@ -212,25 +216,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 fontWeight: unreadCount > 0 
                                     ? FontWeight.bold 
                                     : FontWeight.w500,
+                                fontSize: 13,
                               ),
                             ),
                           ),
                           if (unreadCount > 0)
                             Container(
-                              margin: const EdgeInsets.only(left: 8),
+                              margin: const EdgeInsets.only(left: 6),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 6,
+                                vertical: 2,
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF7C3AED),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 unreadCount > 99 ? '99+' : '$unreadCount',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -245,13 +250,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           fontWeight: unreadCount > 0 
                               ? FontWeight.w500 
                               : FontWeight.normal,
+                          fontSize: 11,
                         ),
                       ),
                       trailing: chat.lastMessageAt != null
                           ? Text(
                               _formatTime(chat.lastMessageAt!),
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 10,
                                 color: Colors.grey[600],
                                 fontWeight: unreadCount > 0 
                                     ? FontWeight.bold 

@@ -30,7 +30,7 @@ class TermsConditionsScreen extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -38,21 +38,23 @@ class TermsConditionsScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       AppConstants.appName,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 16,
                             color: Theme.of(context).colorScheme.onPrimaryContainer,
                           ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       'Terms & Conditions',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontSize: 14,
                             color: Theme.of(context).colorScheme.onPrimaryContainer,
                           ),
                     ),
@@ -60,6 +62,7 @@ class TermsConditionsScreen extends StatelessWidget {
                     Text(
                       'Last Updated: ${LegalContentService.getLastUpdatedDate()}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
                             color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                           ),
                     ),
@@ -67,32 +70,37 @@ class TermsConditionsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             
             // Terms Content
             SelectableText(
               LegalContentService.getTermsAndConditions(),
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             
             // Agreement Notice
             Card(
               color: Theme.of(context).colorScheme.secondaryContainer,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     Icon(
                       Icons.info_outline,
+                      size: 18,
                       color: Theme.of(context).colorScheme.onSecondaryContainer,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'By using ${AppConstants.appName}, you agree to these Terms & Conditions.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 13,
                               color: Theme.of(context).colorScheme.onSecondaryContainer,
                             ),
                       ),
@@ -102,12 +110,12 @@ class TermsConditionsScreen extends StatelessWidget {
               ),
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             
             // Contact Section
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -115,13 +123,16 @@ class TermsConditionsScreen extends StatelessWidget {
                       'Questions?',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                     ),
                     const SizedBox(height: 8),
                     ListTile(
-                      leading: const Icon(Icons.support_agent),
-                      title: const Text('Support'),
-                      subtitle: const Text(supportEmail),
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.support_agent, size: 18),
+                      title: const Text('Support', style: TextStyle(fontSize: 13)),
+                      subtitle: Text(supportEmail, style: const TextStyle(fontSize: 12)),
                       onTap: () {
                         // Could open email client
                       },
@@ -131,7 +142,7 @@ class TermsConditionsScreen extends StatelessWidget {
               ),
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
           ],
         ),
       ),

@@ -167,161 +167,304 @@
         <header>
             <h1>Privacy Policy</h1>
             <p style="margin: 0; font-size: 1.1em;">Wardrobe - Your Personal Fashion Assistant</p>
-            <p class="last-updated">Last Updated: November 09, 2025</p>
+            <p class="last-updated">Last Updated: December 2024</p>
         </header>
 
         <main>
             <h2>1. INTRODUCTION</h2>
             <p>Welcome to Wardrobe (the "App"). We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our mobile application.</p>
+            <p>By using Wardrobe, you agree to the collection and use of information in accordance with this policy.</p>
 
             <h2>2. INFORMATION WE COLLECT</h2>
             
-            <h3>2.1 Personal Information</h3>
+            <h3>2.1 Account and Authentication Information</h3>
             <ul>
-                <li><strong>Phone Number:</strong> We collect your phone number for authentication purposes using Firebase Authentication.</li>
-                <li><strong>User Profile:</strong> Name, gender, birthday, and subscription plan information (if applicable).</li>
+                <li><strong>Phone Number:</strong> We collect your phone number for authentication purposes using Firebase Authentication. Phone numbers are verified via SMS.</li>
+                <li><strong>Email Address:</strong> If you choose to sign in with Google or email, we collect your email address for authentication and account recovery.</li>
+                <li><strong>Google Account Information:</strong> If you sign in with Google, we access your basic profile information (name, email, profile picture) as provided by Google.</li>
+                <li><strong>Username:</strong> A unique username you create for your account.</li>
+                <li><strong>Profile Information:</strong> Display name, gender, date of birth, and profile photo.</li>
             </ul>
 
-            <h3>2.2 Wardrobe Data</h3>
+            <h3>2.2 Wardrobe and Clothing Data</h3>
             <ul>
-                <li><strong>Wardrobe Information:</strong> Titles, locations, seasons, and cloth counts.</li>
-                <li><strong>Clothing Items:</strong> Images, types, colors, seasons, occasions, and last worn dates.</li>
-                <li><strong>Outfit Suggestions:</strong> AI-generated outfit suggestions based on your wardrobe.</li>
+                <li><strong>Wardrobe Information:</strong> Wardrobe names, locations, item counts, and creation dates.</li>
+                <li><strong>Clothing Items:</strong> Images of your clothing, cloth types, colors, seasons, categories, occasions, placement status (InWardrobe, OutWardrobe, Laundry, DryCleaning, Repairing), and placement details (shop name, given date, return date when applicable).</li>
+                <li><strong>Wear History:</strong> Dates and times when you mark clothing items as worn.</li>
+                <li><strong>AI Detection Data:</strong> When you add clothing items, we use Google ML Kit to analyze images for cloth type detection and Palette Generator to extract color information. This processing occurs locally on your device and does not send images to external servers.</li>
             </ul>
 
-            <h3>2.3 Chat Data</h3>
+            <h3>2.3 Social and Communication Data</h3>
             <ul>
-                <li><strong>Chat History:</strong> Conversations with our AI styling assistant.</li>
-                <li><strong>Messages:</strong> User queries and AI responses stored in Firestore.</li>
+                <li><strong>Friends List:</strong> Users you have added as friends.</li>
+                <li><strong>Friend Requests:</strong> Incoming and outgoing friend requests.</li>
+                <li><strong>Direct Messages:</strong> Text messages and shared clothing items sent through direct messaging.</li>
+                <li><strong>Comments:</strong> Comments you post on clothing items.</li>
+                <li><strong>Likes:</strong> Clothing items you have liked.</li>
+                <li><strong>Shared Clothing:</strong> Clothing items you share with friends via direct messages.</li>
             </ul>
 
-            <h3>2.4 Device Information</h3>
+            <h3>2.4 Notifications and Preferences</h3>
             <ul>
-                <li><strong>Device Information:</strong> Collected through Firebase Analytics for app improvement.</li>
-                <li><strong>Push Notification Tokens:</strong> For sending you daily outfit suggestions and updates.</li>
+                <li><strong>Notification Settings:</strong> Your preferences for receiving notifications (friend requests, friend accepts, direct messages, cloth likes, cloth comments, suggestions).</li>
+                <li><strong>Quiet Hours:</strong> Your preferred quiet hours for notifications.</li>
+                <li><strong>Push Notification Tokens:</strong> Device tokens for sending push notifications.</li>
             </ul>
 
-            <h3>2.5 Images</h3>
+            <h3>2.5 Device and Usage Information</h3>
             <ul>
-                <li><strong>Clothing Photos:</strong> Images you upload to organize your wardrobe.</li>
-                <li><strong>Storage:</strong> Images are stored securely in Firebase Storage.</li>
+                <li><strong>Device Information:</strong> Device type, operating system, app version, and device identifiers collected through Firebase Analytics.</li>
+                <li><strong>Usage Analytics:</strong> App usage patterns, feature usage, and performance metrics to improve the app experience.</li>
+                <li><strong>Crash Reports:</strong> Error logs and crash reports to identify and fix issues.</li>
+            </ul>
+
+            <h3>2.6 Images and Media</h3>
+            <ul>
+                <li><strong>Clothing Photos:</strong> Images you upload to organize your wardrobe. Images are stored securely in Firebase Storage.</li>
+                <li><strong>Profile Photos:</strong> Your profile picture stored in Firebase Storage.</li>
+                <li><strong>Image Processing:</strong> Images are processed locally on your device using ML Kit and Palette Generator for AI features. Images are not sent to third-party AI services for analysis.</li>
             </ul>
 
             <h2>3. HOW WE USE YOUR INFORMATION</h2>
             
-            <h3>3.1 Core Services</h3>
+            <h3>3.1 Core App Services</h3>
             <ul>
-                <li>To provide wardrobe organization features</li>
-                <li>To generate personalized outfit suggestions</li>
-                <li>To enable AI chat assistant functionality</li>
-                <li>To send daily outfit suggestions via push notifications</li>
+                <li>To provide wardrobe organization and management features</li>
+                <li>To enable AI-powered cloth type and color detection</li>
+                <li>To track clothing placement and wear history</li>
+                <li>To generate personalized outfit suggestions (future feature)</li>
+                <li>To enable social features including friends, messaging, comments, and likes</li>
+                <li>To send push notifications based on your preferences</li>
             </ul>
 
-            <h3>3.2 Service Improvement</h3>
+            <h3>3.2 Social Features</h3>
+            <ul>
+                <li>To display your profile to other users (based on privacy settings)</li>
+                <li>To enable friend requests and friend connections</li>
+                <li>To facilitate direct messaging between users</li>
+                <li>To show comments and likes on clothing items</li>
+                <li>To enable sharing of clothing items with friends</li>
+            </ul>
+
+            <h3>3.3 Service Improvement</h3>
             <ul>
                 <li>To analyze app usage patterns through Firebase Analytics</li>
                 <li>To improve app performance and user experience</li>
                 <li>To fix bugs and develop new features</li>
+                <li>To understand how features are used to prioritize improvements</li>
             </ul>
 
-            <h3>3.3 Communication</h3>
+            <h3>3.4 Communication</h3>
             <ul>
-                <li>To send you notifications about daily suggestions</li>
-                <li>To respond to your inquiries and provide support</li>
+                <li>To send you push notifications about friend requests, messages, likes, comments, and suggestions</li>
+                <li>To respond to your inquiries and provide customer support</li>
+                <li>To notify you of important app updates or policy changes</li>
+            </ul>
+
+            <h3>3.5 Legal and Safety</h3>
+            <ul>
+                <li>To comply with legal obligations</li>
+                <li>To enforce our Terms and Conditions</li>
+                <li>To protect the rights and safety of users</li>
+                <li>To prevent fraud and abuse</li>
             </ul>
 
             <h2>4. DATA STORAGE AND SECURITY</h2>
             
             <h3>4.1 Firebase Services</h3>
-            <p>We use the following Firebase services:</p>
+            <p>We use the following Google Firebase services:</p>
             <ul>
-                <li><strong>Firebase Authentication:</strong> For secure user authentication</li>
-                <li><strong>Cloud Firestore:</strong> For storing your wardrobe data, chat history, and user profile</li>
-                <li><strong>Firebase Storage:</strong> For storing clothing images</li>
-                <li><strong>Firebase Analytics:</strong> For understanding app usage</li>
-                <li><strong>Firebase Cloud Messaging:</strong> For push notifications</li>
+                <li><strong>Firebase Authentication:</strong> For secure user authentication (phone, email, Google Sign-In)</li>
+                <li><strong>Cloud Firestore:</strong> For storing your wardrobe data, clothing items, user profiles, friends, messages, comments, likes, and notifications</li>
+                <li><strong>Firebase Storage:</strong> For storing clothing images and profile photos</li>
+                <li><strong>Firebase Analytics:</strong> For understanding app usage (anonymized data)</li>
+                <li><strong>Firebase Cloud Messaging:</strong> For sending push notifications</li>
+                <li><strong>Firebase App Check:</strong> For additional security and abuse prevention</li>
             </ul>
 
-            <h3>4.2 Data Security</h3>
+            <h3>4.2 Data Security Measures</h3>
             <ul>
-                <li>All data is encrypted in transit using HTTPS</li>
+                <li>All data is encrypted in transit using HTTPS/TLS</li>
                 <li>Firestore data is encrypted at rest</li>
-                <li>Firebase Storage uses secure access controls</li>
-                <li>We implement Firebase App Check for additional security</li>
+                <li>Firebase Storage uses secure access controls and encryption</li>
+                <li>We implement Firebase App Check to prevent unauthorized access</li>
+                <li>User authentication is handled securely through Firebase Authentication</li>
+                <li>Access to user data is controlled through Firestore security rules</li>
             </ul>
 
             <h3>4.3 Data Location</h3>
-            <p>Your data is stored in Firebase servers, which may be located in various regions. We ensure compliance with applicable data protection laws.</p>
+            <p>Your data is stored in Firebase servers, which may be located in various regions. We ensure compliance with applicable data protection laws including GDPR, CCPA, and other regional requirements.</p>
 
             <h2>5. THIRD-PARTY SERVICES</h2>
             
-            <h3>5.1 Firebase (Google)</h3>
+            <h3>5.1 Google Services</h3>
             <ul>
-                <li>We use Google Firebase services for authentication, database, storage, and analytics.</li>
-                <li>Firebase's privacy policy: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">https://firebase.google.com/support/privacy</a></li>
+                <li><strong>Firebase (Google):</strong> We use Google Firebase services for authentication, database, storage, analytics, and messaging. Firebase's privacy policy: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">https://firebase.google.com/support/privacy</a></li>
+                <li><strong>Google Sign-In:</strong> If you choose to sign in with Google, your authentication is handled by Google. We only receive basic profile information you authorize.</li>
+                <li><strong>Google ML Kit:</strong> Used for on-device image labeling to detect cloth types. Processing occurs locally on your device.</li>
+                <li><strong>Google Play Services:</strong> Required for push notifications and app functionality on Android devices.</li>
             </ul>
 
-            <h3>5.2 AI Services</h3>
+            <h3>5.2 Apple Services</h3>
             <ul>
-                <li>We may use third-party AI services for outfit suggestions and chat functionality.</li>
-                <li>These services process your wardrobe data to provide personalized recommendations.</li>
+                <li><strong>Apple Sign-In:</strong> If available, authentication is handled by Apple. We only receive information you authorize.</li>
+                <li><strong>Apple Push Notification Service:</strong> Used for push notifications on iOS devices.</li>
             </ul>
 
-            <h2>6. YOUR RIGHTS</h2>
+            <h3>5.3 Image Processing Libraries</h3>
+            <ul>
+                <li><strong>Palette Generator:</strong> Used locally on your device to extract color information from images. No data is sent to external servers.</li>
+            </ul>
+
+            <h3>5.4 Analytics</h3>
+            <ul>
+                <li><strong>Firebase Analytics:</strong> We use Firebase Analytics to understand app usage. Analytics data is anonymized and aggregated.</li>
+            </ul>
+
+            <h2>6. DATA SHARING AND DISCLOSURE</h2>
             
-            <h3>6.1 Access</h3>
-            <p>You can access your data through the app at any time.</p>
-
-            <h3>6.2 Deletion</h3>
-            <p>You can delete your account and all associated data through the Account Settings in the app. Account deletion will permanently remove:</p>
+            <h3>6.1 With Other Users</h3>
             <ul>
-                <li>Your user profile</li>
-                <li>All wardrobes and clothing items</li>
-                <li>Chat history</li>
-                <li>All images stored in Firebase Storage</li>
+                <li>Your profile information (username, display name, profile photo) may be visible to other users based on your privacy settings</li>
+                <li>Clothing items you share via direct messages are visible to the recipient</li>
+                <li>Comments and likes you post are visible to the clothing item owner and other users who can view that item</li>
+                <li>Your wardrobe visibility is controlled by your privacy settings (friends only by default)</li>
             </ul>
 
-            <h3>6.3 Data Export</h3>
+            <h3>6.2 We Do Not Sell Your Data</h3>
             <ul>
-                <li>You can view all your data within the app.</li>
-                <li>For data export requests, please contact us at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a></li>
+                <li>We do not sell, rent, or trade your personal information to third parties</li>
+                <li>We do not share your data with advertisers or marketing companies</li>
             </ul>
 
-            <h3>6.4 Opt-Out</h3>
+            <h3>6.3 Legal Requirements</h3>
+            <p>We may disclose your information if required by law, court order, or government regulation, or to:</p>
             <ul>
-                <li>You can disable push notifications in your device settings.</li>
-                <li>You can delete your account at any time.</li>
+                <li>Protect our rights and property</li>
+                <li>Prevent fraud or abuse</li>
+                <li>Ensure user safety</li>
+                <li>Comply with legal obligations</li>
             </ul>
 
-            <h2>7. DATA RETENTION</h2>
+            <h2>7. YOUR RIGHTS AND CHOICES</h2>
+            
+            <h3>7.1 Access Your Data</h3>
             <ul>
-                <li>We retain your data as long as your account is active.</li>
-                <li>Upon account deletion, all data is permanently removed within 30 days.</li>
-                <li>Some anonymized analytics data may be retained for service improvement.</li>
+                <li>You can access all your data through the app at any time</li>
+                <li>You can view your profile, wardrobes, clothing items, friends, messages, and settings</li>
+            </ul>
+
+            <h3>7.2 Edit Your Data</h3>
+            <ul>
+                <li>You can update your profile information at any time</li>
+                <li>You can edit or delete your clothing items</li>
+                <li>You can modify your notification preferences</li>
+                <li>You can update your privacy settings</li>
+            </ul>
+
+            <h3>7.3 Delete Your Data</h3>
+            <ul>
+                <li>You can delete individual clothing items, wardrobes, or messages at any time</li>
+                <li>You can delete your account and all associated data through Account Settings > Delete Account</li>
+                <li>Account deletion will permanently remove:
+                    <ul>
+                        <li>Your user profile and account information</li>
+                        <li>All wardrobes and clothing items</li>
+                        <li>All images stored in Firebase Storage</li>
+                        <li>Friend connections and friend requests</li>
+                        <li>Direct messages and chat history</li>
+                        <li>Comments and likes</li>
+                        <li>Notification preferences</li>
+                    </ul>
+                </li>
+                <li>Deletion is permanent and cannot be undone</li>
+                <li>Some anonymized analytics data may be retained for service improvement</li>
+            </ul>
+
+            <h3>7.4 Data Export</h3>
+            <ul>
+                <li>You can view all your data within the app</li>
+                <li>For a complete data export in a machine-readable format, please contact us at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a></li>
+                <li>We will provide your data export within 30 days of your request</li>
+            </ul>
+
+            <h3>7.5 Opt-Out Options</h3>
+            <ul>
+                <li>You can disable push notifications in your device settings or app notification settings</li>
+                <li>You can control which types of notifications you receive in the app settings</li>
+                <li>You can set quiet hours to limit when you receive notifications</li>
+                <li>You can delete your account at any time</li>
+            </ul>
+
+            <h3>7.6 Privacy Settings</h3>
+            <ul>
+                <li><strong>Profile Visibility:</strong> Control who can see your profile (friends only by default)</li>
+                <li><strong>Wardrobe Visibility:</strong> Control who can see your wardrobes (friends only by default)</li>
+                <li><strong>Direct Messages:</strong> Control who can send you direct messages (friends only by default)</li>
             </ul>
 
             <h2>8. CHILDREN'S PRIVACY</h2>
-            <p>Our app is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If you believe we have collected information from a child under 13, please contact us immediately.</p>
+            <p>Our app is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If you are a parent or guardian and believe your child under 13 has provided us with personal information, please contact us immediately at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a>. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly.</p>
 
-            <h2>9. CHANGES TO THIS PRIVACY POLICY</h2>
-            <p>We may update this privacy policy from time to time. We will notify you of any changes by:</p>
+            <h2>9. INTERNATIONAL USERS</h2>
+            <p>If you are using our app from outside the United States, please note that your information may be transferred to, stored, and processed in the United States or other countries where our service providers operate. By using our app, you consent to the transfer of your information to these countries. We ensure compliance with applicable data protection laws in your jurisdiction.</p>
+
+            <h2>10. DATA RETENTION</h2>
+            <ul>
+                <li>We retain your data as long as your account is active</li>
+                <li>Upon account deletion, all personal data is permanently removed within 30 days</li>
+                <li>Some anonymized analytics data may be retained for service improvement</li>
+                <li>Backup data may be retained for up to 90 days before permanent deletion</li>
+            </ul>
+
+            <h2>11. CHANGES TO THIS PRIVACY POLICY</h2>
+            <p>We may update this privacy policy from time to time to reflect changes in our practices or legal requirements. We will notify you of any material changes by:</p>
             <ul>
                 <li>Posting the new privacy policy in the app</li>
                 <li>Updating the "Last Updated" date</li>
-                <li>Sending you a notification if changes are significant</li>
+                <li>Sending you a push notification if changes are significant</li>
+                <li>Displaying a notice in the app for significant changes</li>
             </ul>
+            <p>Your continued use of the app after changes constitutes acceptance of the updated policy. We encourage you to review this policy periodically.</p>
+
+            <h2>12. CALIFORNIA PRIVACY RIGHTS (CCPA)</h2>
+            <p>If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA):</p>
+            <ul>
+                <li>Right to know what personal information we collect</li>
+                <li>Right to delete your personal information</li>
+                <li>Right to opt-out of the sale of personal information (we do not sell your data)</li>
+                <li>Right to non-discrimination for exercising your privacy rights</li>
+            </ul>
+            <p>To exercise these rights, please contact us at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a>.</p>
+
+            <h2>13. EUROPEAN PRIVACY RIGHTS (GDPR)</h2>
+            <p>If you are located in the European Economic Area (EEA), you have additional rights under the General Data Protection Regulation (GDPR):</p>
+            <ul>
+                <li>Right to access your personal data</li>
+                <li>Right to rectification of inaccurate data</li>
+                <li>Right to erasure ("right to be forgotten")</li>
+                <li>Right to restrict processing</li>
+                <li>Right to data portability</li>
+                <li>Right to object to processing</li>
+                <li>Right to withdraw consent</li>
+            </ul>
+            <p>To exercise these rights, please contact us at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a>.</p>
 
             <div class="contact-section">
-                <h2>10. CONTACT US</h2>
-                <p>If you have questions about this privacy policy or our data practices, please contact us:</p>
-                <p><strong>Email:</strong> <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a></p>
-                <p><strong>Support Email:</strong> <a href="mailto:support@wardrobe.app">support@wardrobe.app</a></p>
+                <h2>14. CONTACT US</h2>
+                <p>If you have questions, concerns, or requests regarding this privacy policy or our data practices, please contact us:</p>
+                <p><strong>Privacy Inquiries:</strong> <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a></p>
+                <p><strong>Support:</strong> <a href="mailto:support@wardrobe.app">support@wardrobe.app</a></p>
+                <p>We will respond to your inquiry within 30 days.</p>
             </div>
 
-            <h2>11. GOVERNING LAW</h2>
-            <p>This privacy policy is governed by applicable data protection laws in your jurisdiction.</p>
+            <h2>15. GOVERNING LAW</h2>
+            <p>This privacy policy is governed by applicable data protection laws in your jurisdiction, including but not limited to GDPR (for EEA users), CCPA (for California residents), and other applicable regional laws.</p>
 
-            <p style="margin-top: 30px; font-weight: 600; color: #7C3AED;">By using Wardrobe, you agree to this privacy policy.</p>
+            <h2>16. ACKNOWLEDGMENT</h2>
+            <p>By using Wardrobe, you acknowledge that you have read, understood, and agree to this privacy policy. If you do not agree with this policy, please do not use our app.</p>
+
+            <p style="margin-top: 30px; font-weight: 600; color: #7C3AED; text-align: center;">Wardrobe - Organize Your Wardrobe, Style Your Life</p>
         </main>
 
         <div class="nav-links">
@@ -332,9 +475,13 @@
 
         <footer>
             <p>&copy; 2025 Wardrobe App. All rights reserved.</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">
+                App Conceptualized by: Rakesh Maheshwari<br>
+                App Designed by: Dr. Sandhya Kumari Singh<br>
+                App Developed by: GeniusWebSolution
+            </p>
             <a href="index.html" class="back-link">← Back to Home</a>
         </footer>
     </div>
 </body>
 </html>
-

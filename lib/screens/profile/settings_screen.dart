@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool? scheduledNotifications,
   }) {
     if (_notificationSettings == null) return;
-    
+
     setState(() {
       _notificationSettings = NotificationSettings(
         friendRequests: friendRequests ?? _notificationSettings!.friendRequests,
@@ -52,7 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         clothLikes: clothLikes ?? _notificationSettings!.clothLikes,
         clothComments: clothComments ?? _notificationSettings!.clothComments,
         suggestions: suggestions ?? _notificationSettings!.suggestions,
-        scheduledNotifications: scheduledNotifications ?? _notificationSettings!.scheduledNotifications,
+        scheduledNotifications: scheduledNotifications ??
+            _notificationSettings!.scheduledNotifications,
         quietHoursStart: _notificationSettings!.quietHoursStart,
         quietHoursEnd: _notificationSettings!.quietHoursEnd,
       );
@@ -63,7 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.userProfile?.settings != null) {
-      final existingNotifications = authProvider.userProfile!.settings!.notifications;
+      final existingNotifications =
+          authProvider.userProfile!.settings!.notifications;
       setState(() {
         // Recreate NotificationSettings by serializing and deserializing
         // This ensures all fields (including scheduledNotifications) are properly initialized
@@ -189,18 +191,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
+        title: const Text('Delete Account', style: TextStyle(fontSize: 14)),
         content: const Text(
           'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.',
+          style: TextStyle(fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(fontSize: 13)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete',
+                style: TextStyle(color: Colors.red, fontSize: 13)),
           ),
         ],
       ),
@@ -268,9 +272,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Account section
                 const _SectionHeader(title: 'Account'),
                 ListTile(
-                  leading: const Icon(Icons.person, color: Color(0xFF7C3AED)),
-                  title: const Text('Edit Profile'),
-                  trailing: const Icon(Icons.chevron_right),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.person,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Edit Profile',
+                      style: TextStyle(fontSize: 13)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () async {
                     await Navigator.push(
                       context,
@@ -284,9 +293,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.verified, color: Color(0xFF7C3AED)),
-                  title: const Text('Verify Phone/Email'),
-                  trailing: const Icon(Icons.chevron_right),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.verified,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Verify Phone/Email',
+                      style: TextStyle(fontSize: 13)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -295,50 +309,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 // Notifications section
                 const _SectionHeader(title: 'Notifications'),
                 // Always show notification toggles - initialize if null
                 SwitchListTile(
-                  secondary: const Icon(Icons.person_add, color: Color(0xFF7C3AED)),
-                  title: const Text('Friend Requests'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.person_add,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Friend Requests',
+                      style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.friendRequests ?? true,
-                  onChanged: (value) => _updateNotificationSettings(friendRequests: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(friendRequests: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.check_circle, color: Color(0xFF7C3AED)),
-                  title: const Text('Friend Accepts'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.check_circle,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Friend Accepts',
+                      style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.friendAccepts ?? true,
-                  onChanged: (value) => _updateNotificationSettings(friendAccepts: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(friendAccepts: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.chat, color: Color(0xFF7C3AED)),
-                  title: const Text('DM Messages'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.chat,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title:
+                      const Text('DM Messages', style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.dmMessages ?? true,
-                  onChanged: (value) => _updateNotificationSettings(dmMessages: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(dmMessages: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.favorite, color: Color(0xFF7C3AED)),
-                  title: const Text('Cloth Likes'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.favorite,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title:
+                      const Text('Cloth Likes', style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.clothLikes ?? true,
-                  onChanged: (value) => _updateNotificationSettings(clothLikes: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(clothLikes: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.comment, color: Color(0xFF7C3AED)),
-                  title: const Text('Cloth Comments'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.comment,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Cloth Comments',
+                      style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.clothComments ?? true,
-                  onChanged: (value) => _updateNotificationSettings(clothComments: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(clothComments: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.lightbulb, color: Color(0xFF7C3AED)),
-                  title: const Text('Suggestions'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.lightbulb,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title:
+                      const Text('Suggestions', style: TextStyle(fontSize: 13)),
                   value: _notificationSettings?.suggestions ?? true,
-                  onChanged: (value) => _updateNotificationSettings(suggestions: value),
+                  onChanged: (value) {
+                    if (_notificationSettings == null) {
+                      setState(() {
+                        _notificationSettings = NotificationSettings();
+                      });
+                    }
+                    _updateNotificationSettings(suggestions: value);
+                  },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.schedule, color: Color(0xFF7C3AED)),
-                  title: const Text('Scheduled Notifications'),
-                  subtitle: const Text('Daily reminders and scheduled alerts'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  secondary: const Icon(Icons.schedule,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Scheduled Notifications',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text('Daily reminders and scheduled alerts',
+                      style: TextStyle(fontSize: 11)),
                   value: _notificationSettings?.scheduledNotifications ?? true,
                   onChanged: (value) async {
                     // Initialize if null
@@ -348,10 +440,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     }
                     _updateNotificationSettings(scheduledNotifications: value);
-                    
+
                     // Update scheduler provider
-                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+                    final authProvider =
+                        Provider.of<AuthProvider>(context, listen: false);
+                    final schedulerProvider =
+                        Provider.of<SchedulerProvider>(context, listen: false);
                     if (authProvider.user != null) {
                       await schedulerProvider.setScheduledNotificationsEnabled(
                         authProvider.user!.uid,
@@ -361,10 +455,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.schedule, color: Color(0xFF7C3AED)),
-                  title: const Text('Manage Schedules'),
-                  subtitle: const Text('Create and edit notification schedules'),
-                  trailing: const Icon(Icons.chevron_right),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.schedule,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Manage Schedules',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text('Create and edit notification schedules',
+                      style: TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -374,21 +474,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 // Privacy section - Hidden as per requirements (defaults are set automatically)
                 // Privacy settings are set to defaults:
                 // - profileVisibility: 'friends'
                 // - wardrobeVisibility: 'friends'
                 // - allowDmFromNonFriends: false
                 // These are applied automatically and don't need to be shown in settings
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 // About section
                 const _SectionHeader(title: 'About'),
                 ListTile(
-                  leading:
-                      const Icon(Icons.privacy_tip, color: Color(0xFF7C3AED)),
-                  title: const Text('Privacy Policy'),
-                  trailing: const Icon(Icons.chevron_right),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.privacy_tip,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Privacy Policy',
+                      style: TextStyle(fontSize: 13)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -398,10 +502,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading:
-                      const Icon(Icons.description, color: Color(0xFF7C3AED)),
-                  title: const Text('Terms & Conditions'),
-                  trailing: const Icon(Icons.chevron_right),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.description,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Terms & Conditions',
+                      style: TextStyle(fontSize: 13)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -411,32 +519,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.info, color: Color(0xFF7C3AED)),
-                  title: const Text('About'),
-                  subtitle: const Text('Wardrobe App v1.0.0'),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.info,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('About', style: TextStyle(fontSize: 13)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SizedBox(height: 4),
+                      Text('Wardrobe App v1.0.0',
+                          style: TextStyle(fontSize: 11)),
+                      SizedBox(height: 8),
+                      Text('Conceptualized By: Rakesh Maheshwari',
+                          style: TextStyle(fontSize: 11)),
+                      Text('App Designed By: Dr. Sandhya Kumari Singh',
+                          style: TextStyle(fontSize: 11)),
+                      Text('App Developed By: GeniusWebSolution (Gaurav Kumar)',
+                          style: TextStyle(fontSize: 11)),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 // Danger Zone
                 const _SectionHeader(title: 'Danger Zone', color: Colors.red),
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title:
-                      const Text('Logout', style: TextStyle(color: Colors.red)),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading:
+                      const Icon(Icons.logout, color: Colors.red, size: 18),
+                  title: const Text('Logout',
+                      style: TextStyle(color: Colors.red, fontSize: 13)),
                   onTap: () async {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('Logout'),
-                        content: const Text('Are you sure you want to logout?'),
+                        title: const Text('Logout',
+                            style: TextStyle(fontSize: 14)),
+                        content: const Text('Are you sure you want to logout?',
+                            style: TextStyle(fontSize: 13)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
+                            child: const Text('Cancel',
+                                style: TextStyle(fontSize: 13)),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
                             child: const Text('Logout',
-                                style: TextStyle(color: Colors.red)),
+                                style:
+                                    TextStyle(color: Colors.red, fontSize: 13)),
                           ),
                         ],
                       ),
@@ -469,9 +603,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.delete_forever,
+                      color: Colors.red, size: 18),
                   title: const Text('Delete Account',
-                      style: TextStyle(color: Colors.red)),
+                      style: TextStyle(color: Colors.red, fontSize: 13)),
                   onTap: _deleteAccount,
                 ),
               ],
@@ -492,14 +630,14 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
           color: color,
-          letterSpacing: 1.2,
+          letterSpacing: 1.0,
         ),
       ),
     );

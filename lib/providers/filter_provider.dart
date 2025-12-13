@@ -6,6 +6,7 @@ class FilterProvider with ChangeNotifier {
   List<String> _filterOccasions = [];
   List<String> _filterSeasons = [];
   List<String> _filterColors = [];
+  List<String> _filterPlacements = [];
   String? _selectedWardrobeId;
 
   // Getters for backward compatibility (single value)
@@ -19,6 +20,7 @@ class FilterProvider with ChangeNotifier {
   List<String> get filterOccasions => _filterOccasions;
   List<String> get filterSeasons => _filterSeasons;
   List<String> get filterColors => _filterColors;
+  List<String> get filterPlacements => _filterPlacements;
   String? get selectedWardrobeId => _selectedWardrobeId;
 
   bool get hasActiveFilter =>
@@ -26,6 +28,7 @@ class FilterProvider with ChangeNotifier {
       _filterOccasions.isNotEmpty ||
       _filterSeasons.isNotEmpty ||
       _filterColors.isNotEmpty ||
+      _filterPlacements.isNotEmpty ||
       _selectedWardrobeId != null;
 
   void setFilter({
@@ -46,12 +49,14 @@ class FilterProvider with ChangeNotifier {
     List<String>? occasions,
     List<String>? seasons,
     List<String>? colors,
+    List<String>? placements,
     String? wardrobeId,
   }) {
     _filterTypes = types ?? [];
     _filterOccasions = occasions ?? [];
     _filterSeasons = seasons ?? [];
     _filterColors = colors ?? [];
+    _filterPlacements = placements ?? [];
     _selectedWardrobeId = wardrobeId;
     notifyListeners();
   }
@@ -61,6 +66,7 @@ class FilterProvider with ChangeNotifier {
     _filterOccasions = [];
     _filterSeasons = [];
     _filterColors = [];
+    _filterPlacements = [];
     _selectedWardrobeId = null;
     notifyListeners();
   }

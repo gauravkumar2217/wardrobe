@@ -268,28 +268,29 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
                           friendProvider.errorMessage!,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () {
                           friendProvider.clearError();
                           _loadFriends();
                           _loadFriendRequests();
                         },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7C3AED),
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
@@ -306,15 +307,15 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                       if (friendProvider.incomingRequests.isNotEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
                             child: Row(
                               children: [
-                                const Icon(Icons.inbox, color: Color(0xFF7C3AED)),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 18),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Friend Requests (${friendProvider.incomingRequests.length})',
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF7C3AED),
                                   ),
@@ -331,10 +332,13 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                               final profile = _requestProfiles[request.fromUserId];
 
                               return Card(
-                                margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
                                 color: Colors.grey[50],
                                 child: ListTile(
+                                  dense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   leading: CircleAvatar(
+                                    radius: 20,
                                     backgroundColor: const Color(0xFF7C3AED),
                                     backgroundImage: profile?.photoUrl != null
                                         ? NetworkImage(profile!.photoUrl!)
@@ -342,33 +346,34 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                     child: profile?.photoUrl == null
                                         ? Text(
                                             profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(color: Colors.white, fontSize: 14),
                                           )
                                         : null,
                                   ),
                                   title: Text(
                                     profile?.displayName ?? 'Unknown User',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   subtitle: Text(
                                     'Sent ${_formatDate(request.createdAt)}',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
                                   ),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       TextButton(
                                         onPressed: () => _rejectRequest(request),
-                                        child: const Text('Reject', style: TextStyle(color: Colors.red)),
+                                        child: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 4),
                                       ElevatedButton(
                                         onPressed: () => _acceptRequest(request),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF7C3AED),
                                           foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                         ),
-                                        child: const Text('Accept'),
+                                        child: const Text('Accept', style: TextStyle(fontSize: 12)),
                                       ),
                                     ],
                                   ),
@@ -382,15 +387,15 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                       if (friendProvider.friends.isNotEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
                             child: Row(
                               children: [
-                                const Icon(Icons.people, color: Color(0xFF7C3AED)),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.people, color: Color(0xFF7C3AED), size: 18),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Friends (${friendProvider.friends.length})',
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF7C3AED),
                                   ),
@@ -407,9 +412,12 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                               final profile = _friendProfiles[friendId];
 
                               return Card(
-                                margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
                                 child: ListTile(
+                                  dense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   leading: CircleAvatar(
+                                    radius: 20,
                                     backgroundColor: const Color(0xFF7C3AED),
                                     backgroundImage: profile?.photoUrl != null
                                         ? NetworkImage(profile!.photoUrl!)
@@ -417,17 +425,19 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                     child: profile?.photoUrl == null
                                         ? Text(
                                             profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(color: Colors.white, fontSize: 14),
                                           )
                                         : null,
                                   ),
                                   title: Text(
                                     profile?.displayName ?? 'Unknown User',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   subtitle: Text(
-                                    profile?.email ?? friendId.substring(0, 8),
-                                    style: TextStyle(color: Colors.grey[600]),
+                                    profile?.username != null && profile!.username!.isNotEmpty
+                                        ? '@${profile.username}'
+                                        : friendId.substring(0, 8),
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
                                   ),
                                   trailing: PopupMenuButton<String>(
                                     onSelected: (value) {
@@ -442,9 +452,9 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                         value: 'chat',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.chat, size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Message'),
+                                            Icon(Icons.chat, size: 16),
+                                            SizedBox(width: 6),
+                                            Text('Message', style: TextStyle(fontSize: 13)),
                                           ],
                                         ),
                                       ),
@@ -452,9 +462,9 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                         value: 'remove',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.person_remove, size: 20, color: Colors.red),
-                                            SizedBox(width: 8),
-                                            Text('Remove Friend', style: TextStyle(color: Colors.red)),
+                                            Icon(Icons.person_remove, size: 16, color: Colors.red),
+                                            SizedBox(width: 6),
+                                            Text('Remove Friend', style: TextStyle(color: Colors.red, fontSize: 13)),
                                           ],
                                         ),
                                       ),
@@ -479,16 +489,16 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                                const SizedBox(height: 16),
+                                const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                                const SizedBox(height: 12),
                                 const Text(
                                   'No friends yet',
-                                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                                  style: TextStyle(fontSize: 14, color: Colors.grey),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 const Text(
                                   'Add friends to share your wardrobe!',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: TextStyle(fontSize: 13, color: Colors.grey),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),
@@ -502,11 +512,12 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                       _loadFriendRequests();
                                     });
                                   },
-                                  icon: const Icon(Icons.person_add),
-                                  label: const Text('Add Friend'),
+                                  icon: const Icon(Icons.person_add, size: 16),
+                                  label: const Text('Add Friend', style: TextStyle(fontSize: 13)),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF7C3AED),
                                     foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                   ),
                                 ),
                               ],
