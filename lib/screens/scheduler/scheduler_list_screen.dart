@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/scheduler_provider.dart';
 import '../../models/schedule.dart';
 import '../../services/schedule_notification_worker.dart';
-import '../../services/local_notification_service.dart';
 import 'schedule_edit_screen.dart';
 
 /// Screen showing list of all schedules
@@ -221,6 +220,17 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     }
     
     print('✅ User ID: ${authProvider.user!.uid}');
+    
+    // Check and display worker status
+    final taskStatus = await ScheduleNotificationWorker.getTaskStatus();
+    print('📊 Worker Status: $taskStatus');
+    
+    // Ensure periodic task is registered
+    final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+    if (schedulerProvider.scheduledNotificationsEnabled) {
+      print('🔄 Ensuring periodic task is registered...');
+      await ScheduleNotificationWorker.registerPeriodicTask();
+    }
 
     // Show loading indicator
     if (mounted) {
@@ -293,6 +303,16 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                                 'Sent $notificationsSent notification(s).',
                                 style: const TextStyle(fontSize: 13),
                               ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                '📱 Automatic Background Worker:',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'The background worker runs every 15 minutes automatically to check and send notifications.',
+                                style: TextStyle(fontSize: 11, color: Colors.grey),
+                              ),
                               if (hasIssue) ...[
                                 const SizedBox(height: 12),
                                 const Text(
@@ -345,118 +365,6 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
         actions: [
-          // Test notification button (for debugging)
-          IconButton(
-            icon: const Icon(Icons.notifications_active),
-            tooltip: 'Test Notification',
-            onPressed: () async {
-              print('');
-              print('═══════════════════════════════════════════════════════');
-              print('🔔 BELL ICON (TEST NOTIFICATION) BUTTON CLICKED');
-              print('═══════════════════════════════════════════════════════');
-              print('⏰ Time: ${DateTime.now().toIso8601String()}');
-              print('');
-              
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Sending test notification...',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-              
-              print('📞 Calling LocalNotificationService.sendTestNotification()...');
-              final sent = await LocalNotificationService.sendTestNotification();
-              
-              print('');
-              print('═══════════════════════════════════════════════════════');
-              print('📊 TEST NOTIFICATION RESULT:');
-              print('   Success: $sent');
-              print('═══════════════════════════════════════════════════════');
-              print('');
-              
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      sent
-                          ? '✅ Test notification sent! Check your notifications.'
-                          : '❌ Failed to send. Check terminal logs and permissions.',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    duration: const Duration(seconds: 4),
-                    backgroundColor: sent ? Colors.green : Colors.orange,
-                    action: SnackBarAction(
-                      label: 'Details',
-                      textColor: Colors.white,
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Test Notification', style: TextStyle(fontSize: 14)),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sent
-                                      ? '✅ Notification sent successfully!'
-                                      : '❌ Failed to send notification.',
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Check the terminal for detailed logs.',
-                                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                                ),
-                                if (!sent) ...[
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    '⚠️ Troubleshooting:',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    '1. Go to Settings → Apps → Wardrobe → Notifications\n'
-                                    '2. Enable "Allow notifications"\n'
-                                    '3. Ensure "Scheduled Notifications" channel is enabled\n'
-                                    '4. Disable "Do Not Disturb" mode',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('OK', style: TextStyle(fontSize: 13)),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Sync & Check Last 15 Minutes',

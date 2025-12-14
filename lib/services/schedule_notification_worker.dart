@@ -37,6 +37,12 @@ class ScheduleNotificationWorker {
   /// Runs every 15 minutes to check if any schedules need to trigger
   static Future<void> registerPeriodicTask() async {
     try {
+      // Cancel any existing task first to avoid duplicates
+      await Workmanager().cancelByUniqueName(periodicTaskName);
+
+      // Wait a bit before registering new task
+      await Future.delayed(const Duration(milliseconds: 100));
+
       await Workmanager().registerPeriodicTask(
         periodicTaskName,
         periodicTaskName,
@@ -50,13 +56,27 @@ class ScheduleNotificationWorker {
         ),
       );
 
+      // Store registration timestamp
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'periodic_task_last_registered', DateTime.now().toIso8601String());
+
       if (kDebugMode) {
-        debugPrint('✅ Registered periodic schedule check task');
+        debugPrint(
+            '✅ Registered periodic schedule check task (runs every 15 minutes)');
+        debugPrint('⏰ Registration time: ${DateTime.now().toIso8601String()}');
       }
+      print(
+          '✅ Registered periodic schedule check task (runs every 15 minutes)');
+      print('⏰ Registration time: ${DateTime.now().toIso8601String()}');
+      print(
+          '💡 Task will run automatically every 15 minutes in the background');
+      print('💡 Check terminal logs to see when the worker executes');
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ Failed to register periodic task: $e');
       }
+      print('❌ Failed to register periodic task: $e');
     }
   }
 
@@ -67,87 +87,197 @@ class ScheduleNotificationWorker {
       if (kDebugMode) {
         debugPrint('✅ Cancelled periodic schedule check task');
       }
+      print('✅ Cancelled periodic schedule check task');
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ Failed to cancel periodic task: $e');
       }
+      print('❌ Failed to cancel periodic task: $e');
+    }
+  }
+
+  /// Check if periodic task is registered (for debugging)
+  /// Note: Workmanager doesn't provide a direct way to check task status,
+  /// but we can verify by attempting to register and checking for errors
+  static Future<Map<String, dynamic>> getTaskStatus() async {
+    try {
+      // Note: Workmanager doesn't expose task status directly
+      // We'll return information about when it was last registered
+      final prefs = await SharedPreferences.getInstance();
+      final lastRegistered = prefs.getString('periodic_task_last_registered');
+
+      return {
+        'isRegistered': lastRegistered != null,
+        'lastRegistered': lastRegistered,
+        'taskName': periodicTaskName,
+        'frequency': '15 minutes',
+        'note':
+            'Workmanager runs tasks in background. Check device logs to verify execution.',
+      };
+    } catch (e) {
+      return {
+        'error': e.toString(),
+      };
     }
   }
 
   /// Process schedules and send notifications
   /// This is called by the background worker
   static Future<void> processSchedules() async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🔄 BACKGROUND WORKER: processSchedules() called');
+    print('═══════════════════════════════════════════════════════');
+    print('⏰ Time: ${DateTime.now().toIso8601String()}');
+
     try {
       if (kDebugMode) {
         debugPrint('🔄 Background worker: Checking schedules...');
       }
+      print('🔄 Background worker: Checking schedules...');
 
       // Get userId from shared preferences
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('current_user_id');
 
       if (userId != null) {
+        print('✅ Found userId: $userId');
         await processSchedulesForUser(userId);
       } else {
         if (kDebugMode) {
           debugPrint('⚠️ No userId found in shared preferences');
         }
+        print('⚠️ No userId found in shared preferences');
+        print('💡 Make sure user is logged in and schedules are loaded');
       }
 
       if (kDebugMode) {
         debugPrint('✅ Background worker: Schedule check completed');
       }
-    } catch (e) {
+      print('✅ Background worker: Schedule check completed');
+      print('═══════════════════════════════════════════════════════');
+      print('');
+    } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint('❌ Background worker error: $e');
+        debugPrint('Stack trace: $stackTrace');
       }
+      print('❌ Background worker error: $e');
+      print('Stack trace: $stackTrace');
+      print('═══════════════════════════════════════════════════════');
+      print('');
     }
   }
 
   /// Process schedules for a specific user
+  /// Checks schedules that should have triggered in the last 15 minutes
+  /// This accounts for the fact that the worker runs every 15 minutes
   static Future<void> processSchedulesForUser(String userId) async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🔄 BACKGROUND WORKER: Processing schedules');
+    print('═══════════════════════════════════════════════════════');
+    print('👤 User ID: $userId');
+
     try {
       final schedules = await SchedulerService.loadSchedules(userId);
       final now = DateTime.now();
-      final currentHour = now.hour;
-      final currentMinute = now.minute;
-      final currentWeekday = now.weekday % 7; // 0-6 (Sunday = 0)
+      final fifteenMinutesAgo = now.subtract(const Duration(minutes: 15));
 
       if (kDebugMode) {
         debugPrint(
-            '🕐 Current time: ${now.hour}:${now.minute.toString().padLeft(2, '0')}, Weekday: $currentWeekday');
+            '🕐 Current time: ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
+        debugPrint(
+            '🕐 Checking time range: ${fifteenMinutesAgo.hour}:${fifteenMinutesAgo.minute.toString().padLeft(2, '0')} to ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
         debugPrint('📋 Checking ${schedules.length} schedule(s)...');
       }
+      print(
+          '🕐 Current time: ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
+      print(
+          '🕐 Checking time range: ${fifteenMinutesAgo.hour}:${fifteenMinutesAgo.minute.toString().padLeft(2, '0')} to ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
+      print('📋 Total schedules to check: ${schedules.length}');
 
-      for (final schedule in schedules) {
-        if (!schedule.isEnabled) {
-          if (kDebugMode) {
-            debugPrint('⏭️ Skipping disabled schedule: ${schedule.title}');
+      int schedulesFound = 0;
+      int notificationsSent = 0;
+      final processedScheduleIds = <String>{};
+
+      // Check each minute in the last 15 minutes
+      // This ensures we catch schedules even if the worker runs slightly late
+      for (int minutesBack = 0; minutesBack <= 15; minutesBack++) {
+        final checkTime = now.subtract(Duration(minutes: minutesBack));
+        final checkHour = checkTime.hour;
+        final checkMinute = checkTime.minute;
+        final checkWeekday = checkTime.weekday % 7; // 0-6 (Sunday = 0)
+
+        for (final schedule in schedules) {
+          if (!schedule.isEnabled) {
+            continue;
           }
-          continue;
-        }
 
-        // Check if this schedule should trigger now
-        final shouldTrigger = schedule.daysOfWeek.contains(currentWeekday) &&
-            schedule.hour == currentHour &&
-            schedule.minute == currentMinute;
-
-        if (shouldTrigger) {
-          if (kDebugMode) {
-            debugPrint('✅ Schedule matches current time: ${schedule.title}');
+          // Skip if we already processed this schedule in this check cycle
+          if (processedScheduleIds.contains(schedule.id)) {
+            continue;
           }
-          await _sendScheduleNotification(schedule, userId);
-        } else {
-          if (kDebugMode) {
-            debugPrint(
-                '⏭️ Schedule does not match: ${schedule.title} (${schedule.hour}:${schedule.minute.toString().padLeft(2, '0')}, Days: ${schedule.daysOfWeek})');
+
+          // Check if this schedule should have triggered at this time
+          final shouldHaveTriggered =
+              schedule.daysOfWeek.contains(checkWeekday) &&
+                  schedule.hour == checkHour &&
+                  schedule.minute == checkMinute;
+
+          if (shouldHaveTriggered) {
+            schedulesFound++;
+            processedScheduleIds.add(schedule.id);
+
+            if (kDebugMode) {
+              debugPrint(
+                  '✅ Found schedule that should have triggered: ${schedule.title} at $checkHour:${checkMinute.toString().padLeft(2, '0')}');
+            }
+            print(
+                '✅ Found schedule that should have triggered: ${schedule.title} at $checkHour:${checkMinute.toString().padLeft(2, '0')}');
+
+            // Send notification for this schedule
+            try {
+              final sent = await _sendScheduleNotification(schedule, userId);
+              if (sent) {
+                notificationsSent++;
+                if (kDebugMode) {
+                  debugPrint('📤 Sent notification for: ${schedule.title}');
+                }
+                print('📤 ✅ Sent notification for: ${schedule.title}');
+              } else {
+                if (kDebugMode) {
+                  debugPrint(
+                      '⚠️ Notification not sent for ${schedule.title} (permission issue?)');
+                }
+                print(
+                    '⚠️ ❌ Notification NOT sent for ${schedule.title} (permission issue?)');
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                debugPrint(
+                    '❌ Failed to send notification for ${schedule.title}: $e');
+              }
+              print('❌ Error sending notification for ${schedule.title}: $e');
+            }
           }
         }
       }
+
+      if (kDebugMode) {
+        debugPrint(
+            '✅ Background worker: Found $schedulesFound schedule(s), sent $notificationsSent notification(s)');
+      }
+      print(
+          '✅ Background worker: Found $schedulesFound schedule(s), sent $notificationsSent notification(s)');
+      print('═══════════════════════════════════════════════════════');
+      print('');
     } catch (e) {
       if (kDebugMode) {
         debugPrint('❌ Error processing schedules for user $userId: $e');
       }
+      print('❌ Error processing schedules for user $userId: $e');
+      print('');
     }
   }
 
@@ -591,27 +721,49 @@ class ScheduleNotificationWorker {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    print('');
+    print('═══════════════════════════════════════════════════════');
+    print('🔄 BACKGROUND WORKER CALLBACK DISPATCHER');
+    print('═══════════════════════════════════════════════════════');
+    print('📅 Task: $task');
+    print('⏰ Time: ${DateTime.now().toIso8601String()}');
+    print('📦 Input Data: $inputData');
+
     try {
       if (kDebugMode) {
         debugPrint('🔄 Background task started: $task');
+        debugPrint('⏰ Time: ${DateTime.now().toIso8601String()}');
       }
 
       switch (task) {
         case ScheduleNotificationWorker.periodicTaskName:
+          print('✅ Processing periodic schedule check...');
           // Process schedules (will get userId from shared preferences)
           await ScheduleNotificationWorker.processSchedules();
+          print('✅ Periodic schedule check completed');
           break;
         default:
           if (kDebugMode) {
             debugPrint('⚠️ Unknown task: $task');
           }
+          print('⚠️ Unknown task: $task');
       }
 
+      print('✅ Background task completed successfully');
+      print('═══════════════════════════════════════════════════════');
+      print('');
+
       return Future.value(true);
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint('❌ Background task error: $e');
+        debugPrint('Stack trace: $stackTrace');
       }
+      print('❌ Background task error: $e');
+      print('Stack trace: $stackTrace');
+      print('═══════════════════════════════════════════════════════');
+      print('');
+
       return Future.value(false);
     }
   });
