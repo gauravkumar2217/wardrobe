@@ -27,6 +27,7 @@ class OnboardingProvider with ChangeNotifier {
   int _currentStepIndex = 0;
   List<OnboardingStep> _steps = [];
   bool _isSkipped = false;
+  bool _shouldRestart = false;
 
   bool get isOnboardingActive => _isOnboardingActive;
   int get currentStepIndex => _currentStepIndex;
@@ -35,6 +36,7 @@ class OnboardingProvider with ChangeNotifier {
   int get totalSteps => _steps.length;
   bool get isSkipped => _isSkipped;
   bool get hasMoreSteps => _currentStepIndex < _steps.length - 1;
+  bool get shouldRestart => _shouldRestart;
 
   /// Start onboarding with a list of steps
   void startOnboarding(List<OnboardingStep> steps) {
@@ -84,6 +86,18 @@ class OnboardingProvider with ChangeNotifier {
     _currentStepIndex = 0;
     _steps = [];
     _isSkipped = false;
+    notifyListeners();
+  }
+
+  /// Request restart of onboarding (called from settings)
+  void requestRestart() {
+    _shouldRestart = true;
+    notifyListeners();
+  }
+
+  /// Clear restart request (called after restart is initiated)
+  void clearRestartRequest() {
+    _shouldRestart = false;
     notifyListeners();
   }
 }

@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/scheduler_provider.dart';
+import '../../providers/onboarding_provider.dart';
+import '../../services/onboarding_service.dart';
 import '../../services/user_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
@@ -540,6 +542,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(fontSize: 11)),
                     ],
                   ),
+                ),
+                ListTile(
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.help_outline,
+                      color: Color(0xFF7C3AED), size: 18),
+                  title: const Text('Show Tutorial',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text('View the app guide again',
+                      style: TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () async {
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    if (authProvider.user == null) return;
+                    
+                    setState(() {
+                      _isLoading = true;
+                    });
+                    
+                    try {
+                      // Reset onboarding status
+                      await OnboardingService.resetOnboarding(authProvider.user!.uid);
+                      
+                      // Request restart from onboarding provider
+                      final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
+                      onboardingProvider.requestRestart();
+                      
+                      // Navigate back to main screen
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                      
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tutorial will start shortly'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to restart tutorial: $e')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isLoading = false;
+                        });
+                      }
+                    }
+                  },
                 ),
                 const SizedBox(height: 8),
                 // Danger Zone
