@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "wordrobe-chat",
+    "prod": "wordrobe-chat"
+  },
+  "targets": {},
+  "etags": {}
+}

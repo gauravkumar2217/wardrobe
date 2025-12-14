@@ -1,0 +1,14 @@
+# Compiled JavaScript files
+lib/**/*.js
+lib/**/*.js.map
+
+# TypeScript v1 declaration files
+typings/
+
+# Node.js dependency directory
+node_modules/
+*.local
+
+# Service account keys (DO NOT COMMIT TO GIT!)
+service-account.json
+*-firebase-adminsdk-*.json
