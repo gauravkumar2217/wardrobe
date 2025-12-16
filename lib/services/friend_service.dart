@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/friend_request.dart';
+import 'push_notification_service.dart';
 
 /// Friend service for managing friend relationships
 class FriendService {
@@ -49,6 +50,15 @@ class FriendService {
       final docRef = await _firestore
           .collection('friendRequests')
           .add(requestData);
+
+      // Send notification to recipient (non-blocking)
+      PushNotificationService.sendFriendRequestNotification(
+        recipientUserId: toUserId,
+        senderUserId: fromUserId,
+        requestId: docRef.id,
+      ).catchError((e) {
+        debugPrint('Failed to send friend request notification: $e');
+      });
 
       return docRef.id;
     } catch (e) {
@@ -132,6 +142,15 @@ class FriendService {
       );
 
       await batch.commit();
+
+      // Send notification to requester (non-blocking)
+      PushNotificationService.sendFriendAcceptNotification(
+        recipientUserId: request.fromUserId, // The person who sent the request
+        accepterUserId: request.toUserId, // The person who accepted
+        requestId: requestId,
+      ).catchError((e) {
+        debugPrint('Failed to send friend accept notification: $e');
+      });
     } catch (e) {
       debugPrint('Failed to accept friend request: $e');
       debugPrint('Request ID: $requestId');

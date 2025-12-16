@@ -55,8 +55,22 @@ class _ClothCardState extends State<ClothCard> {
   @override
   void didUpdateWidget(covariant ClothCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.cloth.id != widget.cloth.id ||
-        oldWidget.cloth.wornAt != widget.cloth.wornAt) {
+
+    // Check if wornAt changed (handle null cases properly)
+    final oldWornAt = oldWidget.cloth.wornAt;
+    final newWornAt = widget.cloth.wornAt;
+    final wornAtChanged = (oldWornAt == null) != (newWornAt == null) ||
+        (oldWornAt != null &&
+            newWornAt != null &&
+            !_isSameDay(oldWornAt, newWornAt));
+
+    if (oldWidget.cloth.id != widget.cloth.id || wornAtChanged) {
+      // Update _isWornToday immediately based on widget.cloth.wornAt
+      final now = DateTime.now();
+      setState(() {
+        _isWornToday = widget.cloth.wornAt != null &&
+            _isSameDay(widget.cloth.wornAt!, now);
+      });
       _loadInfo();
     }
   }
@@ -103,10 +117,24 @@ class _ClothCardState extends State<ClothCard> {
         }
       }
     } else if (mounted) {
+      final now = DateTime.now();
       setState(() {
         _isWornToday = widget.cloth.wornAt != null &&
-            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+            _isSameDay(widget.cloth.wornAt!, now);
       });
+    }
+
+    // Always update _isWornToday from widget.cloth.wornAt as a fallback
+    // This ensures it's always in sync even if getWearHistoryInfo fails or is slow
+    if (mounted) {
+      final now = DateTime.now();
+      final isWornFromCloth =
+          widget.cloth.wornAt != null && _isSameDay(widget.cloth.wornAt!, now);
+      if (_isWornToday != isWornFromCloth) {
+        setState(() {
+          _isWornToday = isWornFromCloth;
+        });
+      }
     }
 
     if (mounted) {
@@ -140,10 +168,11 @@ class _ClothCardState extends State<ClothCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isWornToday = widget.isOwner
-        ? _isWornToday
-        : widget.cloth.wornAt != null &&
-            _isSameDay(widget.cloth.wornAt!, DateTime.now());
+    // Always calculate isWornToday from widget.cloth.wornAt to ensure it's always in sync
+    // This ensures the icon updates immediately when wornAt changes
+    final now = DateTime.now();
+    final isWornToday =
+        widget.cloth.wornAt != null && _isSameDay(widget.cloth.wornAt!, now);
 
     return Container(
       width: double.infinity,
@@ -206,7 +235,9 @@ class _ClothCardState extends State<ClothCard> {
                     top: 16,
                     left: 16,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 20),
+                      iconSize: 20,
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
@@ -226,13 +257,13 @@ class _ClothCardState extends State<ClothCard> {
                         color: widget.isLiked ? Colors.red : Colors.white,
                         onTap: widget.onLike,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
                       _ActionButton(
                         icon: Icons.comment,
                         label: '${widget.cloth.commentsCount}',
                         onTap: widget.onComment,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
                       // Information icon to toggle bottom panel
                       _ActionButton(
                         icon: _isInfoPanelVisible
@@ -245,7 +276,7 @@ class _ClothCardState extends State<ClothCard> {
                           });
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
                       // Worn history icon
                       if (widget.onWornHistory != null)
                         _ActionButton(
@@ -254,7 +285,7 @@ class _ClothCardState extends State<ClothCard> {
                           onTap: widget.onWornHistory,
                         ),
                       if (widget.onWornHistory != null)
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
                       // Owner-only actions: Share, Edit, Mark Worn, Delete
                       if (widget.isOwner) ...[
                         if (widget.onShare != null) ...[
@@ -263,7 +294,7 @@ class _ClothCardState extends State<ClothCard> {
                             label: 'Share',
                             onTap: widget.onShare,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 8),
                         ],
                         if (widget.onEdit != null) ...[
                           _ActionButton(
@@ -271,19 +302,19 @@ class _ClothCardState extends State<ClothCard> {
                             label: 'Edit',
                             onTap: widget.onEdit,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 8),
                         ],
                         if (widget.onMarkWorn != null) ...[
                           _ActionButton(
                             icon: isWornToday
                                 ? Icons.check_circle
                                 : Icons.check_circle_outline,
-                            label: isWornToday ? 'Worn Today' : 'Worn',
+                            label: isWornToday ? 'Worn' : 'Worn',
                             color:
                                 isWornToday ? Colors.greenAccent : Colors.white,
                             onTap: widget.onMarkWorn,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 8),
                         ],
                         if (widget.onDelete != null) ...[
                           _ActionButton(
@@ -304,7 +335,7 @@ class _ClothCardState extends State<ClothCard> {
                     right: 80,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -325,28 +356,28 @@ class _ClothCardState extends State<ClothCard> {
                             widget.cloth.clothType,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             '${widget.cloth.category} • ${widget.cloth.season}',
                             style: const TextStyle(
                               color: Colors.white70,
-                              fontSize: 14,
+                              fontSize: 11,
                             ),
                           ),
                           if (widget.cloth.occasions.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 3),
                             Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
+                              spacing: 2,
+                              runSpacing: 2,
                               children: widget.cloth.occasions.map((occasion) {
                                 return Chip(
                                   label: Text(
                                     occasion,
-                                    style: const TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 10),
                                   ),
                                   backgroundColor:
                                       const Color.fromARGB(255, 0, 0, 0)
@@ -354,22 +385,22 @@ class _ClothCardState extends State<ClothCard> {
                                   labelStyle:
                                       const TextStyle(color: Colors.white),
                                   padding:
-                                      const EdgeInsets.symmetric(horizontal: 4),
+                                      const EdgeInsets.symmetric(horizontal: 3),
                                 );
                               }).toList(),
                             ),
                           ],
                           if (widget.cloth.colorTags.colors.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 3),
                             Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
+                              spacing: 2,
+                              runSpacing: 2,
                               children:
                                   widget.cloth.colorTags.colors.map((color) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                                    horizontal: 6,
+                                    vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.2),
@@ -379,43 +410,43 @@ class _ClothCardState extends State<ClothCard> {
                                     color,
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 10,
                                     ),
                                   ),
                                 );
                               }).toList(),
                             ),
                           ],
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 4),
                           // Wardrobe name
                           if (_wardrobeName != null) ...[
                             Row(
                               children: [
                                 const Icon(Icons.inventory_2,
-                                    size: 16, color: Colors.white70),
-                                const SizedBox(width: 4),
+                                    size: 12, color: Colors.white70),
+                                const SizedBox(width: 3),
                                 Text(
                                   _wardrobeName!,
                                   style: const TextStyle(
                                     color: Colors.white70,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                           ],
                           // Added date
                           Row(
                             children: [
                               const Icon(Icons.calendar_today,
-                                  size: 16, color: Colors.white70),
-                              const SizedBox(width: 4),
+                                  size: 12, color: Colors.white70),
+                              const SizedBox(width: 3),
                               Text(
                                 'Added ${_formatDate(widget.cloth.createdAt)}',
                                 style: const TextStyle(
                                   color: Colors.white70,
-                                  fontSize: 12,
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
@@ -423,41 +454,41 @@ class _ClothCardState extends State<ClothCard> {
                           // Wear history (only for owner)
                           if (widget.isOwner &&
                               _wearHistorySummary != null) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             Row(
                               children: [
                                 const Icon(Icons.check_circle,
-                                    size: 16, color: Colors.white70),
-                                const SizedBox(width: 4),
+                                    size: 12, color: Colors.white70),
+                                const SizedBox(width: 3),
                                 Flexible(
                                   child: Text(
                                     _wearHistorySummary!,
                                     style: const TextStyle(
                                       color: Colors.white70,
-                                      fontSize: 12,
+                                      fontSize: 10,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ] else if (widget.isOwner && _isLoadingInfo) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             Row(
                               children: [
                                 SizedBox(
-                                  width: 16,
-                                  height: 16,
+                                  width: 12,
+                                  height: 12,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     color: Colors.white70,
                                   ),
                                 ),
-                                SizedBox(width: 8),
+                                SizedBox(width: 6),
                                 Text(
                                   'Refreshing wear history...',
                                   style: TextStyle(
                                     color: Colors.white70,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
@@ -481,7 +512,9 @@ class _ClothCardState extends State<ClothCard> {
                     top: 16,
                     left: 16,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 20),
+                      iconSize: 20,
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
@@ -513,12 +546,13 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 4),
+          Icon(icon, color: color, size: 30),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(color: color, fontSize: 12),
+            style: TextStyle(color: color, fontSize: 9),
           ),
         ],
       ),

@@ -81,5 +81,33 @@ class OnboardingService {
       rethrow;
     }
   }
+
+  /// Reset onboarding status (allows user to see onboarding again)
+  static Future<void> resetOnboarding(String userId) async {
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      
+      // Get current settings or create new
+      final userDoc = await userRef.get();
+      Map<String, dynamic> settings = {};
+      
+      if (userDoc.exists && userDoc.data()?['settings'] != null) {
+        settings = Map<String, dynamic>.from(userDoc.data()!['settings'] as Map);
+      }
+
+      // Reset onboarding status
+      settings['onboardingCompleted'] = false;
+      settings['onboardingSkipped'] = false;
+
+      // Update user document
+      await userRef.set({
+        'settings': settings,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error resetting onboarding: $e');
+      rethrow;
+    }
+  }
 }
 

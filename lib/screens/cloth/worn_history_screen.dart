@@ -147,7 +147,7 @@ class _WornHistoryScreenState extends State<WornHistoryScreen> {
                             'No wear history yet',
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 18,
+                              fontSize: 14,
                             ),
                           ),
                           SizedBox(height: 8),
@@ -201,7 +201,7 @@ class _WornHistoryScreenState extends State<WornHistoryScreen> {
                                         _formatDate(entry.wornAt),
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 16,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),

@@ -296,27 +296,27 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Text(
                       'Verify Contact',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       'Verify your email and phone number for account security',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     // Email verification status
                     Card(
                       elevation: 2,
@@ -324,14 +324,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     color: _emailVerified
                                         ? Colors.green.withValues(alpha: 0.1)
@@ -345,10 +345,10 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                     color: _emailVerified
                                         ? Colors.green
                                         : Colors.grey[600],
-                                    size: 24,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,15 +356,15 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                       const Text(
                                         'Email Address',
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         user?.email ?? 'No email',
                                         style: TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           color: Colors.grey[700],
                                         ),
                                       ),
@@ -373,20 +373,20 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
                                     color: _emailVerified
                                         ? Colors.green
                                         : Colors.orange,
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
                                     _emailVerified ? 'Verified' : 'Not Verified',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -394,40 +394,40 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                               ],
                             ),
                             if (!_emailVerified && user?.email != null) ...[
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               const Divider(),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               const Text(
                                 'A verification email will be sent to your email address. Please check your inbox and click the verification link.',
-                                style: TextStyle(fontSize: 13),
+                                style: TextStyle(fontSize: 12),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
                                   onPressed: _isLoading ? null : _sendEmailVerification,
-                                  icon: const Icon(Icons.send),
-                                  label: const Text('Send Verification Email'),
+                                  icon: const Icon(Icons.send, size: 16),
+                                  label: const Text('Send Verification Email', style: TextStyle(fontSize: 13)),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF7C3AED),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
                                   onPressed: _isLoading ? null : _verifyEmail,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Check Status'),
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('Check Status', style: TextStyle(fontSize: 13)),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: const Color(0xFF7C3AED),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
                                     side: const BorderSide(
                                       color: Color(0xFF7C3AED),
                                     ),
@@ -442,7 +442,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     // Phone verification status
                     Card(
                       elevation: 2,
@@ -450,14 +450,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     color: _phoneVerified
                                         ? Colors.green.withValues(alpha: 0.1)
@@ -471,10 +471,10 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                     color: _phoneVerified
                                         ? Colors.green
                                         : Colors.grey[600],
-                                    size: 24,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,18 +482,18 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                       const Text(
                                         'Phone Number',
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         _phoneNumber != null &&
                                                 _phoneNumber!.isNotEmpty
                                             ? _phoneNumber!
                                             : 'No phone number',
                                         style: TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           color: Colors.grey[700],
                                         ),
                                       ),
@@ -502,20 +502,20 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
                                     color: _phoneVerified
                                         ? Colors.green
                                         : Colors.orange,
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
                                     _phoneVerified ? 'Verified' : 'Not Verified',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -523,12 +523,12 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                               ],
                             ),
                             if (!_phoneVerified) ...[
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               const Divider(),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               if (_phoneNumber == null || _phoneNumber!.isEmpty) ...[
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: Colors.orange.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
@@ -538,14 +538,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                       Icon(
                                         Icons.info_outline,
                                         color: Colors.orange[700],
-                                        size: 20,
+                                        size: 18,
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
                                           'Please add a phone number in your profile to verify it.',
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 12,
                                             color: Colors.orange[900],
                                           ),
                                         ),
@@ -557,20 +557,20 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 if (_verificationId == null) ...[
                                   const Text(
                                     'We will send a verification code to your phone number via SMS.',
-                                    style: TextStyle(fontSize: 13),
+                                    style: TextStyle(fontSize: 12),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
                                       onPressed: _isLoading ? null : _sendPhoneOTP,
-                                      icon: const Icon(Icons.sms),
-                                      label: const Text('Send OTP'),
+                                      icon: const Icon(Icons.sms, size: 16),
+                                      label: const Text('Send OTP', style: TextStyle(fontSize: 13)),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF7C3AED),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
+                                          vertical: 10,
                                         ),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
@@ -581,9 +581,9 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 ] else ...[
                                   const Text(
                                     'Enter the 6-digit code sent to your phone number.',
-                                    style: TextStyle(fontSize: 13),
+                                    style: TextStyle(fontSize: 12),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   Form(
                                     key: _formKey,
                                     child: Column(
@@ -595,22 +595,25 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                           keyboardType: TextInputType.number,
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(
-                                            fontSize: 28,
+                                            fontSize: 20,
                                             fontWeight: FontWeight.bold,
-                                            letterSpacing: 12,
+                                            letterSpacing: 8,
                                           ),
                                           maxLength: 6,
                                           decoration: InputDecoration(
                                             labelText: 'Enter OTP',
+                                            labelStyle: const TextStyle(fontSize: 13),
                                             hintText: '000000',
+                                            hintStyle: const TextStyle(fontSize: 20),
                                             counterText: '',
-                                            prefixIcon: const Icon(Icons.pin),
+                                            prefixIcon: const Icon(Icons.pin, size: 18),
                                             border: OutlineInputBorder(
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
                                             filled: true,
                                             fillColor: Colors.grey[50],
+                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                           ),
                                           validator: (value) {
                                             if (value == null ||
@@ -623,22 +626,22 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                             return null;
                                           },
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 12),
                                         SizedBox(
                                           width: double.infinity,
                                           child: ElevatedButton.icon(
                                             onPressed: _isLoading
                                                 ? null
                                                 : _verifyPhoneOTP,
-                                            icon: const Icon(Icons.verified),
-                                            label: const Text('Verify OTP'),
+                                            icon: const Icon(Icons.verified, size: 16),
+                                            label: const Text('Verify OTP', style: TextStyle(fontSize: 13)),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   const Color(0xFF7C3AED),
                                               foregroundColor: Colors.white,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                vertical: 12,
+                                                vertical: 10,
                                               ),
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:
@@ -647,14 +650,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: 10),
                                         if (_resendTimer > 0)
                                           Center(
                                             child: Text(
                                               'Resend OTP in $_resendTimer seconds',
                                               style: TextStyle(
                                                 color: Colors.grey[600],
-                                                fontSize: 13,
+                                                fontSize: 12,
                                               ),
                                             ),
                                           )
@@ -662,8 +665,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                           Center(
                                             child: TextButton.icon(
                                               onPressed: _sendPhoneOTP,
-                                              icon: const Icon(Icons.refresh),
-                                              label: const Text('Resend OTP'),
+                                              icon: const Icon(Icons.refresh, size: 16),
+                                              label: const Text('Resend OTP', style: TextStyle(fontSize: 13)),
                                               style: TextButton.styleFrom(
                                                 foregroundColor:
                                                     const Color(0xFF7C3AED),
@@ -680,7 +683,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),

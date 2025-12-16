@@ -127,15 +127,16 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _nameController,
+                style: const TextStyle(fontSize: 14),
                 decoration: const InputDecoration(
                   labelText: 'Wardrobe Name *',
                   prefixIcon: Icon(Icons.title),
@@ -148,9 +149,10 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _locationController,
+                style: const TextStyle(fontSize: 14),
                 decoration: const InputDecoration(
                   labelText: 'Location *',
                   prefixIcon: Icon(Icons.location_on),
@@ -163,21 +165,21 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _createWardrobe,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7C3AED),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 18,
+                        width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Create Wardrobe', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text('Create Wardrobe', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

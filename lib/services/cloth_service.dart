@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/cloth.dart';
 import 'storage_service.dart';
+import 'push_notification_service.dart';
 
 /// Cloth service for managing clothes
 class ClothService {
@@ -607,6 +608,19 @@ class ClothService {
         debugPrint('Failed to update likesCount in top-level collection (non-critical): $e');
         // Continue - like document is already created
       }
+
+      // Send notification to cloth owner (non-blocking)
+      if (ownerId != userId) {
+        PushNotificationService.sendClothLikeNotification(
+          recipientUserId: ownerId,
+          likerUserId: userId,
+          clothId: clothId,
+          clothOwnerId: ownerId,
+          clothWardrobeId: wardrobeId,
+        ).catchError((e) {
+          debugPrint('Failed to send cloth like notification: $e');
+        });
+      }
     } catch (e) {
       debugPrint('Failed to like cloth: $e');
       rethrow;
@@ -781,6 +795,21 @@ class ClothService {
       } catch (e) {
         debugPrint('Failed to update commentsCount in top-level collection (non-critical): $e');
         // Continue - comment document is already created
+      }
+
+      // Send notification to cloth owner (non-blocking)
+      if (ownerId != userId) {
+        PushNotificationService.sendClothCommentNotification(
+          recipientUserId: ownerId,
+          commenterUserId: userId,
+          clothId: clothId,
+          commentId: commentId,
+          clothOwnerId: ownerId,
+          clothWardrobeId: wardrobeId,
+          commentText: text,
+        ).catchError((e) {
+          debugPrint('Failed to send cloth comment notification: $e');
+        });
       }
 
       return commentId;

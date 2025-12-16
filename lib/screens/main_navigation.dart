@@ -106,66 +106,147 @@ class _MainNavigationState extends State<MainNavigation>
     }
   }
 
+  /// Restart onboarding (called from settings)
+  Future<void> restartOnboarding() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
+    
+    if (authProvider.user == null) return;
+    
+    // Reset the check flag so it can check again
+    _hasCheckedOnboarding = false;
+    
+    // Wait a bit for UI to be ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    if (mounted) {
+      _startOnboarding(onboardingProvider, context);
+    }
+  }
+
   void _startOnboarding(OnboardingProvider onboardingProvider, BuildContext context) {
     // Wait a bit more for the bottom navigation bar to be fully rendered
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       
-      if (!mounted) return;
-      if (!mounted) return;
       final navContext = this.context;
       if (!mounted) return;
+      
       final screenWidth = MediaQuery.of(navContext).size.width;
       final screenHeight = MediaQuery.of(navContext).size.height;
-      const bottomNavHeight = 60.0;
-      final itemWidth = screenWidth / 5;
+      final safeAreaBottom = MediaQuery.of(navContext).padding.bottom;
       
-      // Calculate center positions for each navigation item
-      // Items are centered in their 1/5 width sections
-      final steps = [
-        OnboardingStep(
-          id: 'home',
-          title: 'Welcome to Wardrobe!',
-          description: 'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
-          targetOffset: Offset(itemWidth * 0.5, screenHeight - bottomNavHeight / 2 - 10),
-          targetSize: const Size(70, 70),
-          alignment: Alignment.topCenter,
-        ),
-        OnboardingStep(
-          id: 'wardrobes',
-          title: 'Organize Your Wardrobes',
-          description: 'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
-          targetOffset: Offset(itemWidth * 1.5, screenHeight - bottomNavHeight / 2 - 10),
-          targetSize: const Size(70, 70),
-          alignment: Alignment.topCenter,
-        ),
-        OnboardingStep(
-          id: 'friends',
-          title: 'Connect with Friends',
-          description: 'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
-          targetOffset: Offset(itemWidth * 2.5, screenHeight - bottomNavHeight / 2 - 10),
-          targetSize: const Size(70, 70),
-          alignment: Alignment.topCenter,
-        ),
-        OnboardingStep(
-          id: 'chat',
-          title: 'Chat & Share',
-          description: 'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
-          targetOffset: Offset(itemWidth * 3.5, screenHeight - bottomNavHeight / 2 - 10),
-          targetSize: const Size(70, 70),
-          alignment: Alignment.topCenter,
-        ),
-        OnboardingStep(
-          id: 'profile',
-          title: 'Your Profile',
-          description: 'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
-          targetOffset: Offset(itemWidth * 4.5, screenHeight - bottomNavHeight / 2 - 10),
-          targetSize: const Size(70, 70),
-          alignment: Alignment.topCenter,
-        ),
-      ];
+      // Try to get actual bottom navigation bar position
+      Offset? getBottomNavItemPosition(int index) {
+        if (_bottomNavKey.currentContext == null) return null;
+        
+        try {
+          final renderBox = _bottomNavKey.currentContext!.findRenderObject() as RenderBox?;
+          if (renderBox == null || !renderBox.attached) return null;
+          
+          // Get the bottom nav bar's global position
+          final navBarPosition = renderBox.localToGlobal(Offset.zero);
+          
+          // BottomNavigationBar with 5 items: each item takes screenWidth / 5
+          // Icon is typically centered in each item
+          final itemWidth = screenWidth / 5;
+          final iconX = itemWidth * (index + 0.5); // Center of each item
+          
+          // Icon Y position: typically in the upper portion of the nav bar
+          // BottomNavigationBar icons are usually positioned about 10-14px from top of nav bar
+          // Account for the icon size (typically 24px) and padding
+          final iconY = navBarPosition.dy + 14.0;
+          
+          return Offset(iconX, iconY);
+        } catch (e) {
+          debugPrint('Error getting bottom nav position: $e');
+          return null;
+        }
+      }
       
-      if (mounted) {
+      // Responsive target size for icon highlighting (half of previous size)
+      final targetSize = (screenWidth * 0.06).clamp(24.0, 32.0);
+      
+      // Calculate positions - try to use actual positions, fallback to calculated
+      final List<OnboardingStep> steps = [];
+      
+      for (int i = 0; i < 5; i++) {
+        final actualPosition = getBottomNavItemPosition(i);
+        Offset targetOffset;
+        
+        if (actualPosition != null) {
+          // Use actual position from bottom nav bar, adjusted left 5px and top 5px
+          targetOffset = Offset(actualPosition.dx - 5.0, actualPosition.dy - 5.0);
+        } else {
+          // Fallback to calculated position, adjusted left 5px and top 5px
+          final itemWidth = screenWidth / 5;
+          final iconX = itemWidth * (i + 0.5);
+          // Estimate Y position: screen height - safe area - nav bar height/2
+          final estimatedNavBarHeight = 60.0 + safeAreaBottom;
+          final iconY = screenHeight - estimatedNavBarHeight + 12.0;
+          targetOffset = Offset(iconX - 5.0, iconY - 5.0);
+        }
+        
+        // Create step based on index
+        OnboardingStep step;
+        switch (i) {
+          case 0:
+            step = OnboardingStep(
+              id: 'home',
+              title: 'Welcome to Wardrobe!',
+              description: 'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
+              targetOffset: targetOffset,
+              targetSize: Size(targetSize, targetSize),
+              alignment: Alignment.topCenter,
+            );
+            break;
+          case 1:
+            step = OnboardingStep(
+              id: 'wardrobes',
+              title: 'Organize Your Wardrobes',
+              description: 'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
+              targetOffset: targetOffset,
+              targetSize: Size(targetSize, targetSize),
+              alignment: Alignment.topCenter,
+            );
+            break;
+          case 2:
+            step = OnboardingStep(
+              id: 'friends',
+              title: 'Connect with Friends',
+              description: 'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
+              targetOffset: targetOffset,
+              targetSize: Size(targetSize, targetSize),
+              alignment: Alignment.topCenter,
+            );
+            break;
+          case 3:
+            step = OnboardingStep(
+              id: 'chat',
+              title: 'Chat & Share',
+              description: 'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
+              targetOffset: targetOffset,
+              targetSize: Size(targetSize, targetSize),
+              alignment: Alignment.topCenter,
+            );
+            break;
+          case 4:
+            step = OnboardingStep(
+              id: 'profile',
+              title: 'Your Profile',
+              description: 'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
+              targetOffset: targetOffset,
+              targetSize: Size(targetSize, targetSize),
+              alignment: Alignment.topCenter,
+            );
+            break;
+          default:
+            continue;
+        }
+        steps.add(step);
+      }
+      
+      if (mounted && steps.isNotEmpty) {
         onboardingProvider.startOnboarding(steps);
       }
     });
@@ -233,6 +314,17 @@ class _MainNavigationState extends State<MainNavigation>
     final navigationProvider = Provider.of<NavigationProvider>(context);
     final chatProvider = Provider.of<ChatProvider>(context);
     final onboardingProvider = Provider.of<OnboardingProvider>(context);
+
+    // Check if restart was requested
+    if (onboardingProvider.shouldRestart && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          onboardingProvider.clearRestartRequest();
+          _hasCheckedOnboarding = false;
+          _checkOnboardingStatus();
+        }
+      });
+    }
 
     // Load unread counts when screen builds (only if authenticated)
     if (authProvider.isAuthenticated && authProvider.user != null) {

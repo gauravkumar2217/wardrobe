@@ -283,6 +283,7 @@ class ClothProvider with ChangeNotifier {
       _updateClothLocally(
         cloth.id,
         wornAt: newWornAt,
+        clearWornAt: newWornAt == null, // Explicitly clear if null
         placement: newPlacement,
       );
       _errorMessage = null;
@@ -531,6 +532,7 @@ class ClothProvider with ChangeNotifier {
   void _updateClothLocally(
     String clothId, {
     DateTime? wornAt,
+    bool clearWornAt = false, // Flag to explicitly clear wornAt
     String? placement,
     int? likesCount,
     int? commentsCount,
@@ -538,12 +540,35 @@ class ClothProvider with ChangeNotifier {
     final index = _clothes.indexWhere((cloth) => cloth.id == clothId);
     if (index == -1) return;
 
-    final updated = _clothes[index].copyWith(
-      wornAt: wornAt ?? _clothes[index].wornAt,
-      placement: placement ?? _clothes[index].placement,
+    final oldCloth = _clothes[index];
+    
+    // Handle wornAt: if clearWornAt is true, set to null; 
+    // if wornAt is provided (not null), use it; otherwise keep existing
+    final updatedWornAt = clearWornAt 
+        ? null 
+        : (wornAt != null ? wornAt : oldCloth.wornAt);
+
+    // Create updated cloth - need to handle null wornAt explicitly
+    final updated = Cloth(
+      id: oldCloth.id,
+      ownerId: oldCloth.ownerId,
+      wardrobeId: oldCloth.wardrobeId,
+      imageUrl: oldCloth.imageUrl,
+      season: oldCloth.season,
+      placement: placement ?? oldCloth.placement,
+      placementDetails: oldCloth.placementDetails,
+      colorTags: oldCloth.colorTags,
+      clothType: oldCloth.clothType,
+      category: oldCloth.category,
+      occasions: oldCloth.occasions,
+      aiDetected: oldCloth.aiDetected,
+      createdAt: oldCloth.createdAt,
       updatedAt: DateTime.now(),
-      likesCount: likesCount ?? _clothes[index].likesCount,
-      commentsCount: commentsCount ?? _clothes[index].commentsCount,
+      wornAt: updatedWornAt, // This can be null now
+      visibility: oldCloth.visibility,
+      sharedWith: oldCloth.sharedWith,
+      likesCount: likesCount ?? oldCloth.likesCount,
+      commentsCount: commentsCount ?? oldCloth.commentsCount,
     );
     _clothes[index] = updated;
   }

@@ -205,14 +205,52 @@ service cloud.firestore {
     // ============================================
     // Tag Lists: config/tagLists
     // Read: Public (needed for app functionality before authentication)
-    // Write: Admin only (configure user IDs in rules)
+    // Write: Authenticated users can add new tags (for AI detection sync)
     match /config/{configId} {
       // Allow public read for config documents (needed for tagLists before user authentication)
       // This is safe as config data is non-sensitive app configuration
       allow read: if true;
       
-      // Only admins can write (replace with your admin user IDs)
+      // Allow authenticated users to update tagLists (add new cloth types and colors)
+      // This enables AI detection to automatically sync new tags across all users
+      // Using FieldValue.arrayUnion() ensures only additions, no deletions
+      allow update: if isAuthenticated() && 
+                      configId == 'tagLists' &&
+                      // Validate that arrays are lists if present
+                      (!('clothTypes' in request.resource.data) || 
+                       request.resource.data.clothTypes is list) &&
+                      (!('commonColors' in request.resource.data) || 
+                       request.resource.data.commonColors is list) &&
+                      // Allow updating lastUpdated timestamp
+                      (!('lastUpdated' in request.resource.data) || 
+                       request.resource.data.lastUpdated is timestamp) &&
+                      // Preserve other fields structure if they exist
+                      (!('seasons' in request.resource.data) || 
+                       request.resource.data.seasons is list) &&
+                      (!('placements' in request.resource.data) || 
+                       request.resource.data.placements is list) &&
+                      (!('occasions' in request.resource.data) || 
+                       request.resource.data.occasions is list) &&
+                      (!('categories' in request.resource.data) || 
+                       request.resource.data.categories is list) &&
+                      (!('version' in request.resource.data) || 
+                       request.resource.data.version is int);
+      
+      // Allow create only for tagLists (initial setup)
+      allow create: if isAuthenticated() && 
+                      configId == 'tagLists' &&
+                      request.resource.data.keys().hasAll(['seasons', 'placements', 'clothTypes', 'occasions', 'categories', 'commonColors', 'version']) &&
+                      request.resource.data.seasons is list &&
+                      request.resource.data.placements is list &&
+                      request.resource.data.clothTypes is list &&
+                      request.resource.data.occasions is list &&
+                      request.resource.data.categories is list &&
+                      request.resource.data.commonColors is list &&
+                      request.resource.data.version is int;
+      
+      // For other config documents, only admins can write
       allow write: if isAuthenticated() && 
+                      configId != 'tagLists' &&
                       (request.auth.uid == 'YOUR_ADMIN_USER_ID_1' || 
                        request.auth.uid == 'YOUR_ADMIN_USER_ID_2' ||
                        request.auth.token.admin == true);

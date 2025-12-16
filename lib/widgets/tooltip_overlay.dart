@@ -152,8 +152,11 @@ class _DarkOverlayPainter extends CustomPainter {
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
+    // Responsive padding based on target size
+    final padding = (targetSize.width * 0.15).clamp(10.0, 14.0);
+    final borderRadius = (targetSize.width * 0.2).clamp(12.0, 18.0);
+    
     // Create hole for target (with padding)
-    const padding = 12.0;
     final hole = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
@@ -163,7 +166,7 @@ class _DarkOverlayPainter extends CustomPainter {
             targetSize.width + (padding * 2),
             targetSize.height + (padding * 2),
           ),
-          const Radius.circular(16),
+          Radius.circular(borderRadius),
         ),
       );
 
@@ -210,9 +213,13 @@ class _TooltipWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    const tooltipHeight = 180.0;
+    final textScaleFactor = MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2);
+    
+    // Responsive tooltip dimensions
+    final tooltipWidth = (screenWidth * 0.9).clamp(280.0, 360.0);
+    final tooltipHeight = (screenHeight * 0.25).clamp(160.0, 220.0);
     const bottomNavHeight = 60.0;
-    const padding = 16.0;
+    final padding = (screenWidth * 0.04).clamp(12.0, 20.0);
     
     // Position tooltip above bottom navigation bar
     // If target is at bottom (navigation items), show tooltip above it
@@ -221,30 +228,34 @@ class _TooltipWidget extends StatelessWidget {
     if (targetPosition != null && 
         targetPosition!.dy > screenHeight - 150) {
       // Target is near bottom (navigation bar)
-      tooltipY = targetPosition!.dy - tooltipHeight - padding - 20;
+      tooltipY = targetPosition!.dy - tooltipHeight - padding - 16;
     } else {
       // Show at bottom center, above navigation
-      tooltipY = screenHeight - bottomNavHeight - tooltipHeight - padding - 20;
+      tooltipY = screenHeight - bottomNavHeight - tooltipHeight - padding - 16;
     }
     
     // Center horizontally
-    const tooltipWidth = 320.0;
     final tooltipX = (screenWidth - tooltipWidth) / 2;
 
     return Positioned(
       left: tooltipX.clamp(padding, screenWidth - tooltipWidth - padding),
       top: tooltipY.clamp(padding, screenHeight - tooltipHeight - padding),
-      child: _buildTooltipContent(context),
+      child: _buildTooltipContent(context, tooltipWidth, tooltipHeight, textScaleFactor),
     );
   }
 
-  Widget _buildTooltipContent(BuildContext context) {
+  Widget _buildTooltipContent(BuildContext context, double width, double maxHeight, double textScaleFactor) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = (screenWidth * 0.05).clamp(12.0, 20.0);
+    final verticalPadding = (screenWidth * 0.03).clamp(10.0, 16.0);
+    final borderRadius = (screenWidth * 0.05).clamp(16.0, 20.0);
+    
     return Container(
-      width: 320,
-      constraints: const BoxConstraints(maxHeight: 180),
+      width: width,
+      constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.25),
@@ -260,7 +271,12 @@ class _TooltipWidget extends StatelessWidget {
         children: [
           // Header with gradient
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              verticalPadding + 4,
+              horizontalPadding,
+              verticalPadding - 2,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -270,9 +286,9 @@ class _TooltipWidget extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(borderRadius),
+                topRight: Radius.circular(borderRadius),
               ),
             ),
             child: Row(
@@ -280,8 +296,8 @@ class _TooltipWidget extends StatelessWidget {
                 Expanded(
                   child: Text(
                     step.title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: (14 * textScaleFactor).clamp(13.0, 16.0),
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -289,15 +305,18 @@ class _TooltipWidget extends StatelessWidget {
                 ),
                 // Step indicator
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: (screenWidth * 0.025).clamp(8.0, 12.0),
+                    vertical: (screenWidth * 0.01).clamp(3.0, 6.0),
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     step.id[0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: (11 * textScaleFactor).clamp(10.0, 12.0),
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -307,20 +326,34 @@ class _TooltipWidget extends StatelessWidget {
             ),
           ),
           // Content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Text(
-              step.description,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.4,
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  verticalPadding - 2,
+                  horizontalPadding,
+                  verticalPadding - 4,
+                ),
+                child: Text(
+                  step.description,
+                  style: TextStyle(
+                    fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
+                    color: Colors.black87,
+                    height: 1.4,
+                  ),
+                ),
               ),
             ),
           ),
           // Buttons
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              0,
+              horizontalPadding,
+              verticalPadding,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -328,13 +361,16 @@ class _TooltipWidget extends StatelessWidget {
                 TextButton(
                   onPressed: onSkip,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (screenWidth * 0.04).clamp(12.0, 16.0),
+                      vertical: (screenWidth * 0.02).clamp(6.0, 10.0),
+                    ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Skip',
                     style: TextStyle(
                       color: Colors.grey,
-                      fontSize: 14,
+                      fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
                     ),
                   ),
                 ),
@@ -343,21 +379,26 @@ class _TooltipWidget extends StatelessWidget {
                   children: [
                     if (hasPreviousSteps)
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, size: 20),
+                        icon: Icon(
+                          Icons.arrow_back,
+                          size: (18 * textScaleFactor).clamp(16.0, 20.0),
+                        ),
                         onPressed: onPrevious,
                         color: Colors.grey[600],
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
-                    if (hasPreviousSteps) const SizedBox(width: 12),
+                    if (hasPreviousSteps) SizedBox(
+                      width: (screenWidth * 0.03).clamp(8.0, 12.0),
+                    ),
                     ElevatedButton(
                       onPressed: onNext,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF7C3AED),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: (screenWidth * 0.06).clamp(20.0, 24.0),
+                          vertical: (screenWidth * 0.03).clamp(10.0, 12.0),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -366,8 +407,8 @@ class _TooltipWidget extends StatelessWidget {
                       ),
                       child: Text(
                         hasMoreSteps ? 'Next' : 'Got it',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
                           fontWeight: FontWeight.w600,
                         ),
                       ),

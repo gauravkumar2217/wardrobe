@@ -149,13 +149,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           }
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // My Wardrobes Section
               _buildWardrobesSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Type Statistics
               _buildSection(
                 title: 'By Type',
@@ -163,7 +163,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 counts: _typeCounts,
                 onTap: (type) => _navigateToHomeWithFilter(type: type),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Occasion Statistics
               _buildSection(
                 title: 'By Occasion',
@@ -171,7 +171,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 counts: _occasionCounts,
                 onTap: (occasion) => _navigateToHomeWithFilter(occasion: occasion),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Season Statistics
               _buildSection(
                 title: 'By Season',
@@ -179,7 +179,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 counts: _seasonCounts,
                 onTap: (season) => _navigateToHomeWithFilter(season: season),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // Color Statistics
               _buildSection(
                 title: 'By Color',
@@ -203,14 +203,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (counts.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              Icon(icon, color: Colors.grey),
-              const SizedBox(width: 12),
+              Icon(icon, color: Colors.grey, size: 16),
+              const SizedBox(width: 8),
               Text(
                 'No $title data available',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
             ],
           ),
@@ -224,34 +224,38 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF7C3AED)),
-                const SizedBox(width: 8),
+                Icon(icon, color: const Color(0xFF7C3AED), size: 16),
+                const SizedBox(width: 6),
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             ...sortedEntries.map((entry) {
               return ListTile(
-                title: Text(entry.key),
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                title: Text(entry.key, style: const TextStyle(fontSize: 13)),
                 trailing: Chip(
-                  label: Text('${entry.value}'),
+                  label: Text('${entry.value}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
+                    fontSize: 11,
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
                 onTap: () => onTap(entry.key),
               );
@@ -266,14 +270,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (_isLoadingWardrobes) {
       return const Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(10),
           child: Row(
             children: [
-              Icon(Icons.inventory_2, color: Colors.grey),
-              SizedBox(width: 12),
+              Icon(Icons.inventory_2, color: Colors.grey, size: 16),
+              SizedBox(width: 8),
               Text(
                 'Loading wardrobes...',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
             ],
           ),
@@ -284,14 +288,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (_wardrobes.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              const Icon(Icons.inventory_2, color: Colors.grey),
-              const SizedBox(width: 12),
+              const Icon(Icons.inventory_2, color: Colors.grey, size: 16),
+              const SizedBox(width: 8),
               Text(
                 'No wardrobes available',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
             ],
           ),
@@ -305,37 +309,41 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Row(
               children: [
-                Icon(Icons.inventory_2, color: Color(0xFF7C3AED)),
-                SizedBox(width: 8),
+                Icon(Icons.inventory_2, color: Color(0xFF7C3AED), size: 16),
+                SizedBox(width: 6),
                 Text(
                   'My Wardrobes',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             ...sortedWardrobes.map((wardrobe) {
               return ListTile(
-                title: Text(wardrobe.name),
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location)
+                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
                     : null,
                 trailing: Chip(
-                  label: Text('${wardrobe.totalItems}'),
+                  label: Text('${wardrobe.totalItems}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
                     color: Color(0xFF7C3AED),
                     fontWeight: FontWeight.bold,
+                    fontSize: 11,
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
                 onTap: () => _navigateToHomeWithWardrobe(wardrobe),
               );

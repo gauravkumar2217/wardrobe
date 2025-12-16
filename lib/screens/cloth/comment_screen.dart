@@ -251,7 +251,7 @@ class _CommentScreenState extends State<CommentScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 32),
                           child: Text(
                             'Error loading comments: ${snapshot.error}',
-                            style: const TextStyle(fontSize: 16, color: Colors.grey),
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -389,7 +389,7 @@ class _CommentScreenState extends State<CommentScreen> {
                                     profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

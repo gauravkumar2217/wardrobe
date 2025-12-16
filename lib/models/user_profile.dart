@@ -110,6 +110,7 @@ class NotificationSettings {
   final bool clothLikes;
   final bool clothComments;
   final bool suggestions;
+  final bool scheduledNotifications;
   final String? quietHoursStart; // e.g., "22:00"
   final String? quietHoursEnd; // e.g., "08:00"
 
@@ -120,18 +121,28 @@ class NotificationSettings {
     this.clothLikes = true,
     this.clothComments = true,
     this.suggestions = true,
+    this.scheduledNotifications = true,
     this.quietHoursStart,
     this.quietHoursEnd,
   });
 
   factory NotificationSettings.fromJson(Map<String, dynamic> json) {
+    // Helper to safely get bool value
+    bool getBool(String key, {bool defaultValue = true}) {
+      final value = json[key];
+      if (value == null) return defaultValue;
+      if (value is bool) return value;
+      return defaultValue;
+    }
+
     return NotificationSettings(
-      friendRequests: json['friendRequests'] as bool? ?? true,
-      friendAccepts: json['friendAccepts'] as bool? ?? true,
-      dmMessages: json['dmMessages'] as bool? ?? true,
-      clothLikes: json['clothLikes'] as bool? ?? true,
-      clothComments: json['clothComments'] as bool? ?? true,
-      suggestions: json['suggestions'] as bool? ?? true,
+      friendRequests: getBool('friendRequests'),
+      friendAccepts: getBool('friendAccepts'),
+      dmMessages: getBool('dmMessages'),
+      clothLikes: getBool('clothLikes'),
+      clothComments: getBool('clothComments'),
+      suggestions: getBool('suggestions'),
+      scheduledNotifications: getBool('scheduledNotifications'),
       quietHoursStart: json['quietHoursStart'] as String?,
       quietHoursEnd: json['quietHoursEnd'] as String?,
     );
@@ -145,6 +156,7 @@ class NotificationSettings {
       'clothLikes': clothLikes,
       'clothComments': clothComments,
       'suggestions': suggestions,
+      'scheduledNotifications': scheduledNotifications,
       if (quietHoursStart != null) 'quietHoursStart': quietHoursStart,
       if (quietHoursEnd != null) 'quietHoursEnd': quietHoursEnd,
     };

@@ -273,23 +273,50 @@
             <div class="data-list">
                 <h3>Data That Will Be Deleted:</h3>
                 <ul>
-                    <li><strong>User Profile:</strong> Your name, gender, birthday, and subscription information</li>
-                    <li><strong>Authentication Data:</strong> Your phone number and Firebase Authentication account</li>
-                    <li><strong>All Wardrobes:</strong> All wardrobe collections you created</li>
-                    <li><strong>All Clothing Items:</strong> All clothing items and their metadata (type, color, season, occasions, last worn dates)</li>
-                    <li><strong>All Images:</strong> All clothing photos stored in Firebase Storage</li>
-                    <li><strong>Chat History:</strong> All conversations with the AI styling assistant</li>
-                    <li><strong>Outfit Suggestions:</strong> All AI-generated outfit suggestions</li>
-                    <li><strong>FCM Tokens:</strong> Push notification tokens associated with your account</li>
+                    <li><strong>User Profile:</strong> Your display name, username, gender, date of birth, profile photo, and subscription information</li>
+                    <li><strong>Authentication Data:</strong> Your phone number, email address, Google account link, and Firebase Authentication account</li>
+                    <li><strong>All Wardrobes:</strong> All wardrobe collections you created, including names, locations, and item counts</li>
+                    <li><strong>All Clothing Items:</strong> All clothing items and their metadata including:
+                        <ul style="margin-top: 5px;">
+                            <li>Cloth types, colors, seasons, categories, occasions</li>
+                            <li>Placement status (InWardrobe, OutWardrobe, Laundry, DryCleaning, Repairing)</li>
+                            <li>Placement details (shop name, given date, return date when applicable)</li>
+                            <li>Wear history (all dates and times when items were marked as worn)</li>
+                            <li>Last worn dates and wear statistics</li>
+                        </ul>
+                    </li>
+                    <li><strong>All Images:</strong> All clothing photos and profile photos stored in Firebase Storage</li>
+                    <li><strong>Social Data:</strong>
+                        <ul style="margin-top: 5px;">
+                            <li>All friend connections and friend requests (incoming and outgoing)</li>
+                            <li>All direct messages and chat history</li>
+                            <li>All comments you posted on clothing items</li>
+                            <li>All likes you gave to clothing items</li>
+                            <li>All clothing items you shared with friends</li>
+                        </ul>
+                    </li>
+                    <li><strong>Notification Preferences:</strong> All notification settings, quiet hours, and push notification tokens</li>
+                    <li><strong>Privacy Settings:</strong> All privacy preferences and visibility settings</li>
                 </ul>
             </div>
 
             <h2>Data Retention Period</h2>
             <p>After you request account deletion:</p>
             <ul>
-                <li><strong>Immediate Deletion:</strong> Your account and most data will be deleted immediately when you confirm deletion in the app</li>
+                <li><strong>Immediate Deletion:</strong> Your account and most data will be deleted immediately when you confirm deletion in the app. This includes:
+                    <ul style="margin-top: 5px;">
+                        <li>User profile and authentication data</li>
+                        <li>All wardrobes and clothing items</li>
+                        <li>All images from Firebase Storage</li>
+                        <li>Friend connections and friend requests</li>
+                        <li>Direct messages and chat history</li>
+                        <li>Comments and likes</li>
+                        <li>Notification preferences</li>
+                    </ul>
+                </li>
                 <li><strong>Complete Removal:</strong> All data will be permanently removed from our servers within <strong>30 days</strong> of your deletion request</li>
-                <li><strong>Backup Cleanup:</strong> Any backup copies of your data will also be deleted within this 30-day period</li>
+                <li><strong>Backup Cleanup:</strong> Any backup copies of your data will also be deleted within this 30-day period (up to 90 days for complete backup removal)</li>
+                <li><strong>You will be logged out:</strong> Immediately upon account deletion confirmation</li>
             </ul>
 
             <h2>Data That May Be Retained</h2>
@@ -323,11 +350,19 @@
 
             <h2>What Happens After Deletion?</h2>
             <ul>
-                <li>You will be immediately logged out of the app</li>
-                <li>You will no longer receive push notifications</li>
-                <li>All your data will be permanently removed within 30 days</li>
-                <li>You will need to create a new account if you want to use the app again in the future</li>
-                <li>You cannot recover any deleted data</li>
+                <li><strong>Immediate Effects:</strong>
+                    <ul style="margin-top: 5px;">
+                        <li>You will be immediately logged out of the app</li>
+                        <li>You will no longer receive push notifications</li>
+                        <li>Your profile will no longer be visible to other users</li>
+                        <li>All your clothing items will be removed from the app</li>
+                        <li>All friend connections will be removed</li>
+                    </ul>
+                </li>
+                <li><strong>Permanent Removal:</strong> All your data will be permanently removed within 30 days (backups up to 90 days)</li>
+                <li><strong>No Recovery:</strong> Account deletion is permanent and cannot be undone. You cannot recover any deleted data</li>
+                <li><strong>New Account:</strong> You will need to create a new account if you want to use the app again in the future</li>
+                <li><strong>Data Export:</strong> If you need a copy of your data before deletion, please contact us at <a href="mailto:privacy@wardrobe.app">privacy@wardrobe.app</a> to request a data export</li>
             </ul>
 
             <h2>Need Help?</h2>

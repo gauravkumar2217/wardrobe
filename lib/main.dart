@@ -15,11 +15,15 @@ import 'providers/notification_provider.dart';
 import 'providers/navigation_provider.dart';
 import 'providers/filter_provider.dart';
 import 'providers/onboarding_provider.dart';
+import 'providers/scheduler_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
+import 'services/ai_detection_service.dart';
+import 'services/local_notification_service.dart';
+import 'services/update_service.dart';
+import 'services/schedule_notification_worker.dart';
 
-// Global navigator key for navigation from notifications
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+import 'utils/navigator_key.dart' show navigatorKey;
 
 // Background message handler for FCM
 @pragma('vm:entry-point')
@@ -36,6 +40,10 @@ void main() async {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
     debugPrint('✅ Firebase initialized successfully');
+
+    // Initialize AI detection service
+    await AiDetectionService.initialize();
+    debugPrint('✅ AI Detection Service initialized');
   } catch (e) {
     debugPrint('❌ Firebase initialization failed: $e');
   }
@@ -155,6 +163,22 @@ void main() async {
     debugPrint('FCM Service initialization failed: $e');
   }
 
+  // Initialize Local Notification Service
+  try {
+    await LocalNotificationService.initialize();
+    debugPrint('✅ Local Notification Service initialized');
+  } catch (e) {
+    debugPrint('❌ Local Notification Service initialization failed: $e');
+  }
+
+  // Initialize Schedule Notification Worker
+  try {
+    await ScheduleNotificationWorker.initialize();
+    debugPrint('✅ Schedule Notification Worker initialized');
+  } catch (e) {
+    debugPrint('❌ Schedule Notification Worker initialization failed: $e');
+  }
+
   // Fetch tag lists in background
   TagListService.fetchTagLists().catchError((e) {
     debugPrint('Failed to fetch tag lists: $e');
@@ -181,19 +205,22 @@ class WardrobeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => FilterProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+        ChangeNotifierProvider(create: (_) => SchedulerProvider()),
       ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'Wardrobe',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF7C3AED),
-            brightness: Brightness.light,
+      child: UpdateService.buildUpgrader(
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Wardrobe',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF7C3AED),
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
           ),
-          useMaterial3: true,
+          home: const SplashScreen(),
         ),
-        home: const SplashScreen(),
       ),
     );
   }

@@ -235,5 +235,67 @@ class TagListService {
   static List<String> get occasions => getCachedTagLists().occasions;
   static List<String> get categories => getCachedTagLists().categories;
   static List<String> get commonColors => getCachedTagLists().commonColors;
+
+  /// Add a new cloth type to Firestore (syncs across all users)
+  /// Authenticated users can add new types discovered by AI detection
+  static Future<void> addClothType(String clothType) async {
+    try {
+      final tags = getCachedTagLists();
+      if (tags.clothTypes.contains(clothType)) {
+        return; // Already exists
+      }
+
+      // Update local cache first
+      final updatedTypes = List<String>.from(tags.clothTypes)..add(clothType);
+      _cachedTagLists = tags.copyWith(clothTypes: updatedTypes);
+
+      // Update Firestore using arrayUnion (adds only if not exists)
+      await _firestore.collection('config').doc('tagLists').update({
+        'clothTypes': FieldValue.arrayUnion([clothType]),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('✅ Added new cloth type: $clothType');
+    } catch (e) {
+      debugPrint('❌ Error adding cloth type: $e');
+      // Revert local cache on error
+      _cachedTagLists = getCachedTagLists();
+    }
+  }
+
+  /// Add new colors to Firestore (syncs across all users)
+  /// Authenticated users can add new colors discovered by AI detection
+  static Future<void> addColors(List<String> colors) async {
+    try {
+      final tags = getCachedTagLists();
+      final newColors = <String>[];
+
+      for (final color in colors) {
+        if (!tags.commonColors.contains(color)) {
+          newColors.add(color);
+        }
+      }
+
+      if (newColors.isEmpty) {
+        return; // All colors already exist
+      }
+
+      // Update local cache first
+      final updatedColors = List<String>.from(tags.commonColors)..addAll(newColors);
+      _cachedTagLists = tags.copyWith(commonColors: updatedColors);
+
+      // Update Firestore using arrayUnion (adds only if not exists)
+      await _firestore.collection('config').doc('tagLists').update({
+        'commonColors': FieldValue.arrayUnion(newColors),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('✅ Added new colors: $newColors');
+    } catch (e) {
+      debugPrint('❌ Error adding colors: $e');
+      // Revert local cache on error
+      _cachedTagLists = getCachedTagLists();
+    }
+  }
 }
 
