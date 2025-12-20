@@ -180,7 +180,7 @@ service cloud.firestore {
     // Helper function to validate notification data
     function isValidNotification(data) {
       return data.keys().hasAll(['type', 'title', 'body', 'createdAt', 'read']) &&
-             data.type in ['friend_request', 'friend_accept', 'dm_message', 'cloth_like', 'cloth_comment', 'suggestion'] &&
+             data.type in ['friend_request', 'friend_accept', 'dm_message', 'cloth_like', 'cloth_comment', 'suggestion', 'test'] &&
              data.title is string &&
              data.body is string &&
              (!('data' in data) || data.data is map) &&
