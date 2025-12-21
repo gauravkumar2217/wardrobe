@@ -37,9 +37,6 @@
 -keep class com.google.firebase.analytics.** { *; }
 -keep class com.google.android.gms.measurement.** { *; }
 
-# Firebase App Check
--keep class com.google.firebase.appcheck.** { *; }
-
 # ============================================
 # Advertising ID Prevention
 # ============================================
