@@ -56,13 +56,20 @@ post_install do |installer|
   end
   
   # Fix MLImage framework issue - it doesn't support Apple Silicon simulators properly
-  # Make MLImage a weak framework so linker can skip it if incompatible
+  # MLImage framework has device arm64 but not simulator arm64, causing linker errors
+  # However, MLKitVision needs MLImage headers, so we keep search paths but use weak linking
   ['debug', 'release', 'profile'].each do |config_name|
     xcconfig_path = "Pods/Target Support Files/Pods-Runner/Pods-Runner.#{config_name}.xcconfig"
     if File.exist?(xcconfig_path)
       xcconfig_content = File.read(xcconfig_path)
       # Replace -framework "MLImage" with -weak_framework "MLImage"
+      # This allows the linker to skip MLImage if it's incompatible (simulator arm64)
+      # but keeps it available for device builds where it works fine
       xcconfig_content.gsub!(/-framework "MLImage"/, '-weak_framework "MLImage"')
+      # Keep MLImage in FRAMEWORK_SEARCH_PATHS and OTHER_MODULE_VERIFIER_FLAGS
+      # because MLKitVision needs the headers, even if we weak-link the framework
+      # Clean up any double spaces that might result
+      xcconfig_content.gsub!(/  +/, ' ')
       File.write(xcconfig_path, xcconfig_content)
     end
   end

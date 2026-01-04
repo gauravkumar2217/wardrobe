@@ -59,6 +59,19 @@
 	<!-- Firebase Configuration -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
+	<key>GIDClientID</key>
+	<string>352478951229-bu1m5prl6hflnqccucv7bqrd04hbhfsu.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.352478951229-bu1m5prl6hflnqccucv7bqrd04hbhfsu</string>
+			</array>
+		</dict>
+	</array>
+
+
 </dict>
 </plist>
 
