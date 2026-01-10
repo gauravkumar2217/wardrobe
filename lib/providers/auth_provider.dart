@@ -169,6 +169,37 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Sign in with Apple
+  Future<bool> signInWithApple() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final userCredential = await AuthService.signInWithApple();
+      _user = userCredential.user;
+      
+      if (_user != null) {
+        await _loadUserProfile(_user!.uid);
+        // Register FCM token after successful Apple sign-in
+        try {
+          await FCMService.registerDeviceToken(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to register FCM token after Apple sign-in: $e');
+        }
+      }
+
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to sign in with Apple: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Sign in with username and password
   Future<bool> signInWithUsername({
     required String username,

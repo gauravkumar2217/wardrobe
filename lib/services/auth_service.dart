@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import 'fcm_service.dart';
 
 /// Authentication service supporting Phone, Google, and Email/Password
@@ -67,6 +69,80 @@ class AuthService {
       return userCredential;
     } catch (e) {
       debugPrint('Phone sign-in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Sign in with Apple
+  /// 
+  /// Note: Apple Sign-In is only available on iOS 13+ and macOS 10.15+
+  static Future<UserCredential> signInWithApple() async {
+    try {
+      // Check if Apple Sign-In is available
+      if (!Platform.isIOS && !Platform.isMacOS) {
+        throw Exception('Apple Sign-In is only available on iOS and macOS devices');
+      }
+
+      // Check if Apple Sign-In is available on this device
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception(
+          'Apple Sign-In is not available on this device. '
+          'Please ensure:\n'
+          '1. Device is running iOS 13+ or macOS 10.15+\n'
+          '2. "Sign in with Apple" capability is enabled in Xcode\n'
+          '3. App is properly signed with your Apple Developer account'
+        );
+      }
+
+      // Request Apple ID credential
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // Create OAuth credential for Firebase
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Sign in to Firebase with Apple credential
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+
+      // Update user profile with Apple name if available (first time only)
+      if (userCredential.user != null && 
+          appleCredential.givenName != null && 
+          appleCredential.familyName != null) {
+        final displayName = '${appleCredential.givenName} ${appleCredential.familyName}';
+        await userCredential.user!.updateDisplayName(displayName);
+        await userCredential.user!.reload();
+      }
+
+      // Register FCM token after successful login
+      if (userCredential.user != null) {
+        await FCMService.registerDeviceToken(userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      debugPrint('Apple sign-in error: $e');
+      
+      // Provide user-friendly error messages
+      final errorString = e.toString();
+      if (errorString.contains('error 1000') || 
+          errorString.contains('AuthorizationErrorCode.unknown')) {
+        throw Exception(
+          'Apple Sign-In failed. Please ensure:\n'
+          '1. "Sign in with Apple" capability is enabled in Xcode\n'
+          '2. App is properly signed with your Apple Developer account\n'
+          '3. Apple Developer account has "Sign in with Apple" enabled for this App ID\n'
+          '4. Try cleaning and rebuilding the app'
+        );
+      }
+      
       rethrow;
     }
   }

@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSigningInWithUsername = false;
   bool _isSigningInWithGoogle = false;
+  bool _isSigningInWithApple = false;
 
   @override
   void dispose() {
@@ -27,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    if (_isSigningInWithGoogle || _isSigningInWithUsername) return;
+    if (_isSigningInWithGoogle || _isSigningInWithUsername || _isSigningInWithApple) return;
 
     setState(() {
       _isSigningInWithGoogle = true;
@@ -62,6 +64,47 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           _isSigningInWithGoogle = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    if (_isSigningInWithApple || _isSigningInWithUsername || _isSigningInWithGoogle) return;
+
+    setState(() {
+      _isSigningInWithApple = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.signInWithApple();
+
+      if (success && mounted) {
+        final user = authProvider.user;
+        if (user != null) {
+          final profile = authProvider.userProfile;
+          if (profile == null || !profile.isComplete) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const MainNavigation()),
+            );
+          }
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? 'Sign in failed')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningInWithApple = false;
         });
       }
     }
@@ -114,7 +157,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = _isSigningInWithUsername || _isSigningInWithGoogle;
+    final isLoading = _isSigningInWithUsername || _isSigningInWithGoogle || _isSigningInWithApple;
+    final isAppleAvailable = Platform.isIOS || Platform.isMacOS;
 
     return Scaffold(
       body: SafeArea(
@@ -218,6 +262,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const Text('Signing in...')
                           : const Text('Continue with Google'),
                     ),
+                    if (isAppleAvailable) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: isLoading ? null : _signInWithApple,
+                        icon: _isSigningInWithApple
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.apple, color: Colors.black),
+                        label: _isSigningInWithApple
+                            ? const Text('Signing in...')
+                            : const Text('Continue with Apple'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: const BorderSide(color: Colors.black),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -69,6 +69,12 @@
 				<string>com.googleusercontent.apps.352478951229-bu1m5prl6hflnqccucv7bqrd04hbhfsu</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-352478951229-ios-335fae394671b9a82d3754</string>
+			</array>
+		</dict>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

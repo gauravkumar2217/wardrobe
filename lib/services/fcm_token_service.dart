@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 
 /// Service to manage FCM tokens for push notifications
 /// Handles token storage, updates, and cleanup for active users only
@@ -27,6 +28,25 @@ class FCMTokenService {
 
       if (kDebugMode) {
         debugPrint('FCM Permission status: ${settings.authorizationStatus}');
+      }
+
+      // On iOS, get APNS token first before getting FCM token
+      if (Platform.isIOS) {
+        try {
+          final apnsToken = await _messaging.getAPNSToken();
+          if (kDebugMode) {
+            if (apnsToken != null) {
+              debugPrint('APNS Token obtained: $apnsToken');
+            } else {
+              debugPrint('APNS Token is null (may be normal in simulator)');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Failed to get APNS token (may be normal in simulator): $e');
+          }
+          // Continue anyway - APNS token may not be available in simulator
+        }
       }
 
       // Get initial token
@@ -66,12 +86,49 @@ class FCMTokenService {
     if (_currentToken == null) {
       // Try to get token if not already available
       try {
+        // On iOS, ensure APNS token is available first
+        if (Platform.isIOS) {
+          try {
+            final apnsToken = await _messaging.getAPNSToken();
+            if (kDebugMode && apnsToken != null) {
+              debugPrint('APNS Token obtained before FCM token: $apnsToken');
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('APNS token check failed (may be normal): $e');
+            }
+            // Continue anyway - will retry if needed
+          }
+        }
+        
         _currentToken = await _messaging.getToken();
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Failed to get FCM token: $e');
         }
-        return;
+        
+        // On iOS, if APNS token error, try to get APNS token first and retry
+        if (Platform.isIOS && e.toString().contains('apns-token-not-set')) {
+          try {
+            if (kDebugMode) {
+              debugPrint('Retrying after getting APNS token...');
+            }
+            await _messaging.getAPNSToken();
+            // Wait a moment for APNS token to be set
+            await Future.delayed(const Duration(milliseconds: 500));
+            _currentToken = await _messaging.getToken();
+            if (kDebugMode && _currentToken != null) {
+              debugPrint('FCM Token obtained after APNS token: $_currentToken');
+            }
+          } catch (retryError) {
+            if (kDebugMode) {
+              debugPrint('Failed to get FCM token after retry: $retryError');
+            }
+            return;
+          }
+        } else {
+          return;
+        }
       }
     }
 
