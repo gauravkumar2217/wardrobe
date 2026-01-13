@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_service.dart';
 import 'phone_verification_screen.dart';
+import '../main_navigation.dart';
 
 /// Profile setup screen for new users
 class ProfileSetupScreen extends StatefulWidget {
@@ -103,14 +104,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
-    // Validate phone number is entered
-    if (_phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter phone number')),
-      );
-      return;
-    }
-
     setState(() {
       _isLoading = true;
     });
@@ -148,11 +141,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       }
     }
 
+    final phoneNumber = _phoneController.text.trim();
     final profile = UserProfile(
       displayName: _nameController.text.trim(),
       username: _usernameController.text.trim().toLowerCase(),
       email: user.email,
-      phone: _phoneController.text.trim(),
+      phone: phoneNumber.isNotEmpty ? phoneNumber : null,
       gender: _selectedGender,
       dateOfBirth: _selectedDateOfBirth,
       photoUrl: user.photoURL,
@@ -161,20 +155,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
 
     try {
-      // Save profile without phone verification (phone will be verified in next screen)
+      // Save profile
       await authProvider.updateProfile(profile);
 
       if (mounted) {
-        // Navigate to phone verification screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PhoneVerificationScreen(
-              phoneNumber: _phoneController.text.trim(),
-              profile: profile,
+        // Navigate to phone verification screen only if phone number was provided
+        if (phoneNumber.isNotEmpty) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PhoneVerificationScreen(
+                phoneNumber: phoneNumber,
+                profile: profile,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Skip phone verification and go directly to main app
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -327,31 +329,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Phone number field (verification will be done in next screen)
+                // Phone number field (optional)
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Phone Number *',
+                    labelText: 'Phone Number (Optional)',
                     prefixIcon: Icon(Icons.phone),
                     helperText: 'Include country code (e.g., +91). Verification will be done next.',
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter phone number';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
-                // Gender field
+                // Gender field (optional)
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedGender,
+                  value: _selectedGender,
                   decoration: const InputDecoration(
-                    labelText: 'Gender *',
+                    labelText: 'Gender (Optional)',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   items: const [
+                    DropdownMenuItem(value: null, child: Text('Select gender (optional)')),
                     DropdownMenuItem(value: 'male', child: Text('Male')),
                     DropdownMenuItem(value: 'female', child: Text('Female')),
                     DropdownMenuItem(value: 'other', child: Text('Other')),
@@ -361,26 +358,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       _selectedGender = value;
                     });
                   },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select gender';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
-                // Date of Birth field
+                // Date of Birth field (optional)
                 InkWell(
                   onTap: _selectDateOfBirth,
                   child: InputDecorator(
                     decoration: const InputDecoration(
-                      labelText: 'Date of Birth *',
+                      labelText: 'Date of Birth (Optional)',
                       prefixIcon: Icon(Icons.calendar_today),
                     ),
                     child: Text(
                       _selectedDateOfBirth != null
                           ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
-                          : 'Select date of birth',
+                          : 'Select date of birth (optional)',
                       style: TextStyle(
                         color: _selectedDateOfBirth != null
                             ? Colors.black
@@ -389,14 +380,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                   ),
                 ),
-                if (_selectedDateOfBirth == null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16, top: 4),
-                    child: Text(
-                      'Please select date of birth',
-                      style: TextStyle(color: Colors.red[700], fontSize: 12),
-                    ),
-                  ),
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,

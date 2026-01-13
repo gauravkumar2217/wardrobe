@@ -198,11 +198,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Create updated profile (preserve original username)
       final currentProfile = authProvider.userProfile;
+      final phoneNumber = _phoneController.text.trim();
       final updatedProfile = UserProfile(
         displayName: _nameController.text.trim(),
         username: currentProfile?.username ?? _usernameController.text.trim().toLowerCase(), // Keep original username
         email: user.email,
-        phone: _phoneController.text.trim(),
+        phone: phoneNumber.isNotEmpty ? phoneNumber : null,
         gender: _selectedGender,
         dateOfBirth: _selectedDateOfBirth,
         photoUrl: photoUrl,
@@ -325,33 +326,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Phone number field
+                // Phone number field (optional)
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
-                    labelText: 'Phone Number',
+                    labelText: 'Phone Number (Optional)',
                     prefixIcon: Icon(Icons.phone, size: 18),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter phone number';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 12),
-                // Gender field
+                // Gender field (optional)
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedGender,
+                  value: _selectedGender,
                   style: const TextStyle(fontSize: 14, color: Colors.black87),
                   decoration: const InputDecoration(
-                    labelText: 'Gender',
+                    labelText: 'Gender (Optional)',
                     prefixIcon: Icon(Icons.person_outline, size: 18),
                   ),
                   dropdownColor: Colors.white,
                   items: const [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text('Select gender (optional)', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    ),
                     DropdownMenuItem(
                       value: 'male',
                       child: Text('Male', style: TextStyle(fontSize: 14, color: Colors.black87)),
@@ -372,18 +371,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                // Date of Birth field
+                // Date of Birth field (optional)
                 InkWell(
                   onTap: _selectDateOfBirth,
                   child: InputDecorator(
                     decoration: const InputDecoration(
-                      labelText: 'Date of Birth',
+                      labelText: 'Date of Birth (Optional)',
                       prefixIcon: Icon(Icons.calendar_today, size: 18),
                     ),
                     child: Text(
                       _selectedDateOfBirth != null
                           ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
-                          : 'Select date of birth',
+                          : 'Select date of birth (optional)',
                       style: TextStyle(
                         fontSize: 14,
                         color: _selectedDateOfBirth != null

@@ -422,3 +422,150 @@ export const cleanupOldNotificationTriggers = onSchedule(
     }
   }
 );
+
+/**
+ * Helper function to send email notification
+ * Note: In production, use a service like SendGrid, Mailgun, or Nodemailer with SMTP
+ * For now, this logs the email content - replace with actual email sending logic
+ */
+async function sendEmailNotification(
+  to: string,
+  subject: string,
+  body: string
+): Promise<void> {
+  try {
+    // TODO: Replace with actual email sending service
+    // Example with Nodemailer:
+    // const transporter = nodemailer.createTransport({...});
+    // await transporter.sendMail({ to, subject, html: body });
+    
+    logger.info(`Email notification would be sent to: ${to}`);
+    logger.info(`Subject: ${subject}`);
+    logger.info(`Body: ${body}`);
+    
+    // For now, just log - implement actual email sending based on your email service
+    // You can use Firebase Extensions like "Trigger Email" or integrate SendGrid/Mailgun
+  } catch (error) {
+    logger.error("Error sending email notification:", error);
+    // Don't throw - email failures shouldn't break the app
+  }
+}
+
+/**
+ * Cloud Function: Send email notification when a report is created
+ * 
+ * Listens to: reports/{reportId}
+ * 
+ * Sends email to developer when user reports objectionable content
+ */
+export const onReportCreated = onDocumentCreated(
+  {
+    document: "reports/{reportId}",
+    maxInstances: 10,
+  },
+  async (event) => {
+    const reportData = event.data?.data();
+    const reportId = event.params.reportId;
+
+    if (!reportData) {
+      logger.error(`Report data is null for ${reportId}`);
+      return;
+    }
+
+    logger.info(`Processing report: ${reportId}`, {reportData});
+
+    try {
+      // Get reporter and reported user info
+      const reporterDoc = await db.collection("users").doc(reportData.reporterId).get();
+      const reportedUserDoc = await db.collection("users").doc(reportData.reportedUserId).get();
+      
+      const reporterName = reporterDoc.data()?.displayName || reportData.reporterId;
+      const reportedUserName = reportedUserDoc.data()?.displayName || reportData.reportedUserId;
+
+      // Build email content
+      const subject = `New Report: ${reportData.contentType} - ${reportData.reason}`;
+      const body = `
+        <h2>New Report Submitted</h2>
+        <p><strong>Report ID:</strong> ${reportId}</p>
+        <p><strong>Content Type:</strong> ${reportData.contentType}</p>
+        <p><strong>Reason:</strong> ${reportData.reason}</p>
+        <p><strong>Reporter:</strong> ${reporterName} (${reportData.reporterId})</p>
+        <p><strong>Reported User:</strong> ${reportedUserName} (${reportData.reportedUserId})</p>
+        ${reportData.contentId ? `<p><strong>Content ID:</strong> ${reportData.contentId}</p>` : ''}
+        ${reportData.description ? `<p><strong>Description:</strong> ${reportData.description}</p>` : ''}
+        <p><strong>Created At:</strong> ${reportData.createdAt?.toDate() || 'N/A'}</p>
+        <p><strong>Status:</strong> ${reportData.status || 'pending'}</p>
+        <br/>
+        <p>Please review this report within 24 hours as per App Store guidelines.</p>
+        <p>View in Firestore: https://console.firebase.google.com/project/YOUR_PROJECT_ID/firestore/data/reports/${reportId}</p>
+      `;
+
+      // Send email to developer
+      // Replace with your actual support email
+      const supportEmail = process.env.SUPPORT_EMAIL || "support@wardrobe.app";
+      await sendEmailNotification(supportEmail, subject, body);
+
+      logger.info(`Email notification sent for report ${reportId}`);
+    } catch (error) {
+      logger.error(`Error processing report ${reportId}:`, error);
+      // Don't throw - email failures shouldn't break the app
+    }
+  }
+);
+
+/**
+ * Cloud Function: Send email notification when a user is blocked
+ * 
+ * Listens to: blockedUsers/{blockId}
+ * 
+ * Sends email to developer when a user blocks another user
+ */
+export const onUserBlocked = onDocumentCreated(
+  {
+    document: "blockedUsers/{blockId}",
+    maxInstances: 10,
+  },
+  async (event) => {
+    const blockData = event.data?.data();
+    const blockId = event.params.blockId;
+
+    if (!blockData) {
+      logger.error(`Block data is null for ${blockId}`);
+      return;
+    }
+
+    logger.info(`Processing user block: ${blockId}`, {blockData});
+
+    try {
+      // Get blocker and blocked user info
+      const blockerDoc = await db.collection("users").doc(blockData.blockerId).get();
+      const blockedUserDoc = await db.collection("users").doc(blockData.blockedUserId).get();
+      
+      const blockerName = blockerDoc.data()?.displayName || blockData.blockerId;
+      const blockedUserName = blockedUserDoc.data()?.displayName || blockData.blockedUserId;
+
+      // Build email content
+      const subject = `User Blocked: ${blockedUserName}`;
+      const body = `
+        <h2>User Blocked</h2>
+        <p><strong>Block ID:</strong> ${blockId}</p>
+        <p><strong>Blocker:</strong> ${blockerName} (${blockData.blockerId})</p>
+        <p><strong>Blocked User:</strong> ${blockedUserName} (${blockData.blockedUserId})</p>
+        ${blockData.reason ? `<p><strong>Reason:</strong> ${blockData.reason}</p>` : ''}
+        <p><strong>Blocked At:</strong> ${blockData.blockedAt?.toDate() || 'N/A'}</p>
+        <br/>
+        <p>This action was taken by a user. Please review if any moderation action is needed.</p>
+        <p>View in Firestore: https://console.firebase.google.com/project/YOUR_PROJECT_ID/firestore/data/blockedUsers/${blockId}</p>
+      `;
+
+      // Send email to developer
+      const supportEmail = process.env.SUPPORT_EMAIL || "support@wardrobe.app";
+      await sendEmailNotification(supportEmail, subject, body);
+
+      logger.info(`Email notification sent for block ${blockId}`);
+    } catch (error) {
+      logger.error(`Error processing block ${blockId}:`, error);
+      // Don't throw - email failures shouldn't break the app
+    }
+  }
+);

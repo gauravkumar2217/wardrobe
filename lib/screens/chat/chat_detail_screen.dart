@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat.dart';
 import '../../models/user_profile.dart';
+import '../../models/report.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/chat_bubble.dart';
 import '../../services/user_service.dart';
+import '../../services/report_service.dart';
+import '../../services/block_service.dart';
 import '../cloth/cloth_detail_screen.dart';
+import 'dart:async';
 
 /// Chat detail screen for a specific chat
 class ChatDetailScreen extends StatefulWidget {
@@ -26,12 +30,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _scrollController = ScrollController();
   UserProfile? _otherParticipantProfile;
   bool _isLoadingProfile = false;
+  List<String> _blockedUserIds = [];
+  StreamSubscription<List<String>>? _blockedUsersSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _loadOtherParticipantProfile();
+    _loadBlockedUsers();
+  }
+
+  Future<void> _loadBlockedUsers() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    // Load blocked users list
+    final blockedIds = await BlockService.getBlockedUserIds(authProvider.user!.uid);
+    if (mounted) {
+      setState(() {
+        _blockedUserIds = blockedIds;
+      });
+    }
+
+    // Watch for changes
+    _blockedUsersSubscription = BlockService.watchBlockedUserIds(authProvider.user!.uid).listen((blockedIds) {
+      if (mounted) {
+        setState(() {
+          _blockedUserIds = blockedIds;
+          // Reload messages to filter blocked users
+          _loadMessages();
+        });
+      }
+    });
   }
 
   Future<void> _loadOtherParticipantProfile() async {
@@ -80,6 +111,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _blockedUsersSubscription?.cancel();
     super.dispose();
   }
 
@@ -163,6 +195,134 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _showBlockDialog(String userId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block User'),
+        content: const Text(
+          'Are you sure you want to block this user? You will no longer see their messages, and they will be removed from your feed immediately.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await BlockService.blockUser(
+          blockerId: authProvider.user!.uid,
+          blockedUserId: userId,
+          reason: 'Blocked from chat screen',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User blocked. Their messages have been removed from your feed.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context); // Close chat screen
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to block user: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showReportUserDialog(String userId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    final reasons = ReportService.getReportReasons();
+    String? selectedReason;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Report User'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Why are you reporting this user?'),
+              const SizedBox(height: 16),
+              ...reasons.map((reason) => RadioListTile<String>(
+                title: Text(reason),
+                value: reason,
+                groupValue: selectedReason,
+                onChanged: (value) => setState(() => selectedReason = value),
+              )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason != null
+                  ? () => Navigator.pop(context, true)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && selectedReason != null && mounted) {
+      try {
+        await ReportService.createReport(
+          reporterId: authProvider.user!.uid,
+          reportedUserId: userId,
+          contentType: ReportContentType.user,
+          reason: selectedReason!,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User reported. Thank you for helping keep our community safe.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to report user: $e')),
+          );
+        }
       }
     }
   }
@@ -259,6 +419,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
+        actions: widget.chat.isGroup ? null : [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'block' && otherParticipantId != null) {
+                _showBlockDialog(otherParticipantId);
+              } else if (value == 'report' && otherParticipantId != null) {
+                _showReportUserDialog(otherParticipantId);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Report User'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'block',
+                child: Row(
+                  children: [
+                    Icon(Icons.block, size: 18),
+                    SizedBox(width: 8),
+                    Text('Block User'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -298,7 +492,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           ],
                         ),
                       )
-                    : chatProvider.messages.isEmpty
+                    : chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).isEmpty
                         ? const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -320,9 +514,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        itemCount: chatProvider.messages.length,
+                        itemCount: chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).length,
                         itemBuilder: (context, index) {
-                          final message = chatProvider.messages[index];
+                          final filteredMessages = chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).toList();
+                          final message = filteredMessages[index];
                           return GestureDetector(
                             onTap: message.isClothShare && message.clothId != null
                                 ? () => _handleClothTap(message)

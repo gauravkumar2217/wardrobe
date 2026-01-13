@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
 import 'push_notification_service.dart';
 import 'user_service.dart';
+import 'content_filter_service.dart';
 
 /// Chat service for managing chats and messages
 class ChatService {
@@ -134,6 +135,15 @@ class ChatService {
     try {
       if (text == null && imageUrl == null && clothId == null) {
         throw Exception('Message must have text, image, or cloth');
+      }
+
+      // Filter text content before posting
+      if (text != null && text.isNotEmpty) {
+        final isSafe = await ContentFilterService.isContentSafe(text);
+        
+        if (!isSafe) {
+          throw Exception('Your message contains inappropriate content and cannot be sent. Please revise your message.');
+        }
       }
 
       final messageId = _firestore.collection('chats').doc().id;

@@ -7,7 +7,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cloth_provider.dart';
 import '../../services/cloth_service.dart';
 import '../../services/user_service.dart';
+import '../../services/report_service.dart';
+import '../../services/block_service.dart';
 import '../../models/user_profile.dart';
+import '../../models/report.dart';
+import 'dart:async';
 
 /// Comment screen for viewing and adding comments on a cloth
 class CommentScreen extends StatefulWidget {
@@ -28,11 +32,42 @@ class _CommentScreenState extends State<CommentScreen> {
   bool _isSubmitting = false;
   final Map<String, UserProfile?> _userProfiles = {};
   final Map<String, bool> _loadingProfiles = {}; // Track loading state for each profile
+  List<String> _blockedUserIds = [];
+  StreamSubscription<List<String>>? _blockedUsersSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBlockedUsers();
+  }
+
+  Future<void> _loadBlockedUsers() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    // Load blocked users list
+    final blockedIds = await BlockService.getBlockedUserIds(authProvider.user!.uid);
+    if (mounted) {
+      setState(() {
+        _blockedUserIds = blockedIds;
+      });
+    }
+
+    // Watch for changes
+    _blockedUsersSubscription = BlockService.watchBlockedUserIds(authProvider.user!.uid).listen((blockedIds) {
+      if (mounted) {
+        setState(() {
+          _blockedUserIds = blockedIds;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _commentController.dispose();
     _scrollController.dispose();
+    _blockedUsersSubscription?.cancel();
     super.dispose();
   }
 
@@ -142,6 +177,135 @@ class _CommentScreenState extends State<CommentScreen> {
         setState(() {
           _isSubmitting = false;
         });
+      }
+    }
+  }
+
+  Future<void> _showReportDialog(String reportedUserId, String commentId, String commentText) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    final reasons = ReportService.getReportReasons();
+    String? selectedReason;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Report Comment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Why are you reporting this comment?'),
+              const SizedBox(height: 16),
+              ...reasons.map((reason) => RadioListTile<String>(
+                title: Text(reason),
+                value: reason,
+                groupValue: selectedReason,
+                onChanged: (value) => setState(() => selectedReason = value),
+              )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason != null
+                  ? () => Navigator.pop(context, true)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && selectedReason != null && mounted) {
+      try {
+        await ReportService.createReport(
+          reporterId: authProvider.user!.uid,
+          reportedUserId: reportedUserId,
+          contentType: ReportContentType.comment,
+          contentId: commentId,
+          reason: selectedReason!,
+          description: 'Comment: $commentText',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Comment reported. Thank you for helping keep our community safe.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to report comment: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showBlockDialog(String userId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block User'),
+        content: const Text(
+          'Are you sure you want to block this user? You will no longer see their comments or messages, and they will be removed from your feed immediately.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await BlockService.blockUser(
+          blockerId: authProvider.user!.uid,
+          blockedUserId: userId,
+          reason: 'Blocked from comment screen',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User blocked. Their content has been removed from your feed.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to block user: $e')),
+          );
+        }
       }
     }
   }
@@ -400,7 +564,7 @@ class _CommentScreenState extends State<CommentScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Username and delete button
+                                // Username and action buttons
                                 Row(
                                   children: [
                                     Expanded(
@@ -423,6 +587,45 @@ class _CommentScreenState extends State<CommentScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         onPressed: () => _deleteComment(comment.id),
+                                      )
+                                    else
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          size: 18,
+                                          color: Colors.grey,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onSelected: (value) {
+                                          if (value == 'report') {
+                                            _showReportDialog(comment.userId, comment.id, comment.text);
+                                          } else if (value == 'block') {
+                                            _showBlockDialog(comment.userId);
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'report',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.flag_outlined, size: 18),
+                                                SizedBox(width: 8),
+                                                Text('Report'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'block',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.block, size: 18),
+                                                SizedBox(width: 8),
+                                                Text('Block User'),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                   ],
                                 ),
@@ -556,9 +759,14 @@ class _CommentScreenState extends State<CommentScreen> {
         .collection('comments')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Comment.fromJson(doc.data(), doc.id))
-            .toList());
+        .map((snapshot) {
+          final comments = snapshot.docs
+              .map((doc) => Comment.fromJson(doc.data(), doc.id))
+              .toList();
+          
+          // Filter out comments from blocked users
+          return comments.where((comment) => !_blockedUserIds.contains(comment.userId)).toList();
+        });
   }
 
   /// Build skeleton/placeholder for loading comments

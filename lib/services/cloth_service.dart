@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/cloth.dart';
 import 'storage_service.dart';
 import 'push_notification_service.dart';
+import 'content_filter_service.dart';
 
 /// Cloth service for managing clothes
 class ClothService {
@@ -740,6 +741,13 @@ class ClothService {
     required String text,
   }) async {
     try {
+      // Filter content before posting
+      final isSafe = await ContentFilterService.isContentSafe(text);
+      
+      if (!isSafe) {
+        throw Exception('Your comment contains inappropriate content and cannot be posted. Please revise your message.');
+      }
+
       final commentId = _firestore.collection('comments').doc().id;
       final now = DateTime.now();
 

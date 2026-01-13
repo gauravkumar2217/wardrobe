@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/user_service.dart';
 import 'login_screen.dart';
+import 'eula_acceptance_screen.dart';
+import 'profile_setup_screen.dart';
 import '../main_navigation.dart';
 
 /// Splash screen that checks auth status
@@ -30,12 +33,32 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (authProvider.isAuthenticated) {
-      final profile = authProvider.userProfile;
-      if (profile != null && profile.isComplete) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
-        );
+      final user = authProvider.user;
+      if (user != null) {
+        // Check EULA acceptance first
+        final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
+        
+        if (!hasAcceptedEula) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
+          );
+          return;
+        }
+
+        // EULA accepted - check profile completion
+        final profile = authProvider.userProfile;
+        if (profile != null && profile.isComplete) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+          );
+        }
       } else {
         Navigator.pushReplacement(
           context,
