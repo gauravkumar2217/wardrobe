@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
+import '../models/eula_acceptance.dart';
 
 /// User service for managing user profiles
 class UserService {
@@ -393,5 +394,87 @@ class UserService {
       }
       return null;
     }
+  }
+
+  /// Record EULA acceptance
+  static Future<void> recordEulaAcceptance({
+    required String userId,
+    required String version,
+    String? ipAddress,
+  }) async {
+    try {
+      final acceptanceId = _firestore.collection('eulaAcceptances').doc().id;
+      final acceptance = EulaAcceptance(
+        id: acceptanceId,
+        userId: userId,
+        version: version,
+        acceptedAt: DateTime.now(),
+        ipAddress: ipAddress,
+      );
+
+      // Store in user's subcollection
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('eulaAcceptances')
+          .doc(acceptanceId)
+          .set(acceptance.toJson());
+
+      // Also store in top-level collection for easy querying
+      await _firestore
+          .collection('eulaAcceptances')
+          .doc(acceptanceId)
+          .set(acceptance.toJson());
+    } catch (e) {
+      debugPrint('Failed to record EULA acceptance: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if user has accepted EULA
+  static Future<bool> hasAcceptedEula(String userId) async {
+    try {
+      final query = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('eulaAcceptances')
+          .orderBy('acceptedAt', descending: true)
+          .limit(1)
+          .get();
+
+      return query.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint('Failed to check EULA acceptance: $e');
+      return false;
+    }
+  }
+
+  /// Get latest EULA acceptance
+  static Future<EulaAcceptance?> getLatestEulaAcceptance(String userId) async {
+    try {
+      final query = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('eulaAcceptances')
+          .orderBy('acceptedAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        return null;
+      }
+
+      final doc = query.docs.first;
+      return EulaAcceptance.fromJson(doc.data(), doc.id);
+    } catch (e) {
+      debugPrint('Failed to get latest EULA acceptance: $e');
+      return null;
+    }
+  }
+
+  /// Get current EULA version
+  static String getCurrentEulaVersion() {
+    // Update this when Terms & Conditions change
+    return '1.0';
   }
 }

@@ -94,11 +94,7 @@ class UserProfile {
     return displayName != null && 
            displayName!.isNotEmpty &&
            username != null &&
-           username!.isNotEmpty &&
-           phone != null &&
-           phone!.isNotEmpty &&
-           gender != null &&
-           dateOfBirth != null;
+           username!.isNotEmpty;
   }
 }
 

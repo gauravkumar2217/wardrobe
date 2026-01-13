@@ -116,12 +116,13 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      // Update profile without phone verification
+      // Update profile without phone verification (phone number is optional)
+      final phoneNumber = widget.phoneNumber.trim();
       final updatedProfile = UserProfile(
         displayName: widget.profile.displayName,
         username: widget.profile.username,
         email: widget.profile.email,
-        phone: widget.phoneNumber.trim(), // Save phone number but not verified
+        phone: phoneNumber.isNotEmpty ? phoneNumber : null,
         gender: widget.profile.gender,
         dateOfBirth: widget.profile.dateOfBirth,
         photoUrl: widget.profile.photoUrl,

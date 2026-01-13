@@ -330,6 +330,23 @@ You agree NOT to:
 - Collect or harvest information about other users without consent
 - Send spam, unsolicited messages, or unwanted communications
 
+4.3 ZERO TOLERANCE POLICY FOR OBJECTIONABLE CONTENT AND ABUSIVE USERS
+
+${AppConstants.appName} maintains a ZERO TOLERANCE policy for objectionable content and abusive behavior. This policy applies to all user-generated content including but not limited to comments, direct messages, clothing item descriptions, and profile information.
+
+By using this App, you acknowledge and agree that:
+
+- There is ABSOLUTELY NO TOLERANCE for objectionable content, harassment, abuse, threats, or harmful behavior directed at other users
+- Any content that is illegal, offensive, harmful, inappropriate, or violates community standards will be removed immediately
+- Users who post objectionable content or engage in abusive behavior will have their content removed instantly and may be permanently banned from the platform
+- We reserve the right to remove any content and eject any user who violates these Terms without prior notice
+- You can report objectionable content or abusive users using the reporting mechanisms provided in the App
+- You can block abusive users, which will immediately remove their content from your feed
+- We will act on reports of objectionable content within 24 hours by removing the content and ejecting users who provided offending content
+- Violations of this policy may result in immediate account termination and permanent ban from the platform
+
+This zero tolerance policy is non-negotiable and applies to all users equally. By accepting these Terms & Conditions, you explicitly acknowledge that you understand and agree to comply with this policy.
+
 5. CONTENT AND INTELLECTUAL PROPERTY
 
 5.1 Your Content
@@ -366,18 +383,30 @@ You agree NOT to:
 - Messages are private between sender and recipient
 - You must not send spam, harassment, or inappropriate content
 - We reserve the right to monitor messages for safety and compliance
+- You can report inappropriate messages using the reporting feature
+- You can block users who send abusive or unwanted messages
 
 6.3 Comments and Likes
 - You can comment on and like clothing items
 - Comments must be respectful and appropriate
 - You are responsible for your comments
-- We reserve the right to remove inappropriate comments
+- We reserve the right to remove inappropriate comments immediately
+- You can report objectionable comments using the reporting feature
+- You can block users who post abusive comments
 
 6.4 Content Sharing
 - You can share your own clothing items with friends
 - Shared items are visible only to the recipient
 - Recipients cannot edit, save, or re-share items you share with them
 - You must respect others' privacy and not share content without permission
+
+6.5 Reporting and Blocking Mechanisms
+- The App provides mechanisms for users to flag objectionable content
+- The App provides mechanisms for users to block abusive users
+- When you block a user, their content is immediately removed from your feed
+- Blocking a user also notifies the developer of the inappropriate content
+- All reports are reviewed, and we commit to acting on reports within 24 hours
+- Actions taken may include removing content and ejecting users who violate these Terms
 
 7. PRIVACY AND DATA
 

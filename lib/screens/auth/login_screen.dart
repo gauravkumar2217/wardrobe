@@ -2,7 +2,9 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/user_service.dart';
 import 'profile_setup_screen.dart';
+import 'eula_acceptance_screen.dart';
 import '../main_navigation.dart';
 
 /// Login screen with Username/Password and Google options
@@ -42,18 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success && mounted) {
         final user = authProvider.user;
         if (user != null) {
-          final profile = authProvider.userProfile;
-          if (profile == null || !profile.isComplete) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const MainNavigation()),
-            );
-          }
+          await _navigateAfterLogin(context, authProvider);
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -83,18 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success && mounted) {
         final user = authProvider.user;
         if (user != null) {
-          final profile = authProvider.userProfile;
-          if (profile == null || !profile.isComplete) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const MainNavigation()),
-            );
-          }
+          await _navigateAfterLogin(context, authProvider);
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,6 +86,43 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _isSigningInWithApple = false;
         });
+      }
+    }
+  }
+
+  Future<void> _navigateAfterLogin(BuildContext context, AuthProvider authProvider) async {
+    final user = authProvider.user;
+    if (user == null) return;
+
+    // Check EULA acceptance first
+    final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
+    
+    if (!hasAcceptedEula) {
+      // User hasn't accepted EULA - show EULA screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
+        );
+      }
+      return;
+    }
+
+    // EULA accepted - check profile completion
+    final profile = authProvider.userProfile;
+    if (profile == null || !profile.isComplete) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+        );
+      }
+    } else {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+        );
       }
     }
   }
@@ -128,18 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success && mounted) {
         final user = authProvider.user;
         if (user != null) {
-          final profile = authProvider.userProfile;
-          if (profile == null || !profile.isComplete) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const MainNavigation()),
-            );
-          }
+          await _navigateAfterLogin(context, authProvider);
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

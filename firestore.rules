@@ -851,5 +851,128 @@ service cloud.firestore {
                       exists(/databases/$(database)/documents/fcmTokens/$(tokenId)) &&
                       resource.data.userId == request.auth.uid;
     }
+    
+    // ============================================
+    // EULA ACCEPTANCES COLLECTION
+    // ============================================
+    // Track EULA acceptance for users
+    match /eulaAcceptances/{acceptanceId} {
+      // Allow users to read their own acceptances
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      
+      // Allow users to create their own acceptances
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['userId', 'version', 'acceptedAt']) &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.version is string &&
+                       request.resource.data.acceptedAt is timestamp;
+      
+      // Allow list queries for authenticated users (to check if user has accepted)
+      allow list: if isAuthenticated();
+    }
+    
+    // EULA Acceptances subcollection: users/{userId}/eulaAcceptances/{acceptanceId}
+    match /users/{userId}/eulaAcceptances/{acceptanceId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       request.resource.data.keys().hasAll(['userId', 'version', 'acceptedAt']) &&
+                       request.resource.data.userId == userId &&
+                       request.resource.data.version is string &&
+                       request.resource.data.acceptedAt is timestamp;
+      allow list: if isOwner(userId);
+    }
+    
+    // ============================================
+    // REPORTS COLLECTION
+    // ============================================
+    // User reports for objectionable content
+    match /reports/{reportId} {
+      // Allow users to create reports
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['reporterId', 'reportedUserId', 'contentType', 'reason', 'status', 'createdAt']) &&
+                       request.resource.data.reporterId == request.auth.uid &&
+                       request.resource.data.reportedUserId is string &&
+                       request.resource.data.contentType in ['comment', 'message', 'user'] &&
+                       request.resource.data.reason is string &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.createdAt is timestamp;
+      
+      // Allow users to read their own reports
+      allow read: if isAuthenticated() && 
+                     resource.data.reporterId == request.auth.uid;
+      
+      // Allow list queries for authenticated users (filtered by reporterId in queries)
+      allow list: if isAuthenticated();
+      
+      // Only admins can update/delete reports (for moderation)
+      // For now, allow updates if user is reporter (to prevent abuse)
+      allow update: if isAuthenticated() && 
+                       resource.data.reporterId == request.auth.uid &&
+                       request.resource.data.status == 'pending'; // Can only update pending reports
+      
+      // Only admins should delete reports
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // BLOCKED USERS COLLECTION
+    // ============================================
+    // User blocking relationships
+    match /blockedUsers/{blockId} {
+      // Allow users to create blocks (blockerId must match auth user)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['blockerId', 'blockedUserId', 'blockedAt']) &&
+                       request.resource.data.blockerId == request.auth.uid &&
+                       request.resource.data.blockedUserId is string &&
+                       request.resource.data.blockedAt is timestamp;
+      
+      // Allow users to read their own blocks
+      allow read: if isAuthenticated() && 
+                     resource.data.blockerId == request.auth.uid;
+      
+      // Allow users to delete their own blocks (unblock)
+      allow delete: if isAuthenticated() && 
+                      resource.data.blockerId == request.auth.uid;
+      
+      // Allow list queries for authenticated users (filtered by blockerId in queries)
+      allow list: if isAuthenticated();
+    }
+    
+    // Blocked Users subcollection: users/{userId}/blockedUsers/{blockedUserId}
+    match /users/{userId}/blockedUsers/{blockedUserId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       request.resource.data.keys().hasAll(['blockedUserId', 'blockedAt']) &&
+                       request.resource.data.blockedUserId == blockedUserId &&
+                       request.resource.data.blockedAt is timestamp;
+      allow delete: if isOwner(userId);
+      allow list: if isOwner(userId);
+    }
+    
+    // ============================================
+    // MODERATION ACTIONS COLLECTION
+    // ============================================
+    // Admin moderation actions log
+    match /moderationActions/{actionId} {
+      // Only admins can create moderation actions
+      // For now, allow authenticated users (admin check should be done in Cloud Functions)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['moderatorId', 'actionType', 'targetUserId', 'reason', 'createdAt']) &&
+                       request.resource.data.moderatorId == request.auth.uid &&
+                       request.resource.data.actionType in ['remove_content', 'eject_user', 'warn_user'] &&
+                       request.resource.data.targetUserId is string &&
+                       request.resource.data.reason is string &&
+                       request.resource.data.createdAt is timestamp;
+      
+      // Allow read for authenticated users (for admin dashboard)
+      allow read: if isAuthenticated();
+      
+      // Allow list queries for authenticated users
+      allow list: if isAuthenticated();
+      
+      // Only admins can update/delete
+      allow update, delete: if false;
+    }
   }
 }
