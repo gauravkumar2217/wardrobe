@@ -29,6 +29,53 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _isCheckingUsername = false;
   bool _isUsernameAvailable = false;
   bool _isLoading = false;
+  bool _isAppleUser = false;
+  bool _isGoogleUser = false;
+  bool _showOptionalFields = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFromAuth();
+  }
+
+  void _initializeFromAuth() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    if (user != null) {
+      // Check if user signed in with Apple or Google
+      _isAppleUser = user.providerData.any((info) => info.providerId == 'apple.com');
+      _isGoogleUser = user.providerData.any((info) => info.providerId == 'google.com');
+      
+      // Pre-populate name from Firebase Auth (Apple/Google Sign-In provides this)
+      if (user.displayName != null && user.displayName!.isNotEmpty) {
+        _nameController.text = user.displayName!;
+        
+        // Auto-generate username suggestion from name for Apple/Google users
+        if (_isAppleUser || _isGoogleUser) {
+          final nameParts = user.displayName!.toLowerCase().split(' ');
+          if (nameParts.isNotEmpty) {
+            // Generate username from first name + last initial, or just first name
+            String suggestedUsername = nameParts[0];
+            if (nameParts.length > 1 && nameParts[1].isNotEmpty) {
+              suggestedUsername = '${nameParts[0]}${nameParts[1][0]}';
+            }
+            // Remove any special characters and limit length
+            suggestedUsername = suggestedUsername.replaceAll(RegExp(r'[^a-z0-9_]'), '');
+            if (suggestedUsername.length > 20) {
+              suggestedUsername = suggestedUsername.substring(0, 20);
+            }
+            if (suggestedUsername.length >= 3) {
+              _usernameController.text = suggestedUsername;
+              // Check availability of suggested username
+              _checkUsernameAvailability();
+            }
+          }
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -94,14 +141,48 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    // For Apple/Google users, validate only username (name/email already provided)
+    final isSocialSignIn = _isAppleUser || _isGoogleUser;
+    if (!isSocialSignIn && !_formKey.currentState!.validate()) return;
+    
+    // For Apple/Google users, still validate username
+    if (isSocialSignIn) {
+      final username = _usernameController.text.trim().toLowerCase();
+      if (username.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a username')),
+        );
+        return;
+      }
+      if (username.length < 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username must be at least 3 characters')),
+        );
+        return;
+      }
+      if (!RegExp(r'^[a-z0-9_]+$').hasMatch(username)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username can only contain letters, numbers, and underscores')),
+        );
+        return;
+      }
+      if (!_isUsernameAvailable && username.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose an available username')),
+        );
+        return;
+      }
+    } else {
+      // For non-social sign-in users, validate form normally
+      if (!_formKey.currentState!.validate()) return;
 
-    // Check if username is available
-    if (!_isUsernameAvailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose an available username')),
-      );
-      return;
+      // Check if username is available
+      if (!_isUsernameAvailable) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose an available username')),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -142,10 +223,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
 
     final phoneNumber = _phoneController.text.trim();
+    
+    // For Apple/Google users, use displayName from Firebase Auth if name field is empty
+    // (This handles cases where social sign-in provided the name but it wasn't shown in the field)
+    String displayName = _nameController.text.trim();
+    if (displayName.isEmpty && (_isAppleUser || _isGoogleUser) && user.displayName != null && user.displayName!.isNotEmpty) {
+      displayName = user.displayName!;
+    }
+    
     final profile = UserProfile(
-      displayName: _nameController.text.trim(),
+      displayName: displayName.isNotEmpty ? displayName : null,
       username: _usernameController.text.trim().toLowerCase(),
-      email: user.email,
+      email: user.email, // Email is already provided by Apple/Google Sign-In
       phone: phoneNumber.isNotEmpty ? phoneNumber : null,
       gender: _selectedGender,
       dateOfBirth: _selectedDateOfBirth,
@@ -172,9 +261,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           );
         } else {
           // Skip phone verification and go directly to main app
+          // Pass a flag to indicate user just completed profile setup
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const MainNavigation()),
+            MaterialPageRoute(
+              builder: (_) => const MainNavigation(justCompletedProfileSetup: true),
+            ),
           );
         }
       }
@@ -203,31 +295,93 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 12),
-                const Text(
-                  'Let\'s get started',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Complete your profile to continue',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 32),
-                // Name field
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
+                Builder(
+                  builder: (context) {
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    final user = authProvider.user;
+                    final isAppleUser = user?.providerData.any((info) => info.providerId == 'apple.com') ?? false;
+                    
+                    final isGoogleUser = user?.providerData.any((info) => info.providerId == 'google.com') ?? false;
+                    final isSocialSignIn = isAppleUser || isGoogleUser;
+                    final socialProviderName = isAppleUser ? 'Apple Sign-In' : (isGoogleUser ? 'Google Sign-In' : '');
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Let\'s get started',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isSocialSignIn 
+                              ? 'Choose a username to complete your profile'
+                              : 'Complete your profile to continue',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        ),
+                        if (isSocialSignIn) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle_outline, size: 18, color: Colors.green[700]),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Your name and email from $socialProviderName are already set up. Just choose a username to continue.',
+                                    style: TextStyle(fontSize: 12, color: Colors.green[900]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
+                // Name field - hidden for Apple/Google users (already provided), required for others
+                Builder(
+                  builder: (context) {
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    final user = authProvider.user;
+                    final isAppleUser = user?.providerData.any((info) => info.providerId == 'apple.com') ?? false;
+                    final isGoogleUser = user?.providerData.any((info) => info.providerId == 'google.com') ?? false;
+                    final isSocialSignIn = isAppleUser || isGoogleUser;
+                    
+                    // For Apple/Google users, don't show name field at all - it's already provided by social sign-in
+                    if (isSocialSignIn) {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    // For non-social sign-in users, name is required
+                    return Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name *',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your name';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  },
+                ),
                 // Username field
                 TextFormField(
                   controller: _usernameController,
@@ -328,58 +482,94 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     return const SizedBox.shrink();
                   },
                 ),
-                const SizedBox(height: 16),
-                // Phone number field (optional)
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number (Optional)',
-                    prefixIcon: Icon(Icons.phone),
-                    helperText: 'Include country code (e.g., +91). Verification will be done next.',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Gender field (optional)
-                DropdownButtonFormField<String>(
-                  value: _selectedGender,
-                  decoration: const InputDecoration(
-                    labelText: 'Gender (Optional)',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Select gender (optional)')),
-                    DropdownMenuItem(value: 'male', child: Text('Male')),
-                    DropdownMenuItem(value: 'female', child: Text('Female')),
-                    DropdownMenuItem(value: 'other', child: Text('Other')),
-                  ],
-                  onChanged: (value) {
+                const SizedBox(height: 24),
+                // Optional fields section - collapsible
+                InkWell(
+                  onTap: () {
                     setState(() {
-                      _selectedGender = value;
+                      _showOptionalFields = !_showOptionalFields;
                     });
                   },
-                ),
-                const SizedBox(height: 16),
-                // Date of Birth field (optional)
-                InkWell(
-                  onTap: _selectDateOfBirth,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Date of Birth (Optional)',
-                      prefixIcon: Icon(Icons.calendar_today),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: Text(
-                      _selectedDateOfBirth != null
-                          ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
-                          : 'Select date of birth (optional)',
-                      style: TextStyle(
-                        color: _selectedDateOfBirth != null
-                            ? Colors.black
-                            : Colors.grey[600],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Additional Information (Optional)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Icon(
+                          _showOptionalFields ? Icons.expand_less : Icons.expand_more,
+                          color: Colors.grey[600],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_showOptionalFields) ...[
+                  const SizedBox(height: 16),
+                  // Phone number field (optional)
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number (Optional)',
+                      prefixIcon: Icon(Icons.phone),
+                      helperText: 'Include country code (e.g., +91). Verification will be done next.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Gender field (optional)
+                  DropdownButtonFormField<String>(
+                    value: _selectedGender,
+                    decoration: const InputDecoration(
+                      labelText: 'Gender (Optional)',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Select gender (optional)')),
+                      DropdownMenuItem(value: 'male', child: Text('Male')),
+                      DropdownMenuItem(value: 'female', child: Text('Female')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedGender = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Date of Birth field (optional)
+                  InkWell(
+                    onTap: _selectDateOfBirth,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Date of Birth (Optional)',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(
+                        _selectedDateOfBirth != null
+                            ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
+                            : 'Select date of birth (optional)',
+                        style: TextStyle(
+                          color: _selectedDateOfBirth != null
+                              ? Colors.black
+                              : Colors.grey[600],
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,

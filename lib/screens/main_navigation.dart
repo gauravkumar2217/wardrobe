@@ -20,7 +20,12 @@ import 'auth/login_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  final bool justCompletedProfileSetup;
+  
+  const MainNavigation({
+    super.key,
+    this.justCompletedProfileSetup = false,
+  });
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -61,7 +66,7 @@ class _MainNavigationState extends State<MainNavigation>
       }
       
       // Check onboarding status
-      _checkOnboardingStatus();
+      _checkOnboardingStatus(justCompletedProfileSetup: widget.justCompletedProfileSetup);
     });
   }
 
@@ -81,7 +86,7 @@ class _MainNavigationState extends State<MainNavigation>
     _lastActiveTimer = null;
   }
 
-  Future<void> _checkOnboardingStatus() async {
+  Future<void> _checkOnboardingStatus({bool justCompletedProfileSetup = false}) async {
     if (_hasCheckedOnboarding) return;
     
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -96,9 +101,14 @@ class _MainNavigationState extends State<MainNavigation>
       authProvider.user!.uid,
     );
     
-      if (!hasCompleted && mounted) {
-      // Wait a bit for UI to be ready, then start onboarding
-      await Future.delayed(const Duration(milliseconds: 500));
+    if (!hasCompleted && mounted) {
+      // If user just completed profile setup, wait longer before starting onboarding
+      // This gives them time to see the app and get comfortable
+      final delayDuration = justCompletedProfileSetup 
+          ? const Duration(seconds: 5)  // 5 seconds for new users
+          : const Duration(milliseconds: 1500);  // 1.5 seconds for returning users
+      
+      await Future.delayed(delayDuration);
       
       if (mounted) {
         _startOnboarding(onboardingProvider, context);

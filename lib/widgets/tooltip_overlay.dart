@@ -76,7 +76,9 @@ class _TooltipOverlayState extends State<TooltipOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.step == null) {
+    // Hide overlay if step is null OR all callbacks are null (onboarding inactive)
+    if (widget.step == null || 
+        (widget.onNext == null && widget.onPrevious == null && widget.onSkip == null)) {
       return widget.child;
     }
 
@@ -357,27 +359,28 @@ class _TooltipWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Skip button
-                TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: (screenWidth * 0.04).clamp(12.0, 16.0),
-                      vertical: (screenWidth * 0.02).clamp(6.0, 10.0),
+                // Skip button - only show if callback is available
+                if (onSkip != null)
+                  TextButton(
+                    onPressed: onSkip,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: (screenWidth * 0.04).clamp(12.0, 16.0),
+                        vertical: (screenWidth * 0.02).clamp(6.0, 10.0),
+                      ),
+                    ),
+                    child: Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
-                    ),
-                  ),
-                ),
                 // Navigation buttons
                 Row(
                   children: [
-                    if (hasPreviousSteps)
+                    if (hasPreviousSteps && onPrevious != null)
                       IconButton(
                         icon: Icon(
                           Icons.arrow_back,
@@ -388,31 +391,32 @@ class _TooltipWidget extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
-                    if (hasPreviousSteps) SizedBox(
+                    if (hasPreviousSteps && onPrevious != null) SizedBox(
                       width: (screenWidth * 0.03).clamp(8.0, 12.0),
                     ),
-                    ElevatedButton(
-                      onPressed: onNext,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: (screenWidth * 0.06).clamp(20.0, 24.0),
-                          vertical: (screenWidth * 0.03).clamp(10.0, 12.0),
+                    if (onNext != null)
+                      ElevatedButton(
+                        onPressed: onNext,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: (screenWidth * 0.06).clamp(20.0, 24.0),
+                            vertical: (screenWidth * 0.03).clamp(10.0, 12.0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        child: Text(
+                          hasMoreSteps ? 'Next' : 'Got it',
+                          style: TextStyle(
+                            fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        elevation: 0,
                       ),
-                      child: Text(
-                        hasMoreSteps ? 'Next' : 'Got it',
-                        style: TextStyle(
-                          fontSize: (13 * textScaleFactor).clamp(12.0, 14.0),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ],
