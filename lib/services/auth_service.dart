@@ -348,6 +348,23 @@ class AuthService {
         throw Exception('Authentication failed - no user returned');
       }
 
+      // Step 5.5: Update user profile with Google name if available (first time only)
+      // Firebase Auth should automatically set displayName from Google, but we ensure it's set
+      if (googleUser != null && 
+          (firebaseUser.displayName == null || firebaseUser.displayName!.isEmpty)) {
+        // Try to get displayName from Google account
+        final googleDisplayName = googleUser.displayName;
+        if (googleDisplayName != null && googleDisplayName.isNotEmpty) {
+          try {
+            await firebaseUser.updateDisplayName(googleDisplayName);
+            await firebaseUser.reload();
+          } catch (e) {
+            debugPrint('Warning: Failed to update displayName from Google: $e');
+            // Don't fail sign-in if displayName update fails
+          }
+        }
+      }
+
       // Step 6: Register FCM token after successful login
       try {
         await FCMService.registerDeviceToken(firebaseUser.uid);

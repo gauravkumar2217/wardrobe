@@ -140,6 +140,28 @@ class UserService {
     }
   }
 
+  /// Find user profile by email
+  /// Returns the userId if a profile with this email exists
+  static Future<String?> findUserIdByEmail(String email) async {
+    try {
+      if (email.isEmpty) return null;
+      
+      final query = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email.toLowerCase().trim())
+          .limit(1)
+          .get();
+      
+      if (query.docs.isNotEmpty) {
+        return query.docs.first.id;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Failed to find user by email: $e');
+      return null;
+    }
+  }
+
   /// Search users by name, username, email, or phone
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {

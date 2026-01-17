@@ -135,7 +135,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigation(justCompletedProfileSetup: true),
+          ),
         );
       }
     } catch (e) {
@@ -209,7 +211,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigation(justCompletedProfileSetup: true),
+          ),
         );
       }
     } catch (e) {

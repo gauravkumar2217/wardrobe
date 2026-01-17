@@ -69,6 +69,8 @@ class OnboardingProvider with ChangeNotifier {
   void skipOnboarding() {
     _isSkipped = true;
     _isOnboardingActive = false;
+    _currentStepIndex = 0;
+    _steps = []; // Clear steps so currentStep returns null
     notifyListeners();
   }
 

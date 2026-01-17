@@ -127,7 +127,56 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       
       if (_user != null) {
+        // First try to load profile for current user
         await _loadUserProfile(_user!.uid);
+        
+        // If profile doesn't exist or is incomplete, check if profile exists by email
+        if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
+          debugPrint('🔍 Checking for existing profile with email: ${_user!.email}');
+          final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
+          
+          if (existingUserId != null && existingUserId != _user!.uid) {
+            // Profile exists with different userId - copy it to current user
+            debugPrint('✅ Found existing profile for email ${_user!.email} with userId $existingUserId');
+            try {
+              final existingProfile = await UserService.getUserProfile(existingUserId);
+              if (existingProfile != null && existingProfile.isComplete) {
+                debugPrint('📋 Copying profile from $existingUserId to ${_user!.uid}');
+                // Create a new profile with existing data but ensure email is set
+                final profileToSave = UserProfile(
+                  displayName: existingProfile.displayName,
+                  username: existingProfile.username,
+                  email: _user!.email, // Ensure email is set from current user
+                  phone: existingProfile.phone,
+                  gender: existingProfile.gender,
+                  dateOfBirth: existingProfile.dateOfBirth,
+                  photoUrl: existingProfile.photoUrl ?? _user!.photoURL,
+                  createdAt: existingProfile.createdAt,
+                  updatedAt: DateTime.now(),
+                  settings: existingProfile.settings,
+                );
+                // Copy existing profile to current user's UID
+                await UserService.createOrUpdateProfile(
+                  userId: _user!.uid,
+                  profile: profileToSave,
+                );
+                // Reload profile for current user
+                await _loadUserProfile(_user!.uid);
+                debugPrint('✅ Successfully copied profile from $existingUserId to ${_user!.uid}');
+              } else {
+                debugPrint('⚠️ Existing profile found but incomplete');
+              }
+            } catch (e) {
+              debugPrint('❌ Failed to copy existing profile: $e');
+              // Continue with new account if copying fails
+            }
+          } else {
+            debugPrint('ℹ️ No existing profile found for email: ${_user!.email}');
+          }
+        } else if (_userProfile != null && _userProfile!.isComplete) {
+          debugPrint('✅ Profile already exists and is complete for ${_user!.uid}');
+        }
+        
         // Register FCM token after successful Google sign-in
         try {
           await FCMService.registerDeviceToken(_user!.uid);
@@ -147,7 +196,30 @@ class AuthProvider with ChangeNotifier {
         final currentUser = AuthService.getCurrentUser();
         if (currentUser != null) {
           _user = currentUser;
+          
+          // First try to load profile for current user
           await _loadUserProfile(_user!.uid);
+          
+          // If profile doesn't exist or is incomplete, check if profile exists by email
+          if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
+            final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
+            if (existingUserId != null && existingUserId != _user!.uid) {
+              // Profile exists with different userId - copy it to current user
+              try {
+                final existingProfile = await UserService.getUserProfile(existingUserId);
+                if (existingProfile != null && existingProfile.isComplete) {
+                  await UserService.createOrUpdateProfile(
+                    userId: _user!.uid,
+                    profile: existingProfile,
+                  );
+                  await _loadUserProfile(_user!.uid);
+                }
+              } catch (e) {
+                debugPrint('Failed to copy existing profile: $e');
+              }
+            }
+          }
+          
           // Register FCM token after successful Google sign-in (workaround case)
           try {
             await FCMService.registerDeviceToken(_user!.uid);
@@ -180,7 +252,56 @@ class AuthProvider with ChangeNotifier {
       _user = userCredential.user;
       
       if (_user != null) {
+        // First try to load profile for current user
         await _loadUserProfile(_user!.uid);
+        
+        // If profile doesn't exist or is incomplete, check if profile exists by email
+        if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
+          debugPrint('🔍 Checking for existing profile with email: ${_user!.email}');
+          final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
+          
+          if (existingUserId != null && existingUserId != _user!.uid) {
+            // Profile exists with different userId - copy it to current user
+            debugPrint('✅ Found existing profile for email ${_user!.email} with userId $existingUserId');
+            try {
+              final existingProfile = await UserService.getUserProfile(existingUserId);
+              if (existingProfile != null && existingProfile.isComplete) {
+                debugPrint('📋 Copying profile from $existingUserId to ${_user!.uid}');
+                // Create a new profile with existing data but ensure email is set
+                final profileToSave = UserProfile(
+                  displayName: existingProfile.displayName,
+                  username: existingProfile.username,
+                  email: _user!.email, // Ensure email is set from current user
+                  phone: existingProfile.phone,
+                  gender: existingProfile.gender,
+                  dateOfBirth: existingProfile.dateOfBirth,
+                  photoUrl: existingProfile.photoUrl ?? _user!.photoURL,
+                  createdAt: existingProfile.createdAt,
+                  updatedAt: DateTime.now(),
+                  settings: existingProfile.settings,
+                );
+                // Copy existing profile to current user's UID
+                await UserService.createOrUpdateProfile(
+                  userId: _user!.uid,
+                  profile: profileToSave,
+                );
+                // Reload profile for current user
+                await _loadUserProfile(_user!.uid);
+                debugPrint('✅ Successfully copied profile from $existingUserId to ${_user!.uid}');
+              } else {
+                debugPrint('⚠️ Existing profile found but incomplete');
+              }
+            } catch (e) {
+              debugPrint('❌ Failed to copy existing profile: $e');
+              // Continue with new account if copying fails
+            }
+          } else {
+            debugPrint('ℹ️ No existing profile found for email: ${_user!.email}');
+          }
+        } else if (_userProfile != null && _userProfile!.isComplete) {
+          debugPrint('✅ Profile already exists and is complete for ${_user!.uid}');
+        }
+        
         // Register FCM token after successful Apple sign-in
         try {
           await FCMService.registerDeviceToken(_user!.uid);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
+import '../../models/user_profile.dart';
 import 'profile_setup_screen.dart';
 import 'eula_acceptance_screen.dart';
 import '../main_navigation.dart';
@@ -94,6 +95,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final user = authProvider.user;
     if (user == null) return;
 
+    // Wait a moment for profile to be fully loaded (in case it was just copied)
+    await Future.delayed(const Duration(milliseconds: 300));
+
     // Check EULA acceptance first
     final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
     
@@ -109,8 +113,55 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // EULA accepted - check profile completion
-    final profile = authProvider.userProfile;
+    // Refresh profile to ensure we have the latest data
+    await authProvider.refreshProfile();
+    var profile = authProvider.userProfile;
+    
+    debugPrint('🔍 Navigation check - Profile status:');
+    debugPrint('   User UID: ${user.uid}');
+    debugPrint('   User Email: ${user.email}');
+    debugPrint('   Profile exists: ${profile != null}');
+    debugPrint('   Profile complete: ${profile?.isComplete ?? false}');
+    
+    // If profile doesn't exist or is incomplete, check if it exists by email
+    if ((profile == null || !profile.isComplete) && user.email != null) {
+      debugPrint('🔍 Checking for existing profile by email: ${user.email}');
+      final existingUserId = await UserService.findUserIdByEmail(user.email!);
+      if (existingUserId != null && existingUserId != user.uid) {
+        debugPrint('✅ Found existing profile with userId: $existingUserId');
+        // Profile exists with different UID - load it
+        final existingProfile = await UserService.getUserProfile(existingUserId);
+        if (existingProfile != null && existingProfile.isComplete) {
+          debugPrint('📋 Copying profile to current user UID');
+          // Create profile with existing data but ensure email is set
+          final profileToSave = UserProfile(
+            displayName: existingProfile.displayName,
+            username: existingProfile.username,
+            email: user.email, // Ensure email is set from current user
+            phone: existingProfile.phone,
+            gender: existingProfile.gender,
+            dateOfBirth: existingProfile.dateOfBirth,
+            photoUrl: existingProfile.photoUrl ?? user.photoURL,
+            createdAt: existingProfile.createdAt,
+            updatedAt: DateTime.now(),
+            settings: existingProfile.settings,
+          );
+          // Copy profile to current user's UID
+          await UserService.createOrUpdateProfile(
+            userId: user.uid,
+            profile: profileToSave,
+          );
+          // Reload profile in auth provider
+          await authProvider.refreshProfile();
+          profile = authProvider.userProfile;
+          debugPrint('✅ Profile copied and reloaded');
+        }
+      }
+    }
+    
+    // Now check profile completion
     if (profile == null || !profile.isComplete) {
+      debugPrint('➡️ Navigating to Profile Setup');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -118,6 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
+      debugPrint('➡️ Navigating to Main Navigation');
       if (mounted) {
         Navigator.pushReplacement(
           context,

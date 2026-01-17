@@ -225,30 +225,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
           throw Exception('User not found');
         }
 
+        // Clean up providers before deleting account
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        final friendProvider = Provider.of<FriendProvider>(context, listen: false);
+        chatProvider.cleanup();
+        friendProvider.cleanup();
+
         // Delete user profile from Firestore
         await UserService.deleteAccount(user.uid);
 
-        // Delete Firebase Auth account
+        // Delete Firebase Auth account (this automatically signs out the user)
         await user.delete();
 
-        // Sign out
-        await authProvider.signOut();
+        // Sign out from AuthProvider to clear local state
+        // Note: user.delete() already signs out from Firebase, but we need to clear AuthProvider state
+        try {
+          await authProvider.signOut();
+        } catch (e) {
+          // If signOut fails (e.g., user already deleted), that's okay
+          // Just ensure AuthProvider state is cleared
+          debugPrint('Sign out after account deletion: $e');
+        }
 
+        // Navigate to login screen and clear navigation stack
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const LoginScreen()),
             (route) => false,
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account deleted successfully')),
-          );
+          
+          // Show success message after navigation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Account deleted successfully')),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
+          
+          // Even if deletion fails, try to sign out and navigate to login
+          // This ensures the user isn't stuck in a bad state
+          try {
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            await authProvider.signOut();
+            
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            }
+          } catch (signOutError) {
+            debugPrint('Failed to sign out after deletion error: $signOutError');
+          }
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Failed to delete account: $e')),
           );
