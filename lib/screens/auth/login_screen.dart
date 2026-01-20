@@ -98,26 +98,11 @@ class _LoginScreenState extends State<LoginScreen> {
     // Wait a moment for profile to be fully loaded (in case it was just copied)
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // Check EULA acceptance first
-    final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
-    
-    if (!hasAcceptedEula) {
-      // User hasn't accepted EULA - show EULA screen
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
-        );
-      }
-      return;
-    }
-
-    // EULA accepted - check profile completion
     // Refresh profile to ensure we have the latest data
     await authProvider.refreshProfile();
     var profile = authProvider.userProfile;
     
-    debugPrint('🔍 Navigation check - Profile status:');
+    debugPrint('🔍 Navigation check - Initial status:');
     debugPrint('   User UID: ${user.uid}');
     debugPrint('   User Email: ${user.email}');
     debugPrint('   Profile exists: ${profile != null}');
@@ -159,21 +144,54 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
     
-    // Now check profile completion
-    if (profile == null || !profile.isComplete) {
-      debugPrint('➡️ Navigating to Profile Setup');
+    // Now check BOTH EULA acceptance and profile completion
+    final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
+    final hasCompleteProfile = profile != null && profile.isComplete;
+    
+    debugPrint('🔍 Final navigation check:');
+    debugPrint('   EULA accepted: $hasAcceptedEula');
+    debugPrint('   Profile complete: $hasCompleteProfile');
+    
+    // Decision logic:
+    // 1. Both done → go to main app
+    // 2. EULA done, profile not → show profile setup
+    // 3. EULA not, profile done → show EULA
+    // 4. Neither → show EULA first
+    
+    if (hasAcceptedEula && hasCompleteProfile) {
+      // Both done - go directly to main app
+      debugPrint('➡️ Both EULA and profile complete - Navigating to Main Navigation');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+        );
+      }
+    } else if (hasAcceptedEula && !hasCompleteProfile) {
+      // EULA accepted but profile incomplete - show profile setup only
+      debugPrint('➡️ EULA accepted but profile incomplete - Navigating to Profile Setup');
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
         );
       }
-    } else {
-      debugPrint('➡️ Navigating to Main Navigation');
+    } else if (!hasAcceptedEula && hasCompleteProfile) {
+      // Profile complete but EULA not accepted - show EULA only
+      debugPrint('➡️ Profile complete but EULA not accepted - Navigating to EULA');
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
+        );
+      }
+    } else {
+      // Neither - show EULA first (it will navigate to profile setup after acceptance)
+      debugPrint('➡️ Neither EULA nor profile complete - Navigating to EULA first');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
         );
       }
     }

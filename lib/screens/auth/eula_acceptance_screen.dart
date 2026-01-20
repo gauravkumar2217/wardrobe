@@ -5,6 +5,7 @@ import '../../services/user_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../constants/app_constants.dart';
 import 'profile_setup_screen.dart';
+import '../main_navigation.dart';
 
 /// EULA Acceptance screen - required before completing profile setup
 class EulaAcceptanceScreen extends StatefulWidget {
@@ -58,11 +59,24 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
       );
 
       if (mounted) {
-        // Navigate to profile setup
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
-        );
+        // Refresh profile to get latest data
+        await authProvider.refreshProfile();
+        final profile = authProvider.userProfile;
+        
+        // Check if profile is already complete
+        if (profile != null && profile.isComplete) {
+          // Profile is complete - go directly to main app
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+          );
+        } else {
+          // Profile not complete - navigate to profile setup
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

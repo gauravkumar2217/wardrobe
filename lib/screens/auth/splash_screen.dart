@@ -35,28 +35,40 @@ class _SplashScreenState extends State<SplashScreen> {
     if (authProvider.isAuthenticated) {
       final user = authProvider.user;
       if (user != null) {
-        // Check EULA acceptance first
+        // Check BOTH EULA acceptance and profile completion
         final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
-        
-        if (!hasAcceptedEula) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
-          );
-          return;
-        }
-
-        // EULA accepted - check profile completion
         final profile = authProvider.userProfile;
-        if (profile != null && profile.isComplete) {
+        final hasCompleteProfile = profile != null && profile.isComplete;
+        
+        // Decision logic:
+        // 1. Both done → go to main app
+        // 2. EULA done, profile not → show profile setup
+        // 3. EULA not, profile done → show EULA
+        // 4. Neither → show EULA first
+        
+        if (hasAcceptedEula && hasCompleteProfile) {
+          // Both done - go directly to main app
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const MainNavigation()),
           );
-        } else {
+        } else if (hasAcceptedEula && !hasCompleteProfile) {
+          // EULA accepted but profile incomplete - show profile setup only
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+          );
+        } else if (!hasAcceptedEula && hasCompleteProfile) {
+          // Profile complete but EULA not accepted - show EULA only
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
+          );
+        } else {
+          // Neither - show EULA first (it will navigate to profile setup after acceptance)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const EulaAcceptanceScreen()),
           );
         }
       } else {

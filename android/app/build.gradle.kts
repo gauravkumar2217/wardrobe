@@ -99,3 +99,9 @@ dependencies {
     // Core library desugaring (required for flutter_local_notifications)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
+
+// Exclude firebase-iid to resolve duplicate class conflict
+// firebase-iid has been merged into firebase-messaging
+configurations.all {
+    exclude(group = "com.google.firebase", module = "firebase-iid")
+}
