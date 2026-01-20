@@ -3,7 +3,7 @@ description: Wardrobe is your personal fashion assistant that helps you organize
 
 publish_to: 'none'
 
-version: 1.0.1+13
+version: 1.0.1+14
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -88,5 +88,5 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo-chat.png"
   min_sdk_android: 21

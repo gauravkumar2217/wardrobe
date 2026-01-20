@@ -706,7 +706,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                           ),
                           child: Center(
                             child: Image.asset(
-                              'assets/images/logo.png',
+                              'assets/images/logo-chat.png',
                               width: 60,
                               height: 60,
                               errorBuilder: (context, error, stackTrace) {
