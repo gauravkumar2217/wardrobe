@@ -98,6 +98,8 @@ flutter {
 dependencies {
     // Core library desugaring (required for flutter_local_notifications)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // AndroidX Core for enableEdgeToEdge (Android 15+ edge-to-edge compatibility)
+    implementation("androidx.core:core-ktx:1.17.0")
 }
 
 // Exclude firebase-iid to resolve duplicate class conflict
