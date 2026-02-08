@@ -67,9 +67,13 @@
 -keep class org.threeten.bp.** { *; }
 -dontwarn org.threeten.bp.**
 
-# Image compression
+# Image compression (flutter_image_compress)
 -keep class com.example.flutter_image_compress.** { *; }
+-keep class id.zelory.compressor.** { *; }
 -dontwarn com.example.flutter_image_compress.**
+
+# Google ML Kit
+-keep class com.google.mlkit.** { *; }
 
 # SQLite
 -keep class net.sqlcipher.** { *; }

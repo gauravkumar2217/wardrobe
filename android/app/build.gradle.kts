@@ -63,9 +63,9 @@ android {
 
     buildTypes {
         getByName("release") {
-            // Enable R8/ProGuard for code shrinking and obfuscation
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Enable R8 for code shrinking and obfuscation (reduces app size, enables crash deobfuscation)
+            isMinifyEnabled = true
+            isShrinkResources = true
             
             // Use ProGuard rules
             proguardFiles(
