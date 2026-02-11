@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/cloth.dart';
 import '../providers/wardrobe_provider.dart';
 import '../providers/cloth_provider.dart';
@@ -41,7 +42,6 @@ class ClothCard extends StatefulWidget {
 class _ClothCardState extends State<ClothCard> {
   String? _wardrobeName;
   String? _wearHistorySummary;
-  bool _isLoadingImage = true;
   bool _isInfoPanelVisible = true; // Default: unhidden
   bool _isLoadingInfo = false;
   bool _isWornToday = false;
@@ -49,7 +49,10 @@ class _ClothCardState extends State<ClothCard> {
   @override
   void initState() {
     super.initState();
-    _loadInfo();
+    // Defer _loadInfo to after first frame so scroll stays smooth (no async work during build)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadInfo();
+    });
   }
 
   @override
@@ -184,51 +187,24 @@ class _ClothCardState extends State<ClothCard> {
           ? Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  widget.cloth.imageUrl,
+                CachedNetworkImage(
+                  imageUrl: widget.cloth.imageUrl,
                   fit: BoxFit.cover,
-                  frameBuilder:
-                      (context, child, frame, wasSynchronouslyLoaded) {
-                    if (wasSynchronouslyLoaded || frame != null) {
-                      // Image loaded successfully
-                      if (mounted && _isLoadingImage) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            setState(() {
-                              _isLoadingImage = false;
-                            });
-                          }
-                        });
-                      }
-                      return child;
-                    }
-                    return child;
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    // Image failed to load
-                    if (mounted) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() {
-                            _isLoadingImage = false;
-                          });
-                        }
-                      });
-                    }
-                    return Container(
-                      color: Colors.grey[900],
-                      child: const Center(
-                        child: Icon(Icons.broken_image,
-                            color: Colors.white54, size: 64),
-                      ),
-                    );
-                  },
-                ),
-                // Loading indicator
-                if (_isLoadingImage)
-                  const Center(
+                  width: double.infinity,
+                  height: double.infinity,
+                  memCacheWidth: null,
+                  memCacheHeight: null,
+                  placeholder: (context, url) => const Center(
                     child: CircularProgressIndicator(color: Colors.white),
                   ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[900],
+                    child: const Center(
+                      child: Icon(Icons.broken_image,
+                          color: Colors.white54, size: 64),
+                    ),
+                  ),
+                ),
                 // Back button (if needed)
                 if (widget.showBackButton)
                   Positioned(

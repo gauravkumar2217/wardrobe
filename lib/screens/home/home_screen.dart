@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -18,6 +19,24 @@ import '../notifications/notifications_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../models/wardrobe.dart';
+
+/// Scroll physics that make vertical PageView commit to swipe direction with a short drag:
+/// lower fling threshold and less friction so a small swipe up/down moves to next/prev page instead of snapping back.
+class _ResponsivePageScrollPhysics extends ScrollPhysics {
+  const _ResponsivePageScrollPhysics({super.parent});
+
+  @override
+  _ResponsivePageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _ResponsivePageScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  double get minFlingVelocity => 18;
+
+  double get minFlingDistance => 8;
+
+  double get frictionFactor => 0.36;
+}
 
 /// Home screen with swipeable fullscreen cloth cards
 class HomeScreen extends StatefulWidget {
@@ -254,14 +273,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _likedStatus[cloth.id] = isLiked;
       });
     }
-  }
-
-  Future<bool> _getLikeStatus(Cloth cloth, String userId) async {
-    if (_likedStatus.containsKey(cloth.id)) {
-      return _likedStatus[cloth.id]!;
-    }
-    await _loadLikeStatus(cloth, userId);
-    return _likedStatus[cloth.id] ?? false;
   }
 
   void _handleLike(Cloth cloth) async {
@@ -706,9 +717,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           : PageView.builder(
                               scrollDirection: Axis.vertical,
                               controller: _pageController,
+                              physics: const _ResponsivePageScrollPhysics(
+                                parent: ClampingScrollPhysics(
+                                  parent: AlwaysScrollableScrollPhysics(),
+                                ),
+                              ),
+                              dragStartBehavior: DragStartBehavior.down,
                               itemCount: filteredClothes.length,
                               onPageChanged: (index) {
-                                // Load like status for current cloth
+                                // Load like status for current cloth (non-blocking)
                                 if (authProvider.user != null &&
                                     index < filteredClothes.length) {
                                   _loadLikeStatus(filteredClothes[index],
@@ -719,56 +736,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 final cloth = filteredClothes[index];
                                 final isOwner =
                                     authProvider.user?.uid == cloth.ownerId;
+                                // Use cached like status only - avoids async in build and keeps scroll smooth
+                                final isLiked = _likedStatus[cloth.id] ?? false;
 
-                                return FutureBuilder<bool>(
-                                  future: _getLikeStatus(
-                                      cloth, authProvider.user?.uid ?? ''),
-                                  builder: (context, snapshot) {
-                                    final isLiked = snapshot.data ??
-                                        (_likedStatus[cloth.id] ?? false);
-
-                                    return ClothCard(
-                                      cloth: cloth,
-                                      isOwner: isOwner,
-                                      isLiked: isLiked,
-                                      showBackButton: false,
-                                      onLike: () => _handleLike(cloth),
-                                      onComment: () => _handleComment(cloth),
-                                      onShare: isOwner
-                                          ? () => _handleShare(cloth)
-                                          : null,
-                                      onMarkWorn: isOwner
-                                          ? () => _handleToggleWorn(cloth)
-                                          : null,
-                                      onWornHistory: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                WornHistoryScreen(cloth: cloth),
-                                          ),
-                                        );
-                                      },
-                                      onEdit: isOwner
-                                          ? () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      EditClothScreen(
-                                                    cloth: cloth,
-                                                    wardrobeId:
-                                                        cloth.wardrobeId,
-                                                  ),
+                                return KeyedSubtree(
+                                  key: ValueKey(cloth.id),
+                                  child: ClothCard(
+                                    cloth: cloth,
+                                    isOwner: isOwner,
+                                    isLiked: isLiked,
+                                    showBackButton: false,
+                                    onLike: () => _handleLike(cloth),
+                                    onComment: () => _handleComment(cloth),
+                                    onShare: isOwner
+                                        ? () => _handleShare(cloth)
+                                        : null,
+                                    onMarkWorn: isOwner
+                                        ? () => _handleToggleWorn(cloth)
+                                        : null,
+                                    onWornHistory: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              WornHistoryScreen(cloth: cloth),
+                                        ),
+                                      );
+                                    },
+                                    onEdit: isOwner
+                                        ? () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => EditClothScreen(
+                                                  cloth: cloth,
+                                                  wardrobeId: cloth.wardrobeId,
                                                 ),
-                                              ).then((_) => _loadClothes());
-                                            }
-                                          : null,
-                                      onDelete: isOwner
-                                          ? () => _handleDelete(cloth)
-                                          : null,
-                                    );
-                                  },
+                                              ),
+                                            ).then((_) => _loadClothes());
+                                          }
+                                        : null,
+                                    onDelete: isOwner
+                                        ? () => _handleDelete(cloth)
+                                        : null,
+                                  ),
                                 );
                               },
                             ),
