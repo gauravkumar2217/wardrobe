@@ -31,6 +31,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Include both 32-bit and 64-bit ARM so Redmi and other 32-bit devices can install from Play Store
+        ndk {
+            abiFilters.clear()
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+        }
     }
 
     // ✅ Java and Kotlin configuration
