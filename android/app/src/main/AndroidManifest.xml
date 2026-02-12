@@ -70,11 +70,17 @@
     
     <application
         android:label="Wardrobe"
-        android:name="${applicationName}"
+        android:name=".WardrobeApplication"
         android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false">
-        
+
+        <!-- Disable default ML Kit provider (crashes in release); we init in WardrobeApplication instead. -->
+        <provider
+            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+            android:authorities="${applicationId}.mlkitinitprovider"
+            tools:node="remove" />
+
         <!-- ============================================ -->
         <!-- MAIN ACTIVITY -->
         <!-- ============================================ -->

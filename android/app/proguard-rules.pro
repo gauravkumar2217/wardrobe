@@ -72,8 +72,9 @@
 -keep class id.zelory.compressor.** { *; }
 -dontwarn com.example.flutter_image_compress.**
 
-# Google ML Kit
+# Google ML Kit (built-in model only; linkfirebase excluded to avoid Handler/Looper crash)
 -keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.linkfirebase.**
 
 # SQLite
 -keep class net.sqlcipher.** { *; }

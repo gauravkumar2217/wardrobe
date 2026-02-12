@@ -105,10 +105,16 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     // AndroidX Core for enableEdgeToEdge (Android 15+ edge-to-edge compatibility)
     implementation("androidx.core:core-ktx:1.17.0")
+    // ML Kit common: used only for MlKit.initialize() in WardrobeApplication so that when
+    // the user later uses "Detect" on add-cloth screen, ML Kit (built-in model) works without crashing.
+    implementation("com.google.mlkit:common:17.0.0")
 }
 
 // Exclude firebase-iid to resolve duplicate class conflict
 // firebase-iid has been merged into firebase-messaging
+// Exclude ML Kit linkfirebase so Firestore/Google Sign-In are not disturbed (Handler/Looper crash).
+// We only use the built-in image labeler on add-cloth; see proguard-rules.pro for R8 dontwarn.
 configurations.all {
     exclude(group = "com.google.firebase", module = "firebase-iid")
+    exclude(group = "com.google.mlkit", module = "linkfirebase")
 }

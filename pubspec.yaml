@@ -57,7 +57,7 @@ dependencies:
   # Image Processing
   flutter_image_compress: ^2.0.0
   
-  # AI & ML - FREE tools
+  # AI & ML - FREE tools (ML Kit used only when adding cloth to detect type/colors/season)
   google_mlkit_image_labeling: ^0.14.0
   palette_generator: ^0.3.3+3
   # tflite_flutter: ^0.10.4  # Not needed - using color-based heuristics for season detection

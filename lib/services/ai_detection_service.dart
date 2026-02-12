@@ -1,51 +1,48 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'tag_list_service.dart';
 
-/// Service for AI-powered cloth detection
-/// Uses ML Kit (FREE) for cloth type, Palette Generator (FREE) for colors
+/// Service for AI-powered cloth detection when uploading a cloth.
+/// Uses ML Kit (built-in model only) for cloth type; Palette Generator for colors/season.
+/// ML Kit is initialized lazily only when detectClothType is first called (add-cloth flow).
 class AiDetectionService {
   static ImageLabeler? _imageLabeler;
 
-  /// Initialize ML Kit Image Labeler
+  /// Optional: call from add-cloth screen if you want to warm up ML Kit early.
+  /// Not called at app startup so core flows (Firestore, Google Sign-In) are unaffected.
   static Future<void> initialize() async {
     try {
-      final options = ImageLabelerOptions(
-        confidenceThreshold: 0.5,
-      );
+      if (_imageLabeler != null) return;
+      final options = ImageLabelerOptions(confidenceThreshold: 0.5);
       _imageLabeler = ImageLabeler(options: options);
-      debugPrint('✅ ML Kit Image Labeler initialized');
+      if (kDebugMode) debugPrint('✅ ML Kit Image Labeler initialized (add-cloth use)');
     } catch (e) {
-      debugPrint('❌ Failed to initialize ML Kit: $e');
+      if (kDebugMode) debugPrint('❌ Failed to initialize ML Kit: $e');
     }
   }
 
-  /// Detect cloth type from image using ML Kit
+  /// Detect cloth type from image. Used only when adding/editing a cloth.
+  /// Returns null on error or if no clothing label; UI falls back to manual selection.
   static Future<String?> detectClothType(File imageFile) async {
     try {
-      if (_imageLabeler == null) {
-        await initialize();
-      }
+      if (_imageLabeler == null) await initialize();
+      if (_imageLabeler == null) return null;
 
       final inputImage = InputImage.fromFile(imageFile);
       final labels = await _imageLabeler!.processImage(inputImage);
 
-      if (labels.isEmpty) {
-        return null;
-      }
+      if (labels.isEmpty) return null;
 
-      // Get the most confident label
       final topLabel = labels.first;
-      debugPrint('🏷️ ML Kit detected: ${topLabel.label} (${topLabel.confidence})');
+      if (kDebugMode) debugPrint('🏷️ ML Kit detected: ${topLabel.label} (${topLabel.confidence})');
 
-      // Map ML Kit labels to our cloth types
       final detectedType = _mapLabelToClothType(topLabel.label);
-      
-      return detectedType;
+      return detectedType.isEmpty ? null : detectedType;
     } catch (e) {
-      debugPrint('❌ Error detecting cloth type: $e');
+      if (kDebugMode) debugPrint('❌ Error detecting cloth type: $e');
       return null;
     }
   }

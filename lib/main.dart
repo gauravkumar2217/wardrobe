@@ -17,7 +17,6 @@ import 'providers/onboarding_provider.dart';
 import 'providers/scheduler_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/tag_list_service.dart';
-import 'services/ai_detection_service.dart';
 import 'services/local_notification_service.dart';
 import 'services/update_service.dart';
 import 'services/schedule_notification_worker.dart';
@@ -39,10 +38,6 @@ void main() async {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
     debugPrint('✅ Firebase initialized successfully');
-
-    // Initialize AI detection service
-    await AiDetectionService.initialize();
-    debugPrint('✅ AI Detection Service initialized');
   } catch (e) {
     debugPrint('❌ Firebase initialization failed: $e');
   }
@@ -71,14 +66,17 @@ void main() async {
     debugPrint('❌ Schedule Notification Worker initialization failed: $e');
   }
 
-  // Fetch tag lists in background
-  TagListService.fetchTagLists().catchError((e) {
-    debugPrint('Failed to fetch tag lists: $e');
-    return TagListService.getCachedTagLists(); // Return default on error
-  });
-
-  // Start the app
+  // Start the app first so the native main thread / Looper is fully ready.
   runApp(const WardrobeApp());
+
+  // Defer Firestore tag list fetch until after first frame (keeps startup safe for auth/Firestore).
+  // ML Kit is NOT initialized here — only when user adds a cloth and uses "Detect" (add-cloth flow).
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    TagListService.fetchTagLists().catchError((e) {
+      debugPrint('Failed to fetch tag lists: $e');
+      return TagListService.getCachedTagLists();
+    });
+  });
 }
 
 class WardrobeApp extends StatelessWidget {
