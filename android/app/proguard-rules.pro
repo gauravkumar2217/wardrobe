@@ -18,13 +18,26 @@
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
-# Firebase Authentication
+# Firebase Authentication + Google Sign-In (avoid Handler/Looper crash in release)
 -keep class com.google.firebase.auth.** { *; }
 -keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+-keep class io.flutter.plugins.googlesignin.** { *; }
 
 # Firebase Firestore
 -keep class com.google.firebase.firestore.** { *; }
 -keep class com.google.cloud.firestore.** { *; }
+
+# Prevent Handler/Looper null reference in release (Firestore + Google Sign-In)
+-keep class android.os.Handler { *; }
+-keep class android.os.Looper { *; }
+-keep class android.os.MessageQueue { *; }
+-keepclassmembers class android.os.Handler { *; }
+-keepclassmembers class android.os.Looper { *; }
+
+# Firestore protobuf (avoids AbstractMethodError in release)
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
 
 # Firebase Storage
 -keep class com.google.firebase.storage.** { *; }

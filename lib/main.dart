@@ -69,12 +69,14 @@ void main() async {
   // Start the app first so the native main thread / Looper is fully ready.
   runApp(const WardrobeApp());
 
-  // Defer Firestore tag list fetch until after first frame (keeps startup safe for auth/Firestore).
-  // ML Kit is NOT initialized here — only when user adds a cloth and uses "Detect" (add-cloth flow).
+  // Defer Firestore tag list fetch until after first frame + short delay so Android main
+  // thread Looper is ready (avoids Handler/Looper null in release builds).
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    TagListService.fetchTagLists().catchError((e) {
-      debugPrint('Failed to fetch tag lists: $e');
-      return TagListService.getCachedTagLists();
+    Future.delayed(const Duration(milliseconds: 400), () {
+      TagListService.fetchTagLists().catchError((e) {
+        debugPrint('Failed to fetch tag lists: $e');
+        return TagListService.getCachedTagLists();
+      });
     });
   });
 }

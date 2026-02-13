@@ -68,11 +68,11 @@ android {
 
     buildTypes {
         getByName("release") {
-            // Enable R8 for code shrinking and obfuscation (reduces app size, enables crash deobfuscation)
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 disabled: Firestore + Google Sign-In hit Handler/Looper null in release with minification.
+            // App size will be larger but auth and Firestore work reliably.
+            isMinifyEnabled = false
+            isShrinkResources = false
             
-            // Use ProGuard rules
             proguardFiles(
                getDefaultProguardFile("proguard-android-optimize.txt"),
                "proguard-rules.pro"
