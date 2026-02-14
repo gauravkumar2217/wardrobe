@@ -69,6 +69,10 @@ dependencies:
   # App Updates
   upgrader: ^12.3.0
   package_info_plus: ^8.0.0
+
+  # Share (WhatsApp, Instagram, SMS, etc.)
+  share_plus: ^10.0.2
+  url_launcher: ^6.2.0
   
   # Payments (Phase 6)
   # in_app_purchase: ^3.1.11

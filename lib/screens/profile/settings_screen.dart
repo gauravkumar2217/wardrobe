@@ -1,5 +1,11 @@
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_provider.dart';
@@ -15,6 +21,12 @@ import '../privacy_policy_screen.dart';
 import '../terms_conditions_screen.dart';
 import '../scheduler/scheduler_list_screen.dart';
 
+/// Live store links for sharing (Android → Google Play, iOS → App Store).
+const String _kGooglePlayShareUrl =
+    'https://play.google.com/store/apps/details?id=com.wardrobe_chat.app&pcampaignid=web_share';
+const String _kAppStoreShareUrl =
+    'https://apps.apple.com/app/wardrobe-chat/id6757397255';
+
 /// Settings screen with Account, Notifications, Privacy, About, and Danger Zone
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,6 +39,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
   NotificationSettings? _notificationSettings;
   PrivacySettings? _privacySettings;
   bool _isLoading = false;
+
+  /// Share app link via system share sheet (WhatsApp, Instagram, LinkedIn, Facebook, SMS, etc.).
+  /// Uses App Store link on iOS and Google Play link on Android.
+  Future<void> _shareApp() async {
+    debugPrint('Share app tapped');
+    if (!mounted) return;
+    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final String storeUrl = isIOS ? _kAppStoreShareUrl : _kGooglePlayShareUrl;
+    const String appName = 'Wardrobe';
+    final String text =
+        'Check out $appName - your personal fashion assistant for organizing clothes and outfit suggestions. $storeUrl';
+
+    try {
+      final result = await Share.share(
+        text,
+        subject: 'Try $appName',
+      );
+      if (!mounted) return;
+      if (result.status == ShareResultStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shared successfully'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on MissingPluginException catch (e, stack) {
+      debugPrint('Share MissingPluginException: $e');
+      debugPrint('Share stack: $stack');
+      if (!mounted) return;
+      await _openStoreLinkFallback(context, storeUrl);
+    } on PlatformException catch (e, stack) {
+      debugPrint('Share PlatformException: $e');
+      debugPrint('Share stack: $stack');
+      if (!mounted) return;
+      await _openStoreLinkFallback(context, storeUrl);
+    } catch (e, stack) {
+      debugPrint('Share error: $e');
+      debugPrint('Share stack: $stack');
+      if (!mounted) return;
+      await _openStoreLinkFallback(context, storeUrl);
+    }
+  }
+
+  /// Fallback when share plugin fails: open store link in browser so user can share or copy from there.
+  Future<void> _openStoreLinkFallback(
+      BuildContext context, String storeUrl) async {
+    final uri = Uri.parse(storeUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Opened store link. Use the share or copy option in your browser.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } else {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open share or link: $storeUrl'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -557,6 +641,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       MaterialPageRoute(
                           builder: (_) => const TermsConditionsScreen()),
                     );
+                  },
+                ),
+                ListTile(
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: const Icon(Icons.share,
+                      color: Color(0xFF043915), size: 18),
+                  title: const Text('Share app / Invite friends',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text(
+                    'Share app link via WhatsApp, Instagram, SMS, and more',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () async {
+                    await _shareApp();
                   },
                 ),
                 ListTile(
