@@ -44,7 +44,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void _loadChats() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
+
     if (authProvider.user != null) {
       chatProvider.loadChats(authProvider.user!.uid);
       // Only watch chats if user is authenticated
@@ -71,7 +71,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     if (authProvider.user != null) {
       for (var chat in chatProvider.chats) {
         if (!chat.isGroup) {
-          final otherParticipantId = chat.getOtherParticipant(authProvider.user!.uid);
+          final otherParticipantId =
+              chat.getOtherParticipant(authProvider.user!.uid);
           if (otherParticipantId != null) {
             _loadParticipantProfile(otherParticipantId);
           }
@@ -82,7 +83,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Messages'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: chatProvider.isLoading && chatProvider.chats.isEmpty
@@ -92,11 +93,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(Icons.error_outline,
+                          size: 48, color: Colors.red),
                       const SizedBox(height: 12),
                       Text(
                         chatProvider.errorMessage!,
-                        style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
@@ -106,11 +109,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           _loadChats();
                         },
                         icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Retry', style: TextStyle(fontSize: 14)),
+                        label:
+                            const Text('Retry', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
@@ -121,7 +126,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey),
+                          Icon(Icons.chat_bubble_outline,
+                              size: 48, color: Colors.grey),
                           SizedBox(height: 12),
                           Text(
                             'No chats yet',
@@ -141,141 +147,154 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
                       child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  itemCount: chatProvider.chats.length,
-                  itemBuilder: (context, index) {
-                    final chat = chatProvider.chats[index];
-                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    
-                    // Get other participant for non-group chats
-                    String? otherParticipantId;
-                    UserProfile? otherParticipantProfile;
-                    
-                    if (!chat.isGroup && authProvider.user != null) {
-                      otherParticipantId = chat.getOtherParticipant(authProvider.user!.uid);
-                      if (otherParticipantId != null) {
-                        otherParticipantProfile = _participantProfiles[otherParticipantId];
-                        // Trigger profile load if not already loaded
-                        _loadParticipantProfile(otherParticipantId);
-                      }
-                    }
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemCount: chatProvider.chats.length,
+                        itemBuilder: (context, index) {
+                          final chat = chatProvider.chats[index];
+                          final authProvider =
+                              Provider.of<AuthProvider>(context, listen: false);
 
-                    // Determine display name and avatar
-                    String displayName;
-                    String? photoUrl;
-                    String avatarLetter;
+                          // Get other participant for non-group chats
+                          String? otherParticipantId;
+                          UserProfile? otherParticipantProfile;
 
-                    if (chat.isGroup) {
-                      displayName = 'Group Chat';
-                      avatarLetter = 'G';
-                    } else if (otherParticipantProfile != null) {
-                      displayName = otherParticipantProfile.displayName ?? 
-                                   (otherParticipantProfile.username != null 
-                                       ? '@${otherParticipantProfile.username}' 
-                                       : 'Chat');
-                      photoUrl = otherParticipantProfile.photoUrl;
-                      avatarLetter = otherParticipantProfile.displayName?.substring(0, 1).toUpperCase() ?? 
-                                   (otherParticipantId != null && otherParticipantId.isNotEmpty 
-                                       ? otherParticipantId.substring(0, 1).toUpperCase() 
-                                       : '?');
-                    } else {
-                      displayName = 'Chat';
-                      avatarLetter = otherParticipantId != null && otherParticipantId.isNotEmpty
-                          ? otherParticipantId.substring(0, 1).toUpperCase()
-                          : '?';
-                    }
+                          if (!chat.isGroup && authProvider.user != null) {
+                            otherParticipantId = chat
+                                .getOtherParticipant(authProvider.user!.uid);
+                            if (otherParticipantId != null) {
+                              otherParticipantProfile =
+                                  _participantProfiles[otherParticipantId];
+                              // Trigger profile load if not already loaded
+                              _loadParticipantProfile(otherParticipantId);
+                            }
+                          }
 
-                    final unreadCount = chatProvider.getUnreadCount(chat.id);
+                          // Determine display name and avatar
+                          String displayName;
+                          String? photoUrl;
+                          String avatarLetter;
 
-                    return ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      leading: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: const Color(0xFF7C3AED),
-                        backgroundImage: photoUrl != null
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        child: photoUrl == null
-                            ? Text(
-                                avatarLetter,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              )
-                            : null,
-                      ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              displayName,
-                              style: TextStyle(
-                                fontWeight: unreadCount > 0 
-                                    ? FontWeight.bold 
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                              ),
+                          if (chat.isGroup) {
+                            displayName = 'Group Chat';
+                            avatarLetter = 'G';
+                          } else if (otherParticipantProfile != null) {
+                            displayName = otherParticipantProfile.displayName ??
+                                (otherParticipantProfile.username != null
+                                    ? '@${otherParticipantProfile.username}'
+                                    : 'Chat');
+                            photoUrl = otherParticipantProfile.photoUrl;
+                            avatarLetter = otherParticipantProfile.displayName
+                                    ?.substring(0, 1)
+                                    .toUpperCase() ??
+                                (otherParticipantId != null &&
+                                        otherParticipantId.isNotEmpty
+                                    ? otherParticipantId
+                                        .substring(0, 1)
+                                        .toUpperCase()
+                                    : '?');
+                          } else {
+                            displayName = 'Chat';
+                            avatarLetter = otherParticipantId != null &&
+                                    otherParticipantId.isNotEmpty
+                                ? otherParticipantId
+                                    .substring(0, 1)
+                                    .toUpperCase()
+                                : '?';
+                          }
+
+                          final unreadCount =
+                              chatProvider.getUnreadCount(chat.id);
+
+                          return ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            leading: CircleAvatar(
+                              radius: 22,
+                              backgroundColor: const Color(0xFF043915),
+                              backgroundImage: photoUrl != null
+                                  ? NetworkImage(photoUrl)
+                                  : null,
+                              child: photoUrl == null
+                                  ? Text(
+                                      avatarLetter,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    )
+                                  : null,
                             ),
-                          ),
-                          if (unreadCount > 0)
-                            Container(
-                              margin: const EdgeInsets.only(left: 6),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7C3AED),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                unreadCount > 99 ? '99+' : '$unreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    displayName,
+                                    style: TextStyle(
+                                      fontWeight: unreadCount > 0
+                                          ? FontWeight.bold
+                                          : FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (unreadCount > 0)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF043915),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      unreadCount > 99 ? '99+' : '$unreadCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
-                      subtitle: Text(
-                        chat.lastMessage ?? 'No messages yet',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: unreadCount > 0 
-                              ? FontWeight.w500 
-                              : FontWeight.normal,
-                          fontSize: 11,
-                        ),
-                      ),
-                      trailing: chat.lastMessageAt != null
-                          ? Text(
-                              _formatTime(chat.lastMessageAt!),
+                            subtitle: Text(
+                              chat.lastMessage ?? 'No messages yet',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[600],
-                                fontWeight: unreadCount > 0 
-                                    ? FontWeight.bold 
+                                fontWeight: unreadCount > 0
+                                    ? FontWeight.w500
                                     : FontWeight.normal,
+                                fontSize: 11,
                               ),
-                            )
-                          : null,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatDetailScreen(chat: chat),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                            ),
+                            trailing: chat.lastMessageAt != null
+                                ? Text(
+                                    _formatTime(chat.lastMessageAt!),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                      fontWeight: unreadCount > 0
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  )
+                                : null,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatDetailScreen(chat: chat),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
                     ),
     );
   }
@@ -297,4 +316,3 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
   }
 }
-

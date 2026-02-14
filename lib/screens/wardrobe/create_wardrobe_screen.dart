@@ -52,7 +52,8 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
   Future<void> _createWardrobe() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final authProvider =
+        Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +66,8 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
       _isLoading = true;
     });
 
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
 
     try {
       final wardrobeId = await wardrobeProvider.createWardrobe(
@@ -90,7 +92,8 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(wardrobeProvider.errorMessage ?? 'Failed to create wardrobe'),
+              content: Text(
+                  wardrobeProvider.errorMessage ?? 'Failed to create wardrobe'),
               backgroundColor: Colors.red,
             ),
           );
@@ -123,7 +126,7 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Wardrobe'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -169,7 +172,7 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _createWardrobe,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF043915),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -177,9 +180,12 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
                     ? const SizedBox(
                         height: 18,
                         width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Create Wardrobe', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    : const Text('Create Wardrobe',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -188,4 +194,3 @@ class _CreateWardrobeScreenState extends State<CreateWardrobeScreen> {
     );
   }
 }
-

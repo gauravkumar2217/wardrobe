@@ -70,7 +70,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: [
           // Only show add button when not in selection mode
@@ -92,7 +92,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF043915)),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -130,7 +130,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -152,7 +152,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                                    const Color(0xFF043915).withValues(alpha: 0.1),
                                     const Color(0xFF9F7AEA).withValues(alpha: 0.1),
                                   ],
                                 ),
@@ -161,7 +161,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               child: const Icon(
                                 Icons.inventory_2_rounded,
                                 size: 48,
-                                color: Color(0xFF7C3AED),
+                                color: Color(0xFF043915),
                               ),
                             ),
                             const SizedBox(height: 32),
@@ -190,14 +190,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    Color(0xFF7C3AED),
+                                    Color(0xFF043915),
                                     Color(0xFF9F7AEA),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                                    color: const Color(0xFF043915).withValues(alpha: 0.3),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -246,7 +246,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         _loadWardrobes();
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
-                      color: const Color(0xFF7C3AED),
+                      color: const Color(0xFF043915),
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: wardrobeProvider.wardrobes.length,
@@ -369,7 +369,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFF7C3AED),
+                            Color(0xFF043915),
                             Color(0xFF9F7AEA),
                           ],
                         ),
@@ -714,7 +714,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFF7C3AED),
+                            Color(0xFF043915),
                             Color(0xFF9F7AEA),
                           ],
                         ),
@@ -770,7 +770,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF7C3AED),
+                        color: Color(0xFF043915),
                         width: 2,
                       ),
                     ),
@@ -812,7 +812,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF7C3AED),
+                        color: Color(0xFF043915),
                         width: 2,
                       ),
                     ),
@@ -862,14 +862,14 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0xFF7C3AED),
+                              Color(0xFF043915),
                               Color(0xFF9F7AEA),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                              color: const Color(0xFF043915).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),

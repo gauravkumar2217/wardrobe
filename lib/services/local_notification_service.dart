@@ -25,11 +25,12 @@ class LocalNotificationService {
     try {
       // Initialize timezone
       tz.initializeTimeZones();
-      
+
       // Android initialization settings
       // Use launcher_icon which exists in mipmap folders
-      const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
-      
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/launcher_icon');
+
       // iOS initialization settings
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -97,20 +98,21 @@ class LocalNotificationService {
     if (kDebugMode) {
       debugPrint('Notification tapped: ${response.payload}');
     }
-    
+
     // Handle navigation based on payload
     if (response.payload != null && response.payload!.isNotEmpty) {
       try {
         final payloadData = jsonDecode(response.payload!);
         if (payloadData is Map<String, dynamic>) {
           final type = payloadData['type'] as String?;
-          
+
           if (type == 'outfit_suggestion') {
             // Navigate to outfit suggestion screen using global navigator key
             if (kDebugMode) {
-              debugPrint('Outfit suggestion notification tapped - navigating to suggestion screen');
+              debugPrint(
+                  'Outfit suggestion notification tapped - navigating to suggestion screen');
             }
-            
+
             // Use the global navigator key from main.dart
             navigatorKey.currentState?.push(
               MaterialPageRoute(
@@ -143,7 +145,7 @@ class LocalNotificationService {
     try {
       // Calculate next occurrence time with some randomization
       final nextTime = _calculateNextNotificationTime(schedule);
-      
+
       if (nextTime == null) {
         if (kDebugMode) {
           debugPrint('No valid time found for schedule: ${schedule.id}');
@@ -165,7 +167,7 @@ class LocalNotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
-        color: const Color(0xFF7C3AED), // Purple theme color
+        color: const Color(0xFF043915), // Purple theme color
         colorized: true, // Use color for notification background
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
         icon: '@mipmap/launcher_icon',
@@ -185,8 +187,9 @@ class LocalNotificationService {
 
       // Generate a unique notification ID from schedule ID
       // Use hash code to ensure uniqueness while keeping it as int
-      final notificationId = schedule.id.hashCode.abs() % 2147483647; // Max int32
-      
+      final notificationId =
+          schedule.id.hashCode.abs() % 2147483647; // Max int32
+
       // Schedule the notification
       await _notifications.zonedSchedule(
         notificationId,
@@ -202,7 +205,8 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        debugPrint('✅ Scheduled notification for ${schedule.title} at ${scheduledTime.toString()}');
+        debugPrint(
+            '✅ Scheduled notification for ${schedule.title} at ${scheduledTime.toString()}');
       }
 
       return true;
@@ -227,7 +231,7 @@ class LocalNotificationService {
 
     // Check if today is a valid day
     final todayWeekday = now.weekday % 7; // Convert to 0-6 (Sunday = 0)
-    
+
     if (schedule.daysOfWeek.contains(todayWeekday)) {
       // If scheduled time hasn't passed today, use today
       if (scheduledTime.isAfter(now)) {
@@ -239,7 +243,7 @@ class LocalNotificationService {
     for (int i = 1; i <= 7; i++) {
       final nextDay = now.add(Duration(days: i));
       final nextWeekday = nextDay.weekday % 7;
-      
+
       if (schedule.daysOfWeek.contains(nextWeekday)) {
         return DateTime(
           nextDay.year,
@@ -271,7 +275,8 @@ class LocalNotificationService {
   /// Cancel a scheduled notification
   static Future<void> cancelNotification(String scheduleId) async {
     try {
-      final notificationId = scheduleId.hashCode.abs() % 2147483647; // Max int32
+      final notificationId =
+          scheduleId.hashCode.abs() % 2147483647; // Max int32
       await _notifications.cancel(notificationId);
       if (kDebugMode) {
         debugPrint('✅ Cancelled notification for schedule: $scheduleId');
@@ -323,7 +328,7 @@ class LocalNotificationService {
     print('⏰ Time: ${DateTime.now().toIso8601String()}');
     print('📱 Platform: ${defaultTargetPlatform}');
     print('');
-    
+
     try {
       if (kDebugMode) {
         debugPrint('🔍 Checking notification permissions...');
@@ -333,10 +338,10 @@ class LocalNotificationService {
       print('   Platform: ${defaultTargetPlatform}');
 
       if (defaultTargetPlatform == TargetPlatform.android) {
-        final androidImplementation = _notifications
-            .resolvePlatformSpecificImplementation<
+        final androidImplementation =
+            _notifications.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
-        
+
         if (androidImplementation == null) {
           print('❌ Android implementation not available');
           if (kDebugMode) {
@@ -350,30 +355,35 @@ class LocalNotificationService {
           debugPrint('📱 Requesting Android notification permission...');
         }
 
-        final granted = await androidImplementation.requestNotificationsPermission();
+        final granted =
+            await androidImplementation.requestNotificationsPermission();
         print('📱 Permission request completed. Result: $granted');
-        
+
         if (kDebugMode) {
-        debugPrint('📱 Android notification permission result: $granted');
-        print('📱 Android notification permission result: $granted');
-        if (granted == null) {
-          debugPrint('⚠️ Permission request returned null - may need manual permission');
-          print('⚠️ Permission request returned null - may need manual permission');
-        } else if (granted == false) {
-          debugPrint('❌ Permission DENIED - User needs to enable in device settings');
-          print('❌ Permission DENIED - User needs to enable in device settings');
-        } else {
-          debugPrint('✅ Permission GRANTED');
-          print('✅ Permission GRANTED');
+          debugPrint('📱 Android notification permission result: $granted');
+          print('📱 Android notification permission result: $granted');
+          if (granted == null) {
+            debugPrint(
+                '⚠️ Permission request returned null - may need manual permission');
+            print(
+                '⚠️ Permission request returned null - may need manual permission');
+          } else if (granted == false) {
+            debugPrint(
+                '❌ Permission DENIED - User needs to enable in device settings');
+            print(
+                '❌ Permission DENIED - User needs to enable in device settings');
+          } else {
+            debugPrint('✅ Permission GRANTED');
+            print('✅ Permission GRANTED');
+          }
         }
-        }
-        
+
         return granted ?? false;
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final iosImplementation = _notifications
-            .resolvePlatformSpecificImplementation<
+        final iosImplementation =
+            _notifications.resolvePlatformSpecificImplementation<
                 IOSFlutterLocalNotificationsPlugin>();
-        
+
         if (iosImplementation == null) {
           print('❌ iOS implementation not available');
           if (kDebugMode) {
@@ -393,25 +403,27 @@ class LocalNotificationService {
           sound: true,
         );
         print('📱 Permission request completed. Result: $granted');
-        
+
         if (kDebugMode) {
-        debugPrint('📱 iOS notification permission result: $granted');
-        print('📱 iOS notification permission result: $granted');
-        if (granted == null) {
-          debugPrint('⚠️ Permission request returned null');
-          print('⚠️ Permission request returned null');
-        } else if (granted == false) {
-          debugPrint('❌ Permission DENIED - User needs to enable in device settings');
-          print('❌ Permission DENIED - User needs to enable in device settings');
-        } else {
-          debugPrint('✅ Permission GRANTED');
-          print('✅ Permission GRANTED');
+          debugPrint('📱 iOS notification permission result: $granted');
+          print('📱 iOS notification permission result: $granted');
+          if (granted == null) {
+            debugPrint('⚠️ Permission request returned null');
+            print('⚠️ Permission request returned null');
+          } else if (granted == false) {
+            debugPrint(
+                '❌ Permission DENIED - User needs to enable in device settings');
+            print(
+                '❌ Permission DENIED - User needs to enable in device settings');
+          } else {
+            debugPrint('✅ Permission GRANTED');
+            print('✅ Permission GRANTED');
+          }
         }
-        }
-        
+
         return granted ?? false;
       }
-      
+
       if (kDebugMode) {
         debugPrint('⚠️ Unknown platform: ${defaultTargetPlatform}');
       }
@@ -480,21 +492,23 @@ class LocalNotificationService {
       }
       final hasPermission = await checkPermissions();
       print('📊 Permission check result: $hasPermission');
-      
+
       if (!hasPermission) {
-      print('❌ Step 1 FAILED: Notification permission not granted');
-      print('   → User needs to enable notifications in device settings');
-      print('   → Android: Settings → Apps → Wardrobe → Notifications');
-      print('   → iOS: Settings → Wardrobe → Notifications');
-      if (kDebugMode) {
-        debugPrint('❌ Step 1 FAILED: Notification permission not granted');
-        debugPrint('   → User needs to enable notifications in device settings');
-        debugPrint('   → Android: Settings → Apps → Wardrobe → Notifications');
-        debugPrint('   → iOS: Settings → Wardrobe → Notifications');
+        print('❌ Step 1 FAILED: Notification permission not granted');
+        print('   → User needs to enable notifications in device settings');
+        print('   → Android: Settings → Apps → Wardrobe → Notifications');
+        print('   → iOS: Settings → Wardrobe → Notifications');
+        if (kDebugMode) {
+          debugPrint('❌ Step 1 FAILED: Notification permission not granted');
+          debugPrint(
+              '   → User needs to enable notifications in device settings');
+          debugPrint(
+              '   → Android: Settings → Apps → Wardrobe → Notifications');
+          debugPrint('   → iOS: Settings → Wardrobe → Notifications');
+        }
+        return false;
       }
-      return false;
-      }
-      
+
       print('✅ Step 1 PASSED: Permissions granted');
       if (kDebugMode) {
         debugPrint('✅ Step 1 PASSED: Permissions granted');
@@ -504,9 +518,10 @@ class LocalNotificationService {
       if (defaultTargetPlatform == TargetPlatform.android) {
         print('🔍 Step 2: Creating/verifying Android notification channel...');
         if (kDebugMode) {
-          debugPrint('🔍 Step 2: Creating/verifying Android notification channel...');
+          debugPrint(
+              '🔍 Step 2: Creating/verifying Android notification channel...');
         }
-        
+
         const androidChannel = AndroidNotificationChannel(
           'scheduled_notifications',
           'Scheduled Notifications',
@@ -515,20 +530,22 @@ class LocalNotificationService {
           playSound: true,
         );
 
-        final androidImplementation = _notifications
-            .resolvePlatformSpecificImplementation<
+        final androidImplementation =
+            _notifications.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
-        
+
         if (androidImplementation != null) {
           await androidImplementation.createNotificationChannel(androidChannel);
           print('✅ Step 2 PASSED: Notification channel created/verified');
           if (kDebugMode) {
-            debugPrint('✅ Step 2 PASSED: Notification channel created/verified');
+            debugPrint(
+                '✅ Step 2 PASSED: Notification channel created/verified');
           }
         } else {
           print('⚠️ Step 2 WARNING: Android implementation not available');
           if (kDebugMode) {
-            debugPrint('⚠️ Step 2 WARNING: Android implementation not available');
+            debugPrint(
+                '⚠️ Step 2 WARNING: Android implementation not available');
           }
         }
       } else {
@@ -554,7 +571,8 @@ class LocalNotificationService {
         } else {
           print('⚠️ Step 3a WARNING: Failed to download image, using default');
           if (kDebugMode) {
-            debugPrint('⚠️ Step 3a WARNING: Failed to download image, using default');
+            debugPrint(
+                '⚠️ Step 3a WARNING: Failed to download image, using default');
           }
         }
       }
@@ -564,11 +582,11 @@ class LocalNotificationService {
       if (kDebugMode) {
         debugPrint('🔍 Step 3: Creating notification details...');
       }
-      
+
       // Create BigPictureStyle for modern look with cloth image
       BigPictureStyleInformation? bigPictureStyle;
       AndroidBitmap<Object>? largeIconBitmap;
-      
+
       if (imageData != null) {
         final imageBitmap = ByteArrayAndroidBitmap(imageData);
         bigPictureStyle = BigPictureStyleInformation(
@@ -582,9 +600,10 @@ class LocalNotificationService {
         largeIconBitmap = imageBitmap;
       } else {
         // Use app icon as large icon with white background
-        largeIconBitmap = const DrawableResourceAndroidBitmap('@mipmap/launcher_icon');
+        largeIconBitmap =
+            const DrawableResourceAndroidBitmap('@mipmap/launcher_icon');
       }
-      
+
       final androidDetails = AndroidNotificationDetails(
         'scheduled_notifications',
         'Scheduled Notifications',
@@ -596,7 +615,7 @@ class LocalNotificationService {
         showWhen: true,
         when: DateTime.now().millisecondsSinceEpoch,
         styleInformation: bigPictureStyle,
-        color: const Color(0xFF7C3AED), // Purple theme color
+        color: const Color(0xFF043915), // Purple theme color
         colorized: true, // Use color for notification background
         largeIcon: largeIconBitmap,
         // Small icon with white background
@@ -642,7 +661,7 @@ class LocalNotificationService {
       if (kDebugMode) {
         debugPrint('🔍 Step 5: Calling _notifications.show()...');
       }
-      
+
       await _notifications.show(
         notificationId,
         title,
@@ -690,21 +709,20 @@ class LocalNotificationService {
     print('═══════════════════════════════════════════════════════');
     print('⏰ Time: ${DateTime.now().toIso8601String()}');
     print('');
-    
+
     final result = await sendImmediateNotification(
       title: 'Test Notification',
       body: 'If you see this, notifications are working!',
       payload: 'test',
     );
-    
+
     print('');
     print('═══════════════════════════════════════════════════════');
     print('🧪 TEST NOTIFICATION COMPLETE');
     print('   Result: $result');
     print('═══════════════════════════════════════════════════════');
     print('');
-    
+
     return result;
   }
 }
-

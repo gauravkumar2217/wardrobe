@@ -48,8 +48,10 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
-      final filterProvider = Provider.of<FilterProvider>(context, listen: false);
+      final wardrobeProvider =
+          Provider.of<WardrobeProvider>(context, listen: false);
+      final filterProvider =
+          Provider.of<FilterProvider>(context, listen: false);
 
       if (authProvider.user != null) {
         // Load clothes to calculate statistics
@@ -72,7 +74,8 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
           for (var color in cloth.colorTags.colors) {
             colorCounts[color] = (colorCounts[color] ?? 0) + 1;
           }
-          placementCounts[cloth.placement] = (placementCounts[cloth.placement] ?? 0) + 1;
+          placementCounts[cloth.placement] =
+              (placementCounts[cloth.placement] ?? 0) + 1;
         }
 
         // Load wardrobes
@@ -105,7 +108,8 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
 
   void _applyFilters() {
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
 
     // Set selected wardrobe if any
     if (_selectedWardrobeId != null) {
@@ -149,7 +153,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Filter Clothes'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: [
           if (_hasSelections())
@@ -282,7 +286,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
                       child: ElevatedButton(
                         onPressed: _applyFilters,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: Text(
@@ -335,7 +339,8 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.inventory_2, color: const Color(0xFF7C3AED), size: 16),
+                Icon(Icons.inventory_2,
+                    color: const Color(0xFF043915), size: 16),
                 const SizedBox(width: 6),
                 const Text(
                   'My Wardrobes',
@@ -350,24 +355,29 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
             ..._wardrobes.map((wardrobe) {
               final isSelected = _selectedWardrobeId == wardrobe.id;
               return CheckboxListTile(
-                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
+                title:
+                    Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
+                    ? Text(wardrobe.location,
+                        style: const TextStyle(fontSize: 11))
                     : null,
                 value: isSelected,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 dense: true,
                 onChanged: (value) {
                   setState(() {
                     _selectedWardrobeId = value == true ? wardrobe.id : null;
                   });
                 },
-                activeColor: const Color(0xFF7C3AED),
+                activeColor: const Color(0xFF043915),
                 secondary: Chip(
-                  label: Text('${wardrobe.totalItems}', style: const TextStyle(fontSize: 11)),
-                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                  label: Text('${wardrobe.totalItems}',
+                      style: const TextStyle(fontSize: 11)),
+                  backgroundColor:
+                      const Color(0xFF043915).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
-                    color: Color(0xFF7C3AED),
+                    color: Color(0xFF043915),
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -418,7 +428,7 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF7C3AED), size: 16),
+                Icon(icon, color: const Color(0xFF043915), size: 16),
                 const SizedBox(width: 6),
                 Text(
                   title,
@@ -435,15 +445,18 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
               return CheckboxListTile(
                 title: Text(entry.key, style: const TextStyle(fontSize: 13)),
                 value: isSelected,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 dense: true,
                 onChanged: (value) => onToggle(entry.key),
-                activeColor: const Color(0xFF7C3AED),
+                activeColor: const Color(0xFF043915),
                 secondary: Chip(
-                  label: Text('${entry.value}', style: const TextStyle(fontSize: 11)),
-                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                  label: Text('${entry.value}',
+                      style: const TextStyle(fontSize: 11)),
+                  backgroundColor:
+                      const Color(0xFF043915).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
-                    color: Color(0xFF7C3AED),
+                    color: Color(0xFF043915),
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -457,4 +470,3 @@ class _FilterSelectionScreenState extends State<FilterSelectionScreen> {
     );
   }
 }
-

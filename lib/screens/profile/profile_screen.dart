@@ -38,7 +38,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadStats() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
 
     if (authProvider.user != null) {
@@ -100,12 +101,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirmed == true && mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      final friendProvider = Provider.of<FriendProvider>(context, listen: false);
-      
+      final friendProvider =
+          Provider.of<FriendProvider>(context, listen: false);
+
       // Clean up providers before signing out
       chatProvider.cleanup();
       friendProvider.cleanup();
-      
+
       await authProvider.signOut();
 
       if (mounted) {
@@ -128,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -157,14 +159,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 30,
-                        backgroundColor: const Color(0xFF7C3AED),
+                        backgroundColor: const Color(0xFF043915),
                         backgroundImage: profile?.photoUrl != null
                             ? NetworkImage(profile!.photoUrl!)
                             : null,
                         child: profile?.photoUrl == null
                             ? Text(
-                                profile?.displayName?.substring(0, 1).toUpperCase() ?? 
-                                user?.email?.substring(0, 1).toUpperCase() ?? '?',
+                                profile?.displayName
+                                        ?.substring(0, 1)
+                                        .toUpperCase() ??
+                                    user?.email
+                                        ?.substring(0, 1)
+                                        .toUpperCase() ??
+                                    '?',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -188,14 +195,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 user!.email!,
-                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 11),
                               ),
                             ],
                             if (user?.phoneNumber != null) ...[
                               const SizedBox(height: 2),
                               Text(
                                 user!.phoneNumber!,
-                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 11),
                               ),
                             ],
                           ],
@@ -242,7 +251,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 16),
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 16),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -264,56 +274,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.inventory_2, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('My Wardrobes', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.inventory_2,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('My Wardrobes',
+                          style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const WardrobeListScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const WardrobeListScreen()),
                         );
                       },
                     ),
                     const Divider(height: 1),
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.people, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('Friends', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.people,
+                          color: Color(0xFF043915), size: 18),
+                      title:
+                          const Text('Friends', style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const FriendsListScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const FriendsListScreen()),
                         );
                       },
                     ),
                     const Divider(height: 1),
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.person_add, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('Friend Requests', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.person_add,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Friend Requests',
+                          style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const FriendRequestsScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const FriendRequestsScreen()),
                         );
                       },
                     ),
                     const Divider(height: 1),
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.bar_chart, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('Statistics', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.bar_chart,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Statistics',
+                          style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
                         final result = await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const StatisticsScreen()),
                         );
                         // If filter was selected, navigate to home with filter
                         if (result != null) {
@@ -322,8 +348,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (!mounted) return;
                           final navContext = this.context;
                           if (!mounted) return;
-                          final navigationProvider = Provider.of<NavigationProvider>(navContext, listen: false);
-                          navigationProvider.setCurrentIndex(0); // Navigate to home
+                          final navigationProvider =
+                              Provider.of<NavigationProvider>(navContext,
+                                  listen: false);
+                          navigationProvider
+                              .setCurrentIndex(0); // Navigate to home
                           // The filter will be applied when home screen loads
                         }
                       },
@@ -338,14 +367,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.edit, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('Edit Profile', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.edit,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Edit Profile',
+                          style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
                         await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const EditProfileScreen()),
                         );
                         // Reload profile after editing
                         if (!mounted) return;
@@ -353,7 +386,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (!mounted) return;
                         final authContext = this.context;
                         if (!mounted) return;
-                        final authProvider = Provider.of<AuthProvider>(authContext, listen: false);
+                        final authProvider = Provider.of<AuthProvider>(
+                            authContext,
+                            listen: false);
                         if (authProvider.user != null) {
                           // Profile is automatically updated via AuthProvider when updateProfile is called
                           _loadStats(); // Reload stats to reflect any changes
@@ -363,23 +398,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Divider(height: 1),
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.settings, color: Color(0xFF7C3AED), size: 18),
-                      title: const Text('Settings', style: TextStyle(fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.settings,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Settings',
+                          style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const SettingsScreen()),
                         );
                       },
                     ),
                     const Divider(height: 1),
                     ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.logout, color: Colors.red, size: 18),
-                      title: const Text('Logout', style: TextStyle(color: Colors.red, fontSize: 13)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading:
+                          const Icon(Icons.logout, color: Colors.red, size: 18),
+                      title: const Text('Logout',
+                          style: TextStyle(color: Colors.red, fontSize: 13)),
                       onTap: _logout,
                     ),
                   ],
@@ -408,7 +450,7 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFF7C3AED), size: 24),
+        Icon(icon, color: const Color(0xFF043915), size: 24),
         const SizedBox(height: 6),
         Text(
           value,
@@ -428,4 +470,3 @@ class _StatItem extends StatelessWidget {
     );
   }
 }
-

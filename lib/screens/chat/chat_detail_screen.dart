@@ -46,7 +46,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (authProvider.user == null) return;
 
     // Load blocked users list
-    final blockedIds = await BlockService.getBlockedUserIds(authProvider.user!.uid);
+    final blockedIds =
+        await BlockService.getBlockedUserIds(authProvider.user!.uid);
     if (mounted) {
       setState(() {
         _blockedUserIds = blockedIds;
@@ -54,7 +55,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
 
     // Watch for changes
-    _blockedUsersSubscription = BlockService.watchBlockedUserIds(authProvider.user!.uid).listen((blockedIds) {
+    _blockedUsersSubscription =
+        BlockService.watchBlockedUserIds(authProvider.user!.uid)
+            .listen((blockedIds) {
       if (mounted) {
         setState(() {
           _blockedUserIds = blockedIds;
@@ -67,10 +70,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _loadOtherParticipantProfile() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     if (authProvider.user == null) return;
-    
-    final otherParticipantId = widget.chat.getOtherParticipant(authProvider.user!.uid);
+
+    final otherParticipantId =
+        widget.chat.getOtherParticipant(authProvider.user!.uid);
     if (otherParticipantId == null) return;
 
     // Defer setState to avoid calling during build
@@ -118,7 +122,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _loadMessages() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
+
     if (authProvider.user != null) {
       chatProvider.loadMessages(
         userId: authProvider.user!.uid,
@@ -128,7 +132,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         userId: authProvider.user!.uid,
         chatId: widget.chat.id,
       );
-      
+
       // Mark all messages as seen when opening the chat
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await Future.delayed(const Duration(milliseconds: 500));
@@ -168,7 +172,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       debugPrint('✅ ChatDetailScreen: Navigating to ClothDetailScreen');
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final isOwner = authProvider.user?.uid == message.clothOwnerId;
-      
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -238,7 +242,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('User blocked. Their messages have been removed from your feed.'),
+              content: Text(
+                  'User blocked. Their messages have been removed from your feed.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -273,11 +278,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               const Text('Why are you reporting this user?'),
               const SizedBox(height: 16),
               ...reasons.map((reason) => RadioListTile<String>(
-                title: Text(reason),
-                value: reason,
-                groupValue: selectedReason,
-                onChanged: (value) => setState(() => selectedReason = value),
-              )),
+                    title: Text(reason),
+                    value: reason,
+                    groupValue: selectedReason,
+                    onChanged: (value) =>
+                        setState(() => selectedReason = value),
+                  )),
             ],
           ),
           actions: [
@@ -290,7 +296,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ? () => Navigator.pop(context, true)
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
+                backgroundColor: const Color(0xFF043915),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Report'),
@@ -312,7 +318,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('User reported. Thank you for helping keep our community safe.'),
+              content: Text(
+                  'User reported. Thank you for helping keep our community safe.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -332,7 +339,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
+
     if (authProvider.user == null) return;
 
     final success = await chatProvider.sendTextMessage(
@@ -348,7 +355,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(chatProvider.errorMessage ?? 'Failed to send message'),
+            content:
+                Text(chatProvider.errorMessage ?? 'Failed to send message'),
             backgroundColor: Colors.red,
           ),
         );
@@ -360,8 +368,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final chatProvider = Provider.of<ChatProvider>(context);
-    final otherParticipantId = widget.chat.getOtherParticipant(authProvider.user?.uid ?? '');
-    
+    final otherParticipantId =
+        widget.chat.getOtherParticipant(authProvider.user?.uid ?? '');
+
     return Scaffold(
       appBar: AppBar(
         title: _isLoadingProfile
@@ -386,13 +395,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.white.withValues(alpha: 0.3),
-                        backgroundImage: _otherParticipantProfile?.photoUrl != null
+                        backgroundImage: _otherParticipantProfile?.photoUrl !=
+                                null
                             ? NetworkImage(_otherParticipantProfile!.photoUrl!)
                             : null,
                         child: _otherParticipantProfile?.photoUrl == null
                             ? Text(
-                                _otherParticipantProfile?.displayName?.substring(0, 1).toUpperCase() ?? 
-                                (otherParticipantId != null && otherParticipantId.isNotEmpty ? otherParticipantId.substring(0, 1).toUpperCase() : '?'),
+                                _otherParticipantProfile?.displayName
+                                        ?.substring(0, 1)
+                                        .toUpperCase() ??
+                                    (otherParticipantId != null &&
+                                            otherParticipantId.isNotEmpty
+                                        ? otherParticipantId
+                                            .substring(0, 1)
+                                            .toUpperCase()
+                                        : '?'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -404,10 +421,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _otherParticipantProfile?.displayName ?? 
-                          (_otherParticipantProfile?.username != null 
-                              ? '@${_otherParticipantProfile!.username}' 
-                              : 'Chat'),
+                          _otherParticipantProfile?.displayName ??
+                              (_otherParticipantProfile?.username != null
+                                  ? '@${_otherParticipantProfile!.username}'
+                                  : 'Chat'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
@@ -417,42 +434,45 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                     ],
                   ),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
-        actions: widget.chat.isGroup ? null : [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'block' && otherParticipantId != null) {
-                _showBlockDialog(otherParticipantId);
-              } else if (value == 'report' && otherParticipantId != null) {
-                _showReportUserDialog(otherParticipantId);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'report',
-                child: Row(
-                  children: [
-                    Icon(Icons.flag_outlined, size: 18),
-                    SizedBox(width: 8),
-                    Text('Report User'),
+        actions: widget.chat.isGroup
+            ? null
+            : [
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'block' && otherParticipantId != null) {
+                      _showBlockDialog(otherParticipantId);
+                    } else if (value == 'report' &&
+                        otherParticipantId != null) {
+                      _showReportUserDialog(otherParticipantId);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          Icon(Icons.flag_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Report User'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'block',
+                      child: Row(
+                        children: [
+                          Icon(Icons.block, size: 18),
+                          SizedBox(width: 8),
+                          Text('Block User'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'block',
-                child: Row(
-                  children: [
-                    Icon(Icons.block, size: 18),
-                    SizedBox(width: 8),
-                    Text('Block User'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
       ),
       body: Column(
         children: [
@@ -465,13 +485,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 12),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
                                 chatProvider.errorMessage!,
-                                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.grey),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -482,53 +505,69 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                 _loadMessages();
                               },
                               icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Retry', style: TextStyle(fontSize: 14)),
+                              label: const Text('Retry',
+                                  style: TextStyle(fontSize: 14)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7C3AED),
+                                backgroundColor: const Color(0xFF043915),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
                               ),
                             ),
                           ],
                         ),
                       )
-                    : chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).isEmpty
+                    : chatProvider.messages
+                            .where((msg) =>
+                                !_blockedUserIds.contains(msg.senderId))
+                            .isEmpty
                         ? const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey),
+                                Icon(Icons.chat_bubble_outline,
+                                    size: 48, color: Colors.grey),
                                 SizedBox(height: 12),
                                 Text(
                                   'No messages yet',
-                                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                                  style: TextStyle(
+                                      fontSize: 13, color: Colors.grey),
                                 ),
                                 SizedBox(height: 6),
                                 Text(
                                   'Start the conversation!',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey),
                                 ),
                               ],
                             ),
                           )
                         : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        itemCount: chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).length,
-                        itemBuilder: (context, index) {
-                          final filteredMessages = chatProvider.messages.where((msg) => !_blockedUserIds.contains(msg.senderId)).toList();
-                          final message = filteredMessages[index];
-                          return GestureDetector(
-                            onTap: message.isClothShare && message.clothId != null
-                                ? () => _handleClothTap(message)
-                                : null,
-                            child: ChatBubble(
-                              message: message,
-                              currentUserId: authProvider.user?.uid ?? '',
-                            ),
-                          );
-                        },
-                      ),
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            itemCount: chatProvider.messages
+                                .where((msg) =>
+                                    !_blockedUserIds.contains(msg.senderId))
+                                .length,
+                            itemBuilder: (context, index) {
+                              final filteredMessages = chatProvider.messages
+                                  .where((msg) =>
+                                      !_blockedUserIds.contains(msg.senderId))
+                                  .toList();
+                              final message = filteredMessages[index];
+                              return GestureDetector(
+                                onTap: message.isClothShare &&
+                                        message.clothId != null
+                                    ? () => _handleClothTap(message)
+                                    : null,
+                                child: ChatBubble(
+                                  message: message,
+                                  currentUserId: authProvider.user?.uid ?? '',
+                                ),
+                              );
+                            },
+                          ),
           ),
           // Message input
           Container(
@@ -571,7 +610,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
                 const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF7C3AED), size: 20),
+                  icon: const Icon(Icons.send,
+                      color: Color(0xFF043915), size: 20),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: _sendMessage,
@@ -584,4 +624,3 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 }
-

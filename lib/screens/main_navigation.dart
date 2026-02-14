@@ -21,7 +21,7 @@ import 'auth/login_screen.dart';
 /// Main navigation screen with bottom navigation bar
 class MainNavigation extends StatefulWidget {
   final bool justCompletedProfileSetup;
-  
+
   const MainNavigation({
     super.key,
     this.justCompletedProfileSetup = false,
@@ -44,7 +44,7 @@ class _MainNavigationState extends State<MainNavigation>
   final AppStateService _appStateService = AppStateService();
   Timer? _lastActiveTimer;
   bool _hasCheckedOnboarding = false;
-  
+
   // Keys for onboarding targets
   final GlobalKey _bottomNavKey = GlobalKey();
 
@@ -64,9 +64,10 @@ class _MainNavigationState extends State<MainNavigation>
         // Start periodic updates (every 20 seconds) when app is in foreground
         _startPeriodicUpdates(authProvider.user!.uid);
       }
-      
+
       // Check onboarding status
-      _checkOnboardingStatus(justCompletedProfileSetup: widget.justCompletedProfileSetup);
+      _checkOnboardingStatus(
+          justCompletedProfileSetup: widget.justCompletedProfileSetup);
     });
   }
 
@@ -86,30 +87,33 @@ class _MainNavigationState extends State<MainNavigation>
     _lastActiveTimer = null;
   }
 
-  Future<void> _checkOnboardingStatus({bool justCompletedProfileSetup = false}) async {
+  Future<void> _checkOnboardingStatus(
+      {bool justCompletedProfileSetup = false}) async {
     if (_hasCheckedOnboarding) return;
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
-    
+    final onboardingProvider =
+        Provider.of<OnboardingProvider>(context, listen: false);
+
     if (authProvider.user == null) return;
-    
+
     _hasCheckedOnboarding = true;
-    
+
     // Check if user has completed onboarding
     final hasCompleted = await OnboardingService.hasCompletedOnboarding(
       authProvider.user!.uid,
     );
-    
+
     if (!hasCompleted && mounted) {
       // If user just completed profile setup, wait longer before starting onboarding
       // This gives them time to see the app and get comfortable
-      final delayDuration = justCompletedProfileSetup 
-          ? const Duration(seconds: 5)  // 5 seconds for new users
-          : const Duration(milliseconds: 1500);  // 1.5 seconds for returning users
-      
+      final delayDuration = justCompletedProfileSetup
+          ? const Duration(seconds: 5) // 5 seconds for new users
+          : const Duration(
+              milliseconds: 1500); // 1.5 seconds for returning users
+
       await Future.delayed(delayDuration);
-      
+
       if (mounted) {
         _startOnboarding(onboardingProvider, context);
       }
@@ -119,74 +123,78 @@ class _MainNavigationState extends State<MainNavigation>
   /// Restart onboarding (called from settings)
   Future<void> restartOnboarding() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
-    
+    final onboardingProvider =
+        Provider.of<OnboardingProvider>(context, listen: false);
+
     if (authProvider.user == null) return;
-    
+
     // Reset the check flag so it can check again
     _hasCheckedOnboarding = false;
-    
+
     // Wait a bit for UI to be ready
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     if (mounted) {
       _startOnboarding(onboardingProvider, context);
     }
   }
 
-  void _startOnboarding(OnboardingProvider onboardingProvider, BuildContext context) {
+  void _startOnboarding(
+      OnboardingProvider onboardingProvider, BuildContext context) {
     // Wait a bit more for the bottom navigation bar to be fully rendered
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
-      
+
       final navContext = this.context;
       if (!mounted) return;
-      
+
       final screenWidth = MediaQuery.of(navContext).size.width;
       final screenHeight = MediaQuery.of(navContext).size.height;
       final safeAreaBottom = MediaQuery.of(navContext).padding.bottom;
-      
+
       // Try to get actual bottom navigation bar position
       Offset? getBottomNavItemPosition(int index) {
         if (_bottomNavKey.currentContext == null) return null;
-        
+
         try {
-          final renderBox = _bottomNavKey.currentContext!.findRenderObject() as RenderBox?;
+          final renderBox =
+              _bottomNavKey.currentContext!.findRenderObject() as RenderBox?;
           if (renderBox == null || !renderBox.attached) return null;
-          
+
           // Get the bottom nav bar's global position
           final navBarPosition = renderBox.localToGlobal(Offset.zero);
-          
+
           // BottomNavigationBar with 5 items: each item takes screenWidth / 5
           // Icon is typically centered in each item
           final itemWidth = screenWidth / 5;
           final iconX = itemWidth * (index + 0.5); // Center of each item
-          
+
           // Icon Y position: typically in the upper portion of the nav bar
           // BottomNavigationBar icons are usually positioned about 10-14px from top of nav bar
           // Account for the icon size (typically 24px) and padding
           final iconY = navBarPosition.dy + 14.0;
-          
+
           return Offset(iconX, iconY);
         } catch (e) {
           debugPrint('Error getting bottom nav position: $e');
           return null;
         }
       }
-      
+
       // Responsive target size for icon highlighting (half of previous size)
       final targetSize = (screenWidth * 0.06).clamp(24.0, 32.0);
-      
+
       // Calculate positions - try to use actual positions, fallback to calculated
       final List<OnboardingStep> steps = [];
-      
+
       for (int i = 0; i < 5; i++) {
         final actualPosition = getBottomNavItemPosition(i);
         Offset targetOffset;
-        
+
         if (actualPosition != null) {
           // Use actual position from bottom nav bar, adjusted left 5px and top 5px
-          targetOffset = Offset(actualPosition.dx - 5.0, actualPosition.dy - 5.0);
+          targetOffset =
+              Offset(actualPosition.dx - 5.0, actualPosition.dy - 5.0);
         } else {
           // Fallback to calculated position, adjusted left 5px and top 5px
           final itemWidth = screenWidth / 5;
@@ -196,7 +204,7 @@ class _MainNavigationState extends State<MainNavigation>
           final iconY = screenHeight - estimatedNavBarHeight + 12.0;
           targetOffset = Offset(iconX - 5.0, iconY - 5.0);
         }
-        
+
         // Create step based on index
         OnboardingStep step;
         switch (i) {
@@ -204,7 +212,8 @@ class _MainNavigationState extends State<MainNavigation>
             step = OnboardingStep(
               id: 'home',
               title: 'Welcome to Wardrobe!',
-              description: 'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
+              description:
+                  'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -214,7 +223,8 @@ class _MainNavigationState extends State<MainNavigation>
             step = OnboardingStep(
               id: 'wardrobes',
               title: 'Organize Your Wardrobes',
-              description: 'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
+              description:
+                  'Create different wardrobes to organize your clothes by location or category. Tap here to manage your wardrobes.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -224,7 +234,8 @@ class _MainNavigationState extends State<MainNavigation>
             step = OnboardingStep(
               id: 'friends',
               title: 'Connect with Friends',
-              description: 'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
+              description:
+                  'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -234,7 +245,8 @@ class _MainNavigationState extends State<MainNavigation>
             step = OnboardingStep(
               id: 'chat',
               title: 'Chat & Share',
-              description: 'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
+              description:
+                  'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -244,7 +256,8 @@ class _MainNavigationState extends State<MainNavigation>
             step = OnboardingStep(
               id: 'profile',
               title: 'Your Profile',
-              description: 'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
+              description:
+                  'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -255,25 +268,27 @@ class _MainNavigationState extends State<MainNavigation>
         }
         steps.add(step);
       }
-      
+
       if (mounted && steps.isNotEmpty) {
         onboardingProvider.startOnboarding(steps);
       }
     });
   }
 
-  Future<void> _handleOnboardingNext(OnboardingProvider onboardingProvider, AuthProvider authProvider) async {
+  Future<void> _handleOnboardingNext(
+      OnboardingProvider onboardingProvider, AuthProvider authProvider) async {
     onboardingProvider.nextStep();
-    
+
     // If onboarding is complete, save status
     if (!onboardingProvider.isOnboardingActive && authProvider.user != null) {
       await OnboardingService.completeOnboarding(authProvider.user!.uid);
     }
   }
 
-  Future<void> _handleOnboardingSkip(OnboardingProvider onboardingProvider, AuthProvider authProvider) async {
+  Future<void> _handleOnboardingSkip(
+      OnboardingProvider onboardingProvider, AuthProvider authProvider) async {
     onboardingProvider.skipOnboarding();
-    
+
     if (authProvider.user != null) {
       await OnboardingService.skipOnboarding(authProvider.user!.uid);
     }
@@ -295,7 +310,8 @@ class _MainNavigationState extends State<MainNavigation>
     // Only update if user is authenticated
     if (authProvider.isAuthenticated && authProvider.user != null) {
       final isInForeground = state == AppLifecycleState.resumed;
-      FCMService.updateAppState(authProvider.user!.uid, isInForeground).catchError((e) {
+      FCMService.updateAppState(authProvider.user!.uid, isInForeground)
+          .catchError((e) {
         // Silently handle errors (user might have signed out)
         debugPrint('Failed to update app state: $e');
       });
@@ -381,7 +397,8 @@ class _MainNavigationState extends State<MainNavigation>
       onNext: onboardingProvider.isOnboardingActive
           ? () => _handleOnboardingNext(onboardingProvider, authProvider)
           : null,
-      onPrevious: onboardingProvider.isOnboardingActive && onboardingProvider.currentStepIndex > 0
+      onPrevious: onboardingProvider.isOnboardingActive &&
+              onboardingProvider.currentStepIndex > 0
           ? () => onboardingProvider.previousStep()
           : null,
       onSkip: onboardingProvider.isOnboardingActive
@@ -399,23 +416,31 @@ class _MainNavigationState extends State<MainNavigation>
           onTap: (index) {
             // If tapping home icon (index 0), clear all filters
             if (index == 0) {
-              final filterProvider = Provider.of<FilterProvider>(context, listen: false);
-              final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
-              
+              final filterProvider =
+                  Provider.of<FilterProvider>(context, listen: false);
+              final wardrobeProvider =
+                  Provider.of<WardrobeProvider>(context, listen: false);
+
               // Clear all filters and selected wardrobe
               filterProvider.clearFilters();
               wardrobeProvider.setSelectedWardrobe(null);
             }
-            
+
             navigationProvider.setCurrentIndex(index);
           },
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFF7C3AED),
+          selectedItemColor: const Color(0xFF043915),
           unselectedItemColor: Colors.grey,
           key: _bottomNavKey,
           items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home),
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                'assets/images/logo-chat.png',
+                height: 24,
+                width: 24,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.home),
+              ),
               label: 'Home',
             ),
             const BottomNavigationBarItem(

@@ -25,7 +25,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
 
   Future<void> _loadSchedules() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+    final schedulerProvider =
+        Provider.of<SchedulerProvider>(context, listen: false);
 
     if (authProvider.user != null) {
       await schedulerProvider.loadSchedules(authProvider.user!.uid);
@@ -48,7 +49,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13)),
+            child: const Text('Delete',
+                style: TextStyle(color: Colors.red, fontSize: 13)),
           ),
         ],
       ),
@@ -56,7 +58,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
 
     if (confirmed == true && mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+      final schedulerProvider =
+          Provider.of<SchedulerProvider>(context, listen: false);
 
       final success = await schedulerProvider.deleteSchedule(
         authProvider.user!.uid,
@@ -76,9 +79,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     print('═══════════════════════════════════════════════════════');
     print('🧪 TEST NOTIFICATION BUTTON CLICKED');
     print('═══════════════════════════════════════════════════════');
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     if (authProvider.user == null) {
       print('❌ No user logged in');
       if (mounted) {
@@ -88,10 +91,10 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
       }
       return;
     }
-    
+
     print('✅ User ID: ${authProvider.user!.uid}');
     print('📋 Testing schedule: ${schedule.title}');
-    
+
     // Show loading indicator
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +104,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
               ),
               SizedBox(width: 12),
               Expanded(
@@ -116,20 +120,22 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
         ),
       );
     }
-    
+
     try {
-      print('📞 Calling ScheduleNotificationWorker.testSendScheduleNotification()...');
-      final result = await ScheduleNotificationWorker.testSendScheduleNotification(
+      print(
+          '📞 Calling ScheduleNotificationWorker.testSendScheduleNotification()...');
+      final result =
+          await ScheduleNotificationWorker.testSendScheduleNotification(
         schedule,
         authProvider.user!.uid,
       );
-      
+
       print('✅ Test completed. Result: $result');
-      
+
       if (mounted) {
         final success = result['success'] as bool;
         final message = result['message'] as String;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -145,7 +151,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Test Notification Result', style: TextStyle(fontSize: 14)),
+                    title: const Text('Test Notification Result',
+                        style: TextStyle(fontSize: 14)),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,13 +164,15 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                         const SizedBox(height: 12),
                         const Text(
                           'Check the terminal for detailed logs.',
-                          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                          style: TextStyle(
+                              fontSize: 12, fontStyle: FontStyle.italic),
                         ),
                         if (!success) ...[
                           const SizedBox(height: 12),
                           const Text(
                             '⚠️ If notification did not appear, check:',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           const Text(
@@ -206,9 +215,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     print('═══════════════════════════════════════════════════════');
     print('🔄 SYNC BUTTON CLICKED - Starting manual check...');
     print('═══════════════════════════════════════════════════════');
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     if (authProvider.user == null) {
       print('❌ No user logged in');
       if (mounted) {
@@ -218,15 +227,16 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
       }
       return;
     }
-    
+
     print('✅ User ID: ${authProvider.user!.uid}');
-    
+
     // Check and display worker status
     final taskStatus = await ScheduleNotificationWorker.getTaskStatus();
     print('📊 Worker Status: $taskStatus');
-    
+
     // Ensure periodic task is registered
-    final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+    final schedulerProvider =
+        Provider.of<SchedulerProvider>(context, listen: false);
     if (schedulerProvider.scheduledNotificationsEnabled) {
       print('🔄 Ensuring periodic task is registered...');
       await ScheduleNotificationWorker.registerPeriodicTask();
@@ -241,7 +251,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
               ),
               SizedBox(width: 12),
               Expanded(
@@ -258,7 +269,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     }
 
     try {
-      print('📞 Calling ScheduleNotificationWorker.manualCheckLast15Minutes()...');
+      print(
+          '📞 Calling ScheduleNotificationWorker.manualCheckLast15Minutes()...');
       // Manually trigger the worker to check last 15 minutes
       final result = await ScheduleNotificationWorker.manualCheckLast15Minutes(
         authProvider.user!.uid,
@@ -289,7 +301,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text('Sync Results', style: TextStyle(fontSize: 14)),
+                          title: const Text('Sync Results',
+                              style: TextStyle(fontSize: 14)),
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,18 +319,22 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               const SizedBox(height: 12),
                               const Text(
                                 '📱 Automatic Background Worker:',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 4),
                               const Text(
                                 'The background worker runs every 15 minutes automatically to check and send notifications.',
-                                style: TextStyle(fontSize: 11, color: Colors.grey),
+                                style:
+                                    TextStyle(fontSize: 11, color: Colors.grey),
                               ),
                               if (hasIssue) ...[
                                 const SizedBox(height: 12),
                                 const Text(
                                   '⚠️ If no notification appeared, please check:',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 const Text(
@@ -332,7 +349,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('OK', style: TextStyle(fontSize: 13)),
+                              child: const Text('OK',
+                                  style: TextStyle(fontSize: 13)),
                             ),
                           ],
                         ),
@@ -362,7 +380,7 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scheduled Notifications'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -413,7 +431,7 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: schedule.isEnabled
-                              ? const Color(0xFF7C3AED)
+                              ? const Color(0xFF043915)
                               : Colors.grey,
                           child: Icon(
                             schedule.isEnabled
@@ -458,9 +476,13 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               value: 'test',
                               child: const Row(
                                 children: [
-                                  Icon(Icons.send, size: 18, color: Color(0xFF7C3AED)),
+                                  Icon(Icons.send,
+                                      size: 18, color: Color(0xFF043915)),
                                   SizedBox(width: 8),
-                                  Text('Test Notification', style: TextStyle(fontSize: 13, color: Color(0xFF7C3AED))),
+                                  Text('Test Notification',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: Color(0xFF043915))),
                                 ],
                               ),
                             ),
@@ -478,9 +500,12 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               value: 'delete',
                               child: const Row(
                                 children: [
-                                  Icon(Icons.delete, size: 18, color: Colors.red),
+                                  Icon(Icons.delete,
+                                      size: 18, color: Colors.red),
                                   SizedBox(width: 8),
-                                  Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13)),
+                                  Text('Delete',
+                                      style: TextStyle(
+                                          color: Colors.red, fontSize: 13)),
                                 ],
                               ),
                             ),
@@ -492,7 +517,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                               await Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ScheduleEditScreen(schedule: schedule),
+                                  builder: (_) =>
+                                      ScheduleEditScreen(schedule: schedule),
                                 ),
                               );
                               if (mounted) {
@@ -507,7 +533,8 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ScheduleEditScreen(schedule: schedule),
+                              builder: (_) =>
+                                  ScheduleEditScreen(schedule: schedule),
                             ),
                           );
                           if (mounted) {
@@ -530,10 +557,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
             await _loadSchedules();
           }
         },
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 }
-

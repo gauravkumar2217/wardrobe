@@ -45,7 +45,8 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
             _isLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not found. Please sign in again.')),
+            const SnackBar(
+                content: Text('User not found. Please sign in again.')),
           );
         }
         return;
@@ -62,7 +63,7 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
         // Refresh profile to get latest data
         await authProvider.refreshProfile();
         final profile = authProvider.userProfile;
-        
+
         // Check if profile is already complete
         if (profile != null && profile.isComplete) {
           // Profile is complete - go directly to main app
@@ -101,7 +102,7 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Terms & Conditions'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -220,7 +221,7 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
                             _hasAcceptedEula = value ?? false;
                           });
                         },
-                        activeColor: const Color(0xFF7C3AED),
+                        activeColor: const Color(0xFF043915),
                       ),
                       Expanded(
                         child: GestureDetector(
@@ -244,7 +245,8 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
                                         'I have read and agree to the Terms & Conditions and understand that there is ',
                                   ),
                                   TextSpan(
-                                    text: 'zero tolerance for objectionable content or abusive users',
+                                    text:
+                                        'zero tolerance for objectionable content or abusive users',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.red[700],
@@ -266,7 +268,7 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _acceptAndContinue,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
+                        backgroundColor: const Color(0xFF043915),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         disabledBackgroundColor: Colors.grey[300],

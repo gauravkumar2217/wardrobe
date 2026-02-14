@@ -289,7 +289,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Friends'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -395,14 +395,14 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
               child: Row(
                 children: [
-                  const Icon(Icons.inbox, color: Color(0xFF7C3AED), size: 16),
+                  const Icon(Icons.inbox, color: Color(0xFF043915), size: 16),
                   const SizedBox(width: 6),
                   Text(
                     'Friend Requests (${friendProvider.incomingRequests.length})',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF7C3AED),
+                      color: Color(0xFF043915),
                     ),
                   ),
                 ],
@@ -426,7 +426,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                         // Avatar
                         CircleAvatar(
                           radius: 20,
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           backgroundImage: profile?.photoUrl != null
                               ? NetworkImage(profile!.photoUrl!)
                               : null,
@@ -486,7 +486,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                             ElevatedButton(
                               onPressed: () => _acceptFriendRequest(request),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7C3AED),
+                                backgroundColor: const Color(0xFF043915),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -565,7 +565,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           case 'friends':
             buttonText = 'Message';
             buttonIcon = Icons.chat;
-            buttonColor = const Color(0xFF7C3AED);
+            buttonColor = const Color(0xFF043915);
             buttonAction = () => _startChat(userId);
             break;
           case 'outgoing':
@@ -578,7 +578,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           case 'incoming':
             buttonText = 'Accept';
             buttonIcon = Icons.check;
-            buttonColor = const Color(0xFF7C3AED);
+            buttonColor = const Color(0xFF043915);
             buttonAction = () {
               final requestId = _requestIds[userId];
               if (requestId != null) {
@@ -591,7 +591,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           default: // 'none'
             buttonText = 'Add Friend';
             buttonIcon = Icons.person_add;
-            buttonColor = const Color(0xFF7C3AED);
+            buttonColor = const Color(0xFF043915);
             buttonAction = () => _sendFriendRequest(userId);
             break;
         }
@@ -605,7 +605,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             leading: CircleAvatar(
               radius: 20,
-              backgroundColor: const Color(0xFF7C3AED),
+              backgroundColor: const Color(0xFF043915),
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
               child: photoUrl == null
                   ? Text(

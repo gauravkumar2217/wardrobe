@@ -663,7 +663,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 label: const Text('Retry',
                                     style: TextStyle(fontSize: 14)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF7C3AED),
+                                  backgroundColor: const Color(0xFF043915),
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 12),
@@ -984,7 +984,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }
           }
         },
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

@@ -32,7 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    if (_isSigningInWithGoogle || _isSigningInWithUsername || _isSigningInWithApple) return;
+    if (_isSigningInWithGoogle ||
+        _isSigningInWithUsername ||
+        _isSigningInWithApple) return;
 
     setState(() {
       _isSigningInWithGoogle = true;
@@ -49,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Sign in failed')),
+          SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Sign in failed')),
         );
       }
     } finally {
@@ -62,7 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithApple() async {
-    if (_isSigningInWithApple || _isSigningInWithUsername || _isSigningInWithGoogle) return;
+    if (_isSigningInWithApple ||
+        _isSigningInWithUsername ||
+        _isSigningInWithGoogle) return;
 
     setState(() {
       _isSigningInWithApple = true;
@@ -79,7 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Sign in failed')),
+          SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Sign in failed')),
         );
       }
     } finally {
@@ -91,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _navigateAfterLogin(BuildContext context, AuthProvider authProvider) async {
+  Future<void> _navigateAfterLogin(
+      BuildContext context, AuthProvider authProvider) async {
     final user = authProvider.user;
     if (user == null) return;
 
@@ -101,13 +108,13 @@ class _LoginScreenState extends State<LoginScreen> {
     // Refresh profile to ensure we have the latest data
     await authProvider.refreshProfile();
     var profile = authProvider.userProfile;
-    
+
     debugPrint('🔍 Navigation check - Initial status:');
     debugPrint('   User UID: ${user.uid}');
     debugPrint('   User Email: ${user.email}');
     debugPrint('   Profile exists: ${profile != null}');
     debugPrint('   Profile complete: ${profile?.isComplete ?? false}');
-    
+
     // If profile doesn't exist or is incomplete, check if it exists by email
     if ((profile == null || !profile.isComplete) && user.email != null) {
       debugPrint('🔍 Checking for existing profile by email: ${user.email}');
@@ -115,7 +122,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (existingUserId != null && existingUserId != user.uid) {
         debugPrint('✅ Found existing profile with userId: $existingUserId');
         // Profile exists with different UID - load it
-        final existingProfile = await UserService.getUserProfile(existingUserId);
+        final existingProfile =
+            await UserService.getUserProfile(existingUserId);
         if (existingProfile != null && existingProfile.isComplete) {
           debugPrint('📋 Copying profile to current user UID');
           // Create profile with existing data but ensure email is set
@@ -143,24 +151,25 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     }
-    
+
     // Now check BOTH EULA acceptance and profile completion
     final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
     final hasCompleteProfile = profile != null && profile.isComplete;
-    
+
     debugPrint('🔍 Final navigation check:');
     debugPrint('   EULA accepted: $hasAcceptedEula');
     debugPrint('   Profile complete: $hasCompleteProfile');
-    
+
     // Decision logic:
     // 1. Both done → go to main app
     // 2. EULA done, profile not → show profile setup
     // 3. EULA not, profile done → show EULA
     // 4. Neither → show EULA first
-    
+
     if (hasAcceptedEula && hasCompleteProfile) {
       // Both done - go directly to main app
-      debugPrint('➡️ Both EULA and profile complete - Navigating to Main Navigation');
+      debugPrint(
+          '➡️ Both EULA and profile complete - Navigating to Main Navigation');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -169,7 +178,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } else if (hasAcceptedEula && !hasCompleteProfile) {
       // EULA accepted but profile incomplete - show profile setup only
-      debugPrint('➡️ EULA accepted but profile incomplete - Navigating to Profile Setup');
+      debugPrint(
+          '➡️ EULA accepted but profile incomplete - Navigating to Profile Setup');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -178,7 +188,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } else if (!hasAcceptedEula && hasCompleteProfile) {
       // Profile complete but EULA not accepted - show EULA only
-      debugPrint('➡️ Profile complete but EULA not accepted - Navigating to EULA');
+      debugPrint(
+          '➡️ Profile complete but EULA not accepted - Navigating to EULA');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -187,7 +198,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } else {
       // Neither - show EULA first (it will navigate to profile setup after acceptance)
-      debugPrint('➡️ Neither EULA nor profile complete - Navigating to EULA first');
+      debugPrint(
+          '➡️ Neither EULA nor profile complete - Navigating to EULA first');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -219,7 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Sign in failed')),
+          SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Sign in failed')),
         );
       }
     } finally {
@@ -233,7 +246,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = _isSigningInWithUsername || _isSigningInWithGoogle || _isSigningInWithApple;
+    final isLoading = _isSigningInWithUsername ||
+        _isSigningInWithGoogle ||
+        _isSigningInWithApple;
     final isAppleAvailable = Platform.isIOS || Platform.isMacOS;
 
     return Scaffold(
@@ -248,9 +263,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 24),
+                    Center(
+                      child: Image.asset(
+                        'assets/images/logo-chat.png',
+                        height: 80,
+                        width: 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.checkroom,
+                            size: 80,
+                            color: Theme.of(context).colorScheme.primary,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     const Text(
                       'Welcome',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 6),
@@ -301,7 +333,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : const Text('Sign In'),

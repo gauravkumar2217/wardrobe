@@ -18,13 +18,14 @@ class PhoneVerificationScreen extends StatefulWidget {
   });
 
   @override
-  State<PhoneVerificationScreen> createState() => _PhoneVerificationScreenState();
+  State<PhoneVerificationScreen> createState() =>
+      _PhoneVerificationScreenState();
 }
 
 class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   final _otpController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _isLoading = false;
   String? _verificationId;
   int _resendTimer = 0;
@@ -46,7 +47,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
 
   void _startResendTimer() {
     if (_resendTimer > 0) return;
-    
+
     setState(() {
       _resendTimer = 60;
     });
@@ -115,7 +116,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   Future<void> _skipVerification() async {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Update profile without phone verification (phone number is optional)
       final phoneNumber = widget.phoneNumber.trim();
       final updatedProfile = UserProfile(
@@ -136,7 +137,8 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const MainNavigation(justCompletedProfileSetup: true),
+            builder: (_) =>
+                const MainNavigation(justCompletedProfileSetup: true),
           ),
         );
       }
@@ -166,14 +168,15 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      
+
       if (user == null) {
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not found. Please sign in again.')),
+            const SnackBar(
+                content: Text('User not found. Please sign in again.')),
           );
         }
         return;
@@ -212,7 +215,8 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const MainNavigation(justCompletedProfileSetup: true),
+            builder: (_) =>
+                const MainNavigation(justCompletedProfileSetup: true),
           ),
         );
       }
@@ -246,7 +250,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                 const Icon(
                   Icons.phone_android,
                   size: 64,
-                  color: Color(0xFF7C3AED),
+                  color: Color(0xFF043915),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -266,7 +270,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF7C3AED),
+                    color: Color(0xFF043915),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -305,7 +309,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                   onPressed: _isLoading ? null : _verifyOTPAndCompleteProfile,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF043915),
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -331,9 +335,8 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: (_resendTimer > 0 || _isLoading)
-                          ? null
-                          : _sendOTP,
+                      onPressed:
+                          (_resendTimer > 0 || _isLoading) ? null : _sendOTP,
                       child: Text(
                         _resendTimer > 0
                             ? 'Resend OTP (${_resendTimer}s)'
@@ -359,4 +362,3 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     );
   }
 }
-

@@ -67,10 +67,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
           // Set defaults
           final tags = TagListService.getCachedTagLists();
           if (tags.seasons.isNotEmpty) _selectedSeason = tags.seasons.first;
-          if (tags.placements.isNotEmpty) _selectedPlacement = tags.placements.first;
-          if (tags.clothTypes.isNotEmpty) _selectedClothType = tags.clothTypes.first;
-          if (tags.categories.isNotEmpty) _selectedCategory = tags.categories.first;
-          if (tags.occasions.isNotEmpty) _selectedOccasions = [tags.occasions.first];
+          if (tags.placements.isNotEmpty)
+            _selectedPlacement = tags.placements.first;
+          if (tags.clothTypes.isNotEmpty)
+            _selectedClothType = tags.clothTypes.first;
+          if (tags.categories.isNotEmpty)
+            _selectedCategory = tags.categories.first;
+          if (tags.occasions.isNotEmpty)
+            _selectedOccasions = [tags.occasions.first];
         });
       }
     } catch (e) {
@@ -128,7 +132,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
           await TagListService.addClothType(detectedType);
           // Reload tags to get updated list
           await TagListService.fetchTagLists(forceRefresh: true);
-          
+
           // Now set it after the list is updated
           final updatedTags = TagListService.getCachedTagLists();
           if (updatedTags.clothTypes.contains(detectedType)) {
@@ -137,7 +141,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
             });
             detectedTypeMessage = 'Detected: $detectedType (synced)';
           } else {
-            detectedTypeMessage = 'Detected: $detectedType (please select manually)';
+            detectedTypeMessage =
+                'Detected: $detectedType (please select manually)';
           }
         }
       }
@@ -149,13 +154,13 @@ class _AddClothScreenState extends State<AddClothScreen> {
         await TagListService.addColors(detectedColors);
         // Reload tags to get updated list
         await TagListService.fetchTagLists(forceRefresh: true);
-        
+
         // Filter colors to only those that exist in the list
         final updatedTags = TagListService.getCachedTagLists();
-        final validColors = detectedColors.where((color) => 
-          updatedTags.commonColors.contains(color)
-        ).toList();
-        
+        final validColors = detectedColors
+            .where((color) => updatedTags.commonColors.contains(color))
+            .toList();
+
         if (validColors.isNotEmpty) {
           setState(() {
             _selectedPrimaryColor = validColors.first;
@@ -189,15 +194,15 @@ class _AddClothScreenState extends State<AddClothScreen> {
         setState(() {
           _isDetecting = false;
         });
-        
+
         // Show success message with details
         final messages = <String>[];
         if (detectedTypeMessage != null) messages.add(detectedTypeMessage);
         if (detectedColorMessage != null) messages.add(detectedColorMessage);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(messages.isNotEmpty 
+            content: Text(messages.isNotEmpty
                 ? messages.join('\n')
                 : 'AI detection completed!'),
             backgroundColor: Colors.green,
@@ -265,17 +270,19 @@ class _AddClothScreenState extends State<AddClothScreen> {
       return;
     }
 
-    if (_selectedSeason == null || _selectedPlacement == null ||
-        _selectedClothType == null || _selectedCategory == null) {
+    if (_selectedSeason == null ||
+        _selectedPlacement == null ||
+        _selectedClothType == null ||
+        _selectedCategory == null) {
       _showErrorSnackBar('Please fill all required fields');
       return;
     }
 
     // Validate placement details only if placement requires them
-    final requiresPlacementDetails = _selectedPlacement == 'Laundry' || 
-                                      _selectedPlacement == 'DryCleaning' || 
-                                      _selectedPlacement == 'Repairing';
-    
+    final requiresPlacementDetails = _selectedPlacement == 'Laundry' ||
+        _selectedPlacement == 'DryCleaning' ||
+        _selectedPlacement == 'Repairing';
+
     if (requiresPlacementDetails) {
       if (_shopNameController.text.trim().isEmpty) {
         _showErrorSnackBar('Please enter shop name');
@@ -295,7 +302,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
       }
     }
 
-    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final authProvider =
+        Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) {
       _showErrorSnackBar('User not authenticated');
@@ -307,16 +315,21 @@ class _AddClothScreenState extends State<AddClothScreen> {
     });
 
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
 
     try {
       // Create color tags
       final colors = _selectedColors.isNotEmpty
           ? _selectedColors
-          : (_selectedPrimaryColor.isNotEmpty ? [_selectedPrimaryColor] : ['Unknown']);
-      
+          : (_selectedPrimaryColor.isNotEmpty
+              ? [_selectedPrimaryColor]
+              : ['Unknown']);
+
       final colorTags = ColorTags(
-        primary: _selectedPrimaryColor.isNotEmpty ? _selectedPrimaryColor : colors.first,
+        primary: _selectedPrimaryColor.isNotEmpty
+            ? _selectedPrimaryColor
+            : colors.first,
         secondary: _selectedSecondaryColor,
         colors: colors,
         isMultiColor: colors.length > 1,
@@ -363,7 +376,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
             userId: user.uid,
             wardrobeId: widget.wardrobeId,
           );
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -374,7 +387,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
           if (!mounted) return;
           Navigator.of(context).pop();
         } else {
-          _showErrorSnackBar(clothProvider.errorMessage ?? 'Failed to add cloth');
+          _showErrorSnackBar(
+              clothProvider.errorMessage ?? 'Failed to add cloth');
         }
       }
     } catch (e) {
@@ -410,7 +424,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Cloth'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -474,9 +488,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
                       : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
+                            Icon(Icons.add_photo_alternate,
+                                size: 48, color: Colors.grey),
                             SizedBox(height: 8),
-                            Text('Tap to add image', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            Text('Tap to add image',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 13)),
                           ],
                         ),
                 ),
@@ -492,10 +509,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.clothTypes.map((type) {
-                  return DropdownMenuItem(value: type, child: Text(type, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: type,
+                      child: Text(type, style: const TextStyle(fontSize: 14)));
                 }).toList(),
-                onChanged: (value) => setState(() => _selectedClothType = value),
-                validator: (value) => value == null ? 'Please select cloth type' : null,
+                onChanged: (value) =>
+                    setState(() => _selectedClothType = value),
+                validator: (value) =>
+                    value == null ? 'Please select cloth type' : null,
               ),
               const SizedBox(height: 12),
 
@@ -508,23 +529,30 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.categories.map((cat) {
-                  return DropdownMenuItem(value: cat, child: Text(cat, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value),
-                validator: (value) => value == null ? 'Please select category' : null,
+                validator: (value) =>
+                    value == null ? 'Please select category' : null,
               ),
               const SizedBox(height: 12),
 
               // Primary Color
               DropdownButtonFormField<String>(
-                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty
+                    ? null
+                    : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
                   border: OutlineInputBorder(),
                 ),
                 items: tags.commonColors.map((color) {
-                  return DropdownMenuItem(value: color, child: Text(color, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: color,
+                      child: Text(color, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -548,10 +576,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.seasons.map((season) {
-                  return DropdownMenuItem(value: season, child: Text(season, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: season,
+                      child:
+                          Text(season, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedSeason = value),
-                validator: (value) => value == null ? 'Please select season' : null,
+                validator: (value) =>
+                    value == null ? 'Please select season' : null,
               ),
               const SizedBox(height: 12),
 
@@ -564,33 +596,40 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.placements.map((placement) {
-                  return DropdownMenuItem(value: placement, child: Text(placement, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: placement,
+                      child: Text(placement,
+                          style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
                     _selectedPlacement = value;
                     // Clear placement details if placement changes to something other than Laundry, DryCleaning, or Repairing
-                    if (value != 'Laundry' && value != 'DryCleaning' && value != 'Repairing') {
+                    if (value != 'Laundry' &&
+                        value != 'DryCleaning' &&
+                        value != 'Repairing') {
                       _shopNameController.clear();
                       _givenDate = null;
                       _returnDate = null;
                     }
                   });
                 },
-                validator: (value) => value == null ? 'Please select placement' : null,
+                validator: (value) =>
+                    value == null ? 'Please select placement' : null,
               ),
               const SizedBox(height: 12),
 
               // Placement Details (for Laundry, DryCleaning, Repairing only)
-              if (_selectedPlacement == 'Laundry' || 
-                  _selectedPlacement == 'DryCleaning' || 
+              if (_selectedPlacement == 'Laundry' ||
+                  _selectedPlacement == 'DryCleaning' ||
                   _selectedPlacement == 'Repairing')
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Placement Details *',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     // Shop Name
@@ -603,8 +642,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (_selectedPlacement == 'Laundry' || 
-                            _selectedPlacement == 'DryCleaning' || 
+                        if (_selectedPlacement == 'Laundry' ||
+                            _selectedPlacement == 'DryCleaning' ||
                             _selectedPlacement == 'Repairing') {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter shop name';
@@ -621,7 +660,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                           context: context,
                           initialDate: _givenDate ?? DateTime.now(),
                           firstDate: DateTime(2020),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null) {
                           setState(() => _givenDate = picked);
@@ -639,7 +679,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                               : 'Select given date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: _givenDate != null ? Colors.black : Colors.grey,
+                            color:
+                                _givenDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -650,9 +691,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: _returnDate ?? (_givenDate ?? DateTime.now()).add(const Duration(days: 7)),
+                          initialDate: _returnDate ??
+                              (_givenDate ?? DateTime.now())
+                                  .add(const Duration(days: 7)),
                           firstDate: _givenDate ?? DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null) {
                           setState(() => _returnDate = picked);
@@ -670,7 +714,9 @@ class _AddClothScreenState extends State<AddClothScreen> {
                               : 'Select return date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: _returnDate != null ? Colors.black : Colors.grey,
+                            color: _returnDate != null
+                                ? Colors.black
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -683,7 +729,9 @@ class _AddClothScreenState extends State<AddClothScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Occasions *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text('Occasions *',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
@@ -691,7 +739,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                     children: tags.occasions.map((occasion) {
                       final isSelected = _selectedOccasions.contains(occasion);
                       return FilterChip(
-                        label: Text(occasion, style: const TextStyle(fontSize: 12)),
+                        label: Text(occasion,
+                            style: const TextStyle(fontSize: 12)),
                         selected: isSelected,
                         onSelected: (selected) {
                           setState(() {
@@ -713,7 +762,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
               ElevatedButton(
                 onPressed: _isUploading ? null : _saveCloth,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF043915),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -721,9 +770,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
                     ? const SizedBox(
                         height: 18,
                         width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Save Cloth', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    : const Text('Save Cloth',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -732,4 +784,3 @@ class _AddClothScreenState extends State<AddClothScreen> {
     );
   }
 }
-

@@ -31,7 +31,8 @@ class _CommentScreenState extends State<CommentScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isSubmitting = false;
   final Map<String, UserProfile?> _userProfiles = {};
-  final Map<String, bool> _loadingProfiles = {}; // Track loading state for each profile
+  final Map<String, bool> _loadingProfiles =
+      {}; // Track loading state for each profile
   List<String> _blockedUserIds = [];
   StreamSubscription<List<String>>? _blockedUsersSubscription;
 
@@ -46,7 +47,8 @@ class _CommentScreenState extends State<CommentScreen> {
     if (authProvider.user == null) return;
 
     // Load blocked users list
-    final blockedIds = await BlockService.getBlockedUserIds(authProvider.user!.uid);
+    final blockedIds =
+        await BlockService.getBlockedUserIds(authProvider.user!.uid);
     if (mounted) {
       setState(() {
         _blockedUserIds = blockedIds;
@@ -54,7 +56,9 @@ class _CommentScreenState extends State<CommentScreen> {
     }
 
     // Watch for changes
-    _blockedUsersSubscription = BlockService.watchBlockedUserIds(authProvider.user!.uid).listen((blockedIds) {
+    _blockedUsersSubscription =
+        BlockService.watchBlockedUserIds(authProvider.user!.uid)
+            .listen((blockedIds) {
       if (mounted) {
         setState(() {
           _blockedUserIds = blockedIds;
@@ -75,38 +79,39 @@ class _CommentScreenState extends State<CommentScreen> {
     // If already loaded or currently loading, return
     if (_userProfiles.containsKey(userId)) return;
     if (_loadingProfiles[userId] == true) return;
-    
+
     if (mounted) {
       setState(() {
         _loadingProfiles[userId] = true;
       });
     }
-    
+
     try {
       debugPrint('📥 CommentScreen: Loading profile for userId: $userId');
       // Increase timeout to 5 seconds to give more time for profile loading
-      final profile = await UserService.getUserProfile(userId)
-          .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              debugPrint('⏱️ CommentScreen: Profile load timeout for $userId');
-              return null;
-            },
-          );
-      
+      final profile = await UserService.getUserProfile(userId).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('⏱️ CommentScreen: Profile load timeout for $userId');
+          return null;
+        },
+      );
+
       debugPrint('📥 CommentScreen: Profile loaded for $userId');
       debugPrint('   Profile: ${profile != null ? "✅ Found" : "❌ Null"}');
       if (profile != null) {
         debugPrint('   displayName: ${profile.displayName}');
         debugPrint('   photoUrl: ${profile.photoUrl}');
       }
-      
+
       if (mounted) {
         setState(() {
-          _userProfiles[userId] = profile; // Can be null if user doesn't exist or timeout
+          _userProfiles[userId] =
+              profile; // Can be null if user doesn't exist or timeout
           _loadingProfiles[userId] = false; // Always mark as done loading
         });
-        debugPrint('✅ CommentScreen: Profile stored and UI updated for $userId');
+        debugPrint(
+            '✅ CommentScreen: Profile stored and UI updated for $userId');
       }
     } catch (e, stackTrace) {
       // Handle error - set profile to null and mark as not loading
@@ -144,14 +149,14 @@ class _CommentScreenState extends State<CommentScreen> {
       );
 
       _commentController.clear();
-      
+
       // Refresh comment count from Firestore
       final actualCount = await clothProvider.getCommentCount(
         ownerId: widget.cloth.ownerId,
         wardrobeId: widget.cloth.wardrobeId,
         clothId: widget.cloth.id,
       );
-      
+
       // Update the cloth in the provider with the actual count
       clothProvider.updateClothLocally(
         clothId: widget.cloth.id,
@@ -181,7 +186,8 @@ class _CommentScreenState extends State<CommentScreen> {
     }
   }
 
-  Future<void> _showReportDialog(String reportedUserId, String commentId, String commentText) async {
+  Future<void> _showReportDialog(
+      String reportedUserId, String commentId, String commentText) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.user == null) return;
 
@@ -200,11 +206,12 @@ class _CommentScreenState extends State<CommentScreen> {
               const Text('Why are you reporting this comment?'),
               const SizedBox(height: 16),
               ...reasons.map((reason) => RadioListTile<String>(
-                title: Text(reason),
-                value: reason,
-                groupValue: selectedReason,
-                onChanged: (value) => setState(() => selectedReason = value),
-              )),
+                    title: Text(reason),
+                    value: reason,
+                    groupValue: selectedReason,
+                    onChanged: (value) =>
+                        setState(() => selectedReason = value),
+                  )),
             ],
           ),
           actions: [
@@ -217,7 +224,7 @@ class _CommentScreenState extends State<CommentScreen> {
                   ? () => Navigator.pop(context, true)
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
+                backgroundColor: const Color(0xFF043915),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Report'),
@@ -241,7 +248,8 @@ class _CommentScreenState extends State<CommentScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Comment reported. Thank you for helping keep our community safe.'),
+              content: Text(
+                  'Comment reported. Thank you for helping keep our community safe.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -295,7 +303,8 @@ class _CommentScreenState extends State<CommentScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('User blocked. Their content has been removed from your feed.'),
+              content: Text(
+                  'User blocked. Their content has been removed from your feed.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -343,14 +352,14 @@ class _CommentScreenState extends State<CommentScreen> {
           clothId: widget.cloth.id,
           commentId: commentId,
         );
-        
+
         // Refresh comment count after deletion
         final deletedCount = await clothProvider.getCommentCount(
           ownerId: widget.cloth.ownerId,
           wardrobeId: widget.cloth.wardrobeId,
           clothId: widget.cloth.id,
         );
-        
+
         // Update the cloth in the provider with the actual count
         clothProvider.updateClothLocally(
           clothId: widget.cloth.id,
@@ -390,7 +399,7 @@ class _CommentScreenState extends State<CommentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Comments'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -409,13 +418,15 @@ class _CommentScreenState extends State<CommentScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
                         const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 32),
                           child: Text(
                             'Error loading comments: ${snapshot.error}',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.grey),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -425,14 +436,15 @@ class _CommentScreenState extends State<CommentScreen> {
                             // Use postFrameCallback to avoid setState during build
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (mounted) {
-                                setState(() {}); // Trigger rebuild to retry stream
+                                setState(
+                                    () {}); // Trigger rebuild to retry stream
                               }
                             });
                           },
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C3AED),
+                            backgroundColor: const Color(0xFF043915),
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -453,7 +465,7 @@ class _CommentScreenState extends State<CommentScreen> {
                 if (comments.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     for (var comment in comments) {
-                      if (!_userProfiles.containsKey(comment.userId) && 
+                      if (!_userProfiles.containsKey(comment.userId) &&
                           _loadingProfiles[comment.userId] != true) {
                         _loadUserProfile(comment.userId);
                       }
@@ -473,9 +485,11 @@ class _CommentScreenState extends State<CommentScreen> {
 
                     // Start loading profile if not already loaded or loading
                     // Use postFrameCallback to avoid calling setState during build
-                    if (!_userProfiles.containsKey(comment.userId) && !isLoading) {
+                    if (!_userProfiles.containsKey(comment.userId) &&
+                        !isLoading) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && !_userProfiles.containsKey(comment.userId) && 
+                        if (mounted &&
+                            !_userProfiles.containsKey(comment.userId) &&
                             _loadingProfiles[comment.userId] != true) {
                           _loadUserProfile(comment.userId);
                         }
@@ -484,16 +498,18 @@ class _CommentScreenState extends State<CommentScreen> {
 
                     // Show skeleton ONLY if we're actively loading AND haven't shown comment yet
                     // After 1.5 seconds max, always show comment (even if profile is null)
-                    final isFirstAttempt = !_userProfiles.containsKey(comment.userId);
+                    final isFirstAttempt =
+                        !_userProfiles.containsKey(comment.userId);
                     if (isFirstAttempt && isLoading) {
                       // Force show comment after 1.5 seconds even if profile still loading
                       Future.delayed(const Duration(milliseconds: 1500), () {
-                        if (mounted && 
-                            _loadingProfiles[comment.userId] == true && 
+                        if (mounted &&
+                            _loadingProfiles[comment.userId] == true &&
                             !_userProfiles.containsKey(comment.userId)) {
                           setState(() {
                             _loadingProfiles[comment.userId] = false;
-                            _userProfiles[comment.userId] = null; // Mark as tried, show "User"
+                            _userProfiles[comment.userId] =
+                                null; // Mark as tried, show "User"
                           });
                         }
                       });
@@ -525,8 +541,10 @@ class _CommentScreenState extends State<CommentScreen> {
                           // Avatar
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color(0xFF7C3AED),
-                            child: (profile != null && profile.photoUrl != null && profile.photoUrl!.isNotEmpty)
+                            backgroundColor: const Color(0xFF043915),
+                            child: (profile != null &&
+                                    profile.photoUrl != null &&
+                                    profile.photoUrl!.isNotEmpty)
                                 ? ClipOval(
                                     child: CachedNetworkImage(
                                       imageUrl: profile.photoUrl!,
@@ -550,7 +568,10 @@ class _CommentScreenState extends State<CommentScreen> {
                                     ),
                                   )
                                 : Text(
-                                    profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
+                                    profile?.displayName
+                                            ?.substring(0, 1)
+                                            .toUpperCase() ??
+                                        '?',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -586,7 +607,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                         ),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        onPressed: () => _deleteComment(comment.id),
+                                        onPressed: () =>
+                                            _deleteComment(comment.id),
                                       )
                                     else
                                       PopupMenuButton<String>(
@@ -599,7 +621,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                         constraints: const BoxConstraints(),
                                         onSelected: (value) {
                                           if (value == 'report') {
-                                            _showReportDialog(comment.userId, comment.id, comment.text);
+                                            _showReportDialog(comment.userId,
+                                                comment.id, comment.text);
                                           } else if (value == 'block') {
                                             _showBlockDialog(comment.userId);
                                           }
@@ -609,7 +632,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                             value: 'report',
                                             child: Row(
                                               children: [
-                                                Icon(Icons.flag_outlined, size: 18),
+                                                Icon(Icons.flag_outlined,
+                                                    size: 18),
                                                 SizedBox(width: 8),
                                                 Text('Report'),
                                               ],
@@ -711,7 +735,7 @@ class _CommentScreenState extends State<CommentScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: const BoxDecoration(
-                      color: Color(0xFF7C3AED),
+                      color: Color(0xFF043915),
                       shape: BoxShape.circle,
                     ),
                     child: Material(
@@ -760,13 +784,15 @@ class _CommentScreenState extends State<CommentScreen> {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-          final comments = snapshot.docs
-              .map((doc) => Comment.fromJson(doc.data(), doc.id))
-              .toList();
-          
-          // Filter out comments from blocked users
-          return comments.where((comment) => !_blockedUserIds.contains(comment.userId)).toList();
-        });
+      final comments = snapshot.docs
+          .map((doc) => Comment.fromJson(doc.data(), doc.id))
+          .toList();
+
+      // Filter out comments from blocked users
+      return comments
+          .where((comment) => !_blockedUserIds.contains(comment.userId))
+          .toList();
+    });
   }
 
   /// Build skeleton/placeholder for loading comments
@@ -846,4 +872,3 @@ class _CommentScreenState extends State<CommentScreen> {
     );
   }
 }
-

@@ -106,7 +106,7 @@ class WardrobeApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF7C3AED),
+              seedColor: const Color(0xFF043915),
               brightness: Brightness.light,
             ),
             useMaterial3: true,

@@ -26,7 +26,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _loadNotifications() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    final notificationProvider =
+        Provider.of<NotificationProvider>(context, listen: false);
 
     if (authProvider.user != null) {
       await notificationProvider.loadNotifications(authProvider.user!.uid);
@@ -36,7 +37,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _handleNotificationTap(AppNotification notification) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    final notificationProvider =
+        Provider.of<NotificationProvider>(context, listen: false);
 
     if (authProvider.user == null) return;
 
@@ -85,7 +87,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           // Note: We need ownerId and wardrobeId from the notification data
           final ownerId = notification.data?['ownerId'] as String?;
           final wardrobeId = notification.data?['wardrobeId'] as String?;
-          
+
           if (ownerId != null && wardrobeId != null) {
             final cloth = await ClothService.getCloth(
               userId: ownerId,
@@ -168,9 +170,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Map<String, List<AppNotification>> _groupNotifications(List<AppNotification> notifications) {
+  Map<String, List<AppNotification>> _groupNotifications(
+      List<AppNotification> notifications) {
     final grouped = <String, List<AppNotification>>{};
-    
+
     for (var notification in notifications) {
       final key = notification.type;
       if (!grouped.containsKey(key)) {
@@ -178,7 +181,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
       grouped[key]!.add(notification);
     }
-    
+
     return grouped;
   }
 
@@ -186,12 +189,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
-    final groupedNotifications = _groupNotifications(notificationProvider.notifications);
+    final groupedNotifications =
+        _groupNotifications(notificationProvider.notifications);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: [
           if (notificationProvider.unreadCount > 0)
@@ -200,26 +204,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               tooltip: 'Mark all as read',
               onPressed: () async {
                 if (authProvider.user != null) {
-                  await notificationProvider.markAllAsRead(authProvider.user!.uid);
+                  await notificationProvider
+                      .markAllAsRead(authProvider.user!.uid);
                 }
               },
             ),
         ],
       ),
-      body: notificationProvider.isLoading && notificationProvider.notifications.isEmpty
+      body: notificationProvider.isLoading &&
+              notificationProvider.notifications.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : notificationProvider.errorMessage != null && notificationProvider.notifications.isEmpty
+          : notificationProvider.errorMessage != null &&
+                  notificationProvider.notifications.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           notificationProvider.errorMessage!,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 16, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -232,7 +241,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -244,7 +253,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.notifications_none, size: 48, color: Colors.grey),
+                          Icon(Icons.notifications_none,
+                              size: 48, color: Colors.grey),
                           SizedBox(height: 12),
                           Text(
                             'No notifications',
@@ -260,95 +270,105 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     )
                   : RefreshIndicator(
-                  onRefresh: _loadNotifications,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: groupedNotifications.length,
-                    itemBuilder: (context, index) {
-                      final type = groupedNotifications.keys.elementAt(index);
-                      final notifications = groupedNotifications[type]!;
-                      final unreadCount = notifications.where((n) => !n.read).length;
+                      onRefresh: _loadNotifications,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: groupedNotifications.length,
+                        itemBuilder: (context, index) {
+                          final type =
+                              groupedNotifications.keys.elementAt(index);
+                          final notifications = groupedNotifications[type]!;
+                          final unreadCount =
+                              notifications.where((n) => !n.read).length;
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: ExpansionTile(
-                          leading: Icon(
-                            _getNotificationIcon(type),
-                            color: _getNotificationColor(type),
-                          ),
-                          title: Text(
-                            _getTypeTitle(type),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text('${notifications.length} notification${notifications.length == 1 ? '' : 's'}'),
-                          trailing: unreadCount > 0
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '$unreadCount',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          children: notifications.map((notification) {
-                            return ListTile(
-                              leading: notification.read
-                                  ? null
-                                  : Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.blue,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            child: ExpansionTile(
+                              leading: Icon(
+                                _getNotificationIcon(type),
+                                color: _getNotificationColor(type),
+                              ),
                               title: Text(
-                                notification.title,
-                                style: TextStyle(
-                                  fontWeight: notification.read ? FontWeight.normal : FontWeight.bold,
-                                ),
+                                _getTypeTitle(type),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(notification.body),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formatDate(notification.createdAt),
+                              subtitle: Text(
+                                  '${notifications.length} notification${notifications.length == 1 ? '' : 's'}'),
+                              trailing: unreadCount > 0
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '$unreadCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                              children: notifications.map((notification) {
+                                return ListTile(
+                                  leading: notification.read
+                                      ? null
+                                      : Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.blue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                  title: Text(
+                                    notification.title,
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
+                                      fontWeight: notification.read
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
                                     ),
                                   ),
-                                ],
-                              ),
-                              onTap: () => _handleNotificationTap(notification),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () async {
-                                  if (authProvider.user != null) {
-                                    await notificationProvider.deleteNotification(
-                                      userId: authProvider.user!.uid,
-                                      notificationId: notification.id,
-                                    );
-                                  }
-                                },
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(notification.body),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatDate(notification.createdAt),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () =>
+                                      _handleNotificationTap(notification),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () async {
+                                      if (authProvider.user != null) {
+                                        await notificationProvider
+                                            .deleteNotification(
+                                          userId: authProvider.user!.uid,
+                                          notificationId: notification.id,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 
@@ -371,4 +391,3 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 }
-
