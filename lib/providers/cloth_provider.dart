@@ -74,7 +74,7 @@ class ClothProvider with ChangeNotifier {
     String? wardrobeId,
   }) {
     Stream<List<Cloth>> stream;
-    
+
     if (wardrobeId != null) {
       stream = ClothService.watchClothes(
         userId: userId,
@@ -125,6 +125,7 @@ class ClothProvider with ChangeNotifier {
     required String category,
     required List<String> occasions,
     String visibility = 'private',
+    String itemKind = 'cloth',
     AiDetected? aiDetected,
   }) async {
     _isLoading = true;
@@ -144,14 +145,15 @@ class ClothProvider with ChangeNotifier {
         category: category,
         occasions: occasions,
         visibility: visibility,
+        itemKind: itemKind,
         aiDetected: aiDetected,
       );
 
       _errorMessage = null;
-      
+
       // Refresh clothes list to include the new cloth
       await loadClothes(userId: userId, wardrobeId: wardrobeId);
-      
+
       return clothId;
     } catch (e) {
       _errorMessage = 'Failed to add cloth: ${e.toString()}';
@@ -212,7 +214,7 @@ class ClothProvider with ChangeNotifier {
         newWardrobeId: newWardrobeId,
         clothId: clothId,
       );
-      
+
       // Remove from local list if it exists
       _clothes.removeWhere((c) => c.id == clothId);
       _errorMessage = null;
@@ -258,8 +260,7 @@ class ClothProvider with ChangeNotifier {
     required Cloth cloth,
   }) async {
     final now = DateTime.now();
-    final isWornToday =
-        cloth.wornAt != null && _isSameDay(cloth.wornAt!, now);
+    final isWornToday = cloth.wornAt != null && _isSameDay(cloth.wornAt!, now);
 
     try {
       DateTime? newWornAt;
@@ -310,14 +311,14 @@ class ClothProvider with ChangeNotifier {
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
-      
+
       // Get actual like count from Firestore
       final actualCount = await getLikeCount(
         ownerId: ownerId,
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
-      
+
       _updateClothLocally(
         clothId,
         likesCount: actualCount,
@@ -343,14 +344,14 @@ class ClothProvider with ChangeNotifier {
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
-      
+
       // Get actual like count from Firestore
       final actualCount = await getLikeCount(
         ownerId: ownerId,
         wardrobeId: wardrobeId,
         clothId: clothId,
       );
-      
+
       _updateClothLocally(
         clothId,
         likesCount: actualCount,
@@ -449,7 +450,7 @@ class ClothProvider with ChangeNotifier {
           clothId: clothId,
         );
       }
-      
+
       // likeCloth/unlikeCloth already update the count, so we just notify listeners
       notifyListeners();
     } catch (e) {
@@ -541,12 +542,11 @@ class ClothProvider with ChangeNotifier {
     if (index == -1) return;
 
     final oldCloth = _clothes[index];
-    
-    // Handle wornAt: if clearWornAt is true, set to null; 
+
+    // Handle wornAt: if clearWornAt is true, set to null;
     // if wornAt is provided (not null), use it; otherwise keep existing
-    final updatedWornAt = clearWornAt 
-        ? null 
-        : (wornAt != null ? wornAt : oldCloth.wornAt);
+    final updatedWornAt =
+        clearWornAt ? null : (wornAt != null ? wornAt : oldCloth.wornAt);
 
     // Create updated cloth - need to handle null wornAt explicitly
     final updated = Cloth(
@@ -560,6 +560,7 @@ class ClothProvider with ChangeNotifier {
       colorTags: oldCloth.colorTags,
       clothType: oldCloth.clothType,
       category: oldCloth.category,
+      itemKind: oldCloth.itemKind,
       occasions: oldCloth.occasions,
       aiDetected: oldCloth.aiDetected,
       createdAt: oldCloth.createdAt,

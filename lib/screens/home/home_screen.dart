@@ -18,6 +18,7 @@ import '../cloth/worn_history_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
+import '../../services/tag_list_service.dart';
 import '../../models/wardrobe.dart';
 
 /// Scroll physics that make vertical PageView commit to swipe direction with a short drag:
@@ -972,11 +973,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
           if (wardrobeId != null) {
             if (!mounted) return;
+            await TagListService.fetchTagLists();
+            if (!mounted) return;
+            // Select category (Clothing, Beauty, Footwear, Accessories)
+            final itemKind = await showDialog<String>(
+              context: context,
+              builder: (context) => _SelectCategoryDialog(),
+            );
+            if (itemKind == null || !mounted) return;
+            // Select sub-category (type) for chosen category
+            final itemType = await showDialog<String>(
+              context: context,
+              builder: (context) => _SelectItemTypeDialog(itemKind: itemKind),
+            );
+            if (itemType == null || !mounted) return;
             final navContext = context;
             final navigator = Navigator.of(navContext);
             await navigator.push(
               MaterialPageRoute(
-                builder: (_) => AddClothScreen(wardrobeId: wardrobeId),
+                builder: (_) => AddClothScreen(
+                  wardrobeId: wardrobeId,
+                  itemKind: itemKind,
+                  itemType: itemType,
+                ),
               ),
             );
             if (mounted) {
@@ -1058,6 +1077,114 @@ class _ShareDialog extends StatelessWidget {
                 },
               ),
             ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectCategoryDialog extends StatelessWidget {
+  const _SelectCategoryDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    const categories = [
+      ('cloth', 'Clothing', Icons.checkroom),
+      ('makeup', 'Beauty', Icons.face_retouching_natural),
+      ('footwear', 'Footwear', Icons.shopping_bag),
+      ('accessories', 'Accessories', Icons.watch),
+    ];
+    return AlertDialog(
+      title: const Text('What do you want to add?'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final (kind, label, icon) = categories[index];
+            return ListTile(
+              leading: Icon(icon, color: const Color(0xFF043915), size: 24),
+              title: Text(label),
+              onTap: () => Navigator.pop(context, kind),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectItemTypeDialog extends StatelessWidget {
+  final String itemKind;
+
+  const _SelectItemTypeDialog({required this.itemKind});
+
+  @override
+  Widget build(BuildContext context) {
+    final tags = TagListService.getCachedTagLists();
+    final List<String> types;
+    String title;
+    switch (itemKind) {
+      case 'cloth':
+        types = tags.clothTypes;
+        title = 'Select clothing type';
+        break;
+      case 'makeup':
+        types = tags.makeupTypes;
+        title = 'Select beauty item type';
+        break;
+      case 'footwear':
+        types = tags.footwearTypes;
+        title = 'Select footwear type';
+        break;
+      case 'accessories':
+        types = tags.accessoryTypes;
+        title = 'Select accessory type';
+        break;
+      default:
+        types = tags.clothTypes;
+        title = 'Select type';
+    }
+    if (types.isEmpty) {
+      return AlertDialog(
+        title: Text(title),
+        content:
+            const Text('No types available. Please add types in settings.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    }
+    return AlertDialog(
+      title: Text(title),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: types.length,
+          itemBuilder: (context, index) {
+            final type = types[index];
+            return ListTile(
+              title: Text(type),
+              onTap: () => Navigator.pop(context, type),
+            );
+          },
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

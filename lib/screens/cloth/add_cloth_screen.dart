@@ -9,13 +9,19 @@ import '../../providers/auth_provider.dart' as app_auth;
 import '../../services/tag_list_service.dart';
 import '../../services/ai_detection_service.dart';
 
-/// Add cloth screen using dynamic tag lists from Firestore
+/// Add cloth screen using dynamic tag lists from Firestore.
+/// [itemKind]: 'cloth' | 'makeup' | 'footwear' | 'accessories'. Defaults to 'cloth'.
+/// [itemType]: preselected sub-category (e.g. cloth type, makeup type). When provided, shown at top and used as initial type.
 class AddClothScreen extends StatefulWidget {
   final String wardrobeId;
+  final String itemKind;
+  final String? itemType;
 
   const AddClothScreen({
     super.key,
     required this.wardrobeId,
+    this.itemKind = 'cloth',
+    this.itemType,
   });
 
   @override
@@ -58,19 +64,51 @@ class _AddClothScreenState extends State<AddClothScreen> {
     super.dispose();
   }
 
+  List<String> _getTypeListForItemKind() {
+    final tags = TagListService.getCachedTagLists();
+    switch (widget.itemKind) {
+      case 'makeup':
+        return tags.makeupTypes;
+      case 'footwear':
+        return tags.footwearTypes;
+      case 'accessories':
+        return tags.accessoryTypes;
+      default:
+        return tags.clothTypes;
+    }
+  }
+
+  String _getAppBarTitle() {
+    switch (widget.itemKind) {
+      case 'cloth':
+        return 'Add Clothing';
+      case 'makeup':
+        return 'Add Beauty';
+      case 'footwear':
+        return 'Add Footwear';
+      case 'accessories':
+        return 'Add Accessory';
+      default:
+        return 'Add Item';
+    }
+  }
+
   Future<void> _loadTagLists() async {
     try {
       await TagListService.fetchTagLists();
       if (mounted) {
+        final tags = TagListService.getCachedTagLists();
+        final typeList = _getTypeListForItemKind();
         setState(() {
           _isLoadingTags = false;
-          // Set defaults
-          final tags = TagListService.getCachedTagLists();
           if (tags.seasons.isNotEmpty) _selectedSeason = tags.seasons.first;
           if (tags.placements.isNotEmpty)
             _selectedPlacement = tags.placements.first;
-          if (tags.clothTypes.isNotEmpty)
-            _selectedClothType = tags.clothTypes.first;
+          if (widget.itemType != null && widget.itemType!.isNotEmpty) {
+            _selectedClothType = widget.itemType;
+          } else if (typeList.isNotEmpty) {
+            _selectedClothType = typeList.first;
+          }
           if (tags.categories.isNotEmpty)
             _selectedCategory = tags.categories.first;
           if (tags.occasions.isNotEmpty)
@@ -110,44 +148,41 @@ class _AddClothScreenState extends State<AddClothScreen> {
     }
   }
 
-  /// Detect cloth details using AI
+  /// Detect cloth details using AI. For Clothing only: detect type; for all: colors and season.
   Future<void> _detectClothDetails(File imageFile) async {
     try {
       final tags = TagListService.getCachedTagLists();
       String? detectedTypeMessage;
       String? detectedColorMessage;
 
-      // Detect cloth type
-      final detectedType = await AiDetectionService.detectClothType(imageFile);
-      if (detectedType != null && detectedType.isNotEmpty && mounted) {
-        // Check if type exists in list
-        if (tags.clothTypes.contains(detectedType)) {
-          // Type exists - set it directly
-          setState(() {
-            _selectedClothType = detectedType;
-          });
-          detectedTypeMessage = 'Detected: $detectedType';
-        } else {
-          // Type doesn't exist - add to Firestore (syncs across all users)
-          await TagListService.addClothType(detectedType);
-          // Reload tags to get updated list
-          await TagListService.fetchTagLists(forceRefresh: true);
-
-          // Now set it after the list is updated
-          final updatedTags = TagListService.getCachedTagLists();
-          if (updatedTags.clothTypes.contains(detectedType)) {
+      // Detect cloth type only for Clothing (itemKind == 'cloth'); do not overwrite user-selected type for Beauty/Footwear/Accessories
+      if (widget.itemKind == 'cloth') {
+        final detectedType =
+            await AiDetectionService.detectClothType(imageFile);
+        if (detectedType != null && detectedType.isNotEmpty && mounted) {
+          if (tags.clothTypes.contains(detectedType)) {
             setState(() {
               _selectedClothType = detectedType;
             });
-            detectedTypeMessage = 'Detected: $detectedType (synced)';
+            detectedTypeMessage = 'Detected: $detectedType';
           } else {
-            detectedTypeMessage =
-                'Detected: $detectedType (please select manually)';
+            await TagListService.addClothType(detectedType);
+            await TagListService.fetchTagLists(forceRefresh: true);
+            final updatedTags = TagListService.getCachedTagLists();
+            if (updatedTags.clothTypes.contains(detectedType)) {
+              setState(() {
+                _selectedClothType = detectedType;
+              });
+              detectedTypeMessage = 'Detected: $detectedType (synced)';
+            } else {
+              detectedTypeMessage =
+                  'Detected: $detectedType (please select manually)';
+            }
           }
         }
       }
 
-      // Detect colors
+      // Detect colors (all item kinds)
       final detectedColors = await AiDetectionService.detectColors(imageFile);
       if (detectedColors.isNotEmpty && mounted) {
         // Add new colors to Firestore (syncs across all users)
@@ -363,6 +398,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
         category: _selectedCategory!,
         occasions: _selectedOccasions,
         visibility: _visibility,
+        itemKind: widget.itemKind,
       );
 
       if (mounted) {
@@ -421,9 +457,13 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
     final tags = TagListService.getCachedTagLists();
 
+    final typeList = _getTypeListForItemKind();
+    final categoryLabel =
+        _getAppBarTitle().replaceFirst('Add ', ''); // e.g. Clothing, Beauty
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Cloth'),
+        title: Text(_getAppBarTitle()),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
@@ -435,6 +475,27 @@ class _AddClothScreenState extends State<AddClothScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Category + type at top
+              Row(
+                children: [
+                  Chip(
+                    label: Text(categoryLabel,
+                        style: const TextStyle(fontSize: 12)),
+                    backgroundColor:
+                        const Color(0xFF043915).withValues(alpha: 0.15),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_selectedClothType != null &&
+                      _selectedClothType!.isNotEmpty)
+                    Chip(
+                      label: Text(_selectedClothType!,
+                          style: const TextStyle(fontSize: 12)),
+                      backgroundColor:
+                          const Color(0xFF043915).withValues(alpha: 0.1),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               // Image Picker
               GestureDetector(
                 onTap: _showImageSourceDialog,
@@ -501,15 +562,23 @@ class _AddClothScreenState extends State<AddClothScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Cloth Type
+              // Type (clothing / beauty / footwear / accessory type)
               DropdownButtonFormField<String>(
-                initialValue: _selectedClothType,
-                decoration: const InputDecoration(
-                  labelText: 'Cloth Type *',
-                  prefixIcon: Icon(Icons.checkroom),
-                  border: OutlineInputBorder(),
+                value: typeList.contains(_selectedClothType)
+                    ? _selectedClothType
+                    : (typeList.isNotEmpty ? typeList.first : null),
+                decoration: InputDecoration(
+                  labelText: 'Type *',
+                  prefixIcon: Icon(widget.itemKind == 'cloth'
+                      ? Icons.checkroom
+                      : (widget.itemKind == 'makeup'
+                          ? Icons.face_retouching_natural
+                          : (widget.itemKind == 'footwear'
+                              ? Icons.shopping_bag
+                              : Icons.watch))),
+                  border: const OutlineInputBorder(),
                 ),
-                items: tags.clothTypes.map((type) {
+                items: typeList.map((type) {
                   return DropdownMenuItem(
                       value: type,
                       child: Text(type, style: const TextStyle(fontSize: 14)));
@@ -517,7 +586,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
                 onChanged: (value) =>
                     setState(() => _selectedClothType = value),
                 validator: (value) =>
-                    value == null ? 'Please select cloth type' : null,
+                    value == null ? 'Please select type' : null,
               ),
               const SizedBox(height: 12),
 

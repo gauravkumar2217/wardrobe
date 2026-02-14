@@ -12,6 +12,8 @@ class Cloth {
   final ColorTags colorTags;
   final String clothType;
   final String category;
+  /// Top category: 'cloth' | 'makeup' | 'footwear' | 'accessories'
+  final String itemKind;
   final List<String> occasions;
   final AiDetected? aiDetected;
   final DateTime createdAt;
@@ -33,6 +35,7 @@ class Cloth {
     required this.colorTags,
     required this.clothType,
     required this.category,
+    this.itemKind = 'cloth',
     required this.occasions,
     this.aiDetected,
     required this.createdAt,
@@ -43,6 +46,16 @@ class Cloth {
     this.likesCount = 0,
     this.commentsCount = 0,
   });
+
+  /// Parse itemKind from Firestore; map legacy 'shoes' to 'footwear'.
+  static String _parseItemKind(String? value) {
+    if (value == null || value.isEmpty) return 'cloth';
+    if (value == 'shoes') return 'footwear';
+    if (value == 'cloth' || value == 'makeup' || value == 'footwear' || value == 'accessories') {
+      return value;
+    }
+    return 'cloth';
+  }
 
   factory Cloth.fromJson(Map<String, dynamic> json, String id) {
     return Cloth(
@@ -61,6 +74,7 @@ class Cloth {
       clothType:
           json['clothType'] as String? ?? json['type'] as String? ?? 'Other',
       category: json['category'] as String? ?? 'Casual',
+      itemKind: _parseItemKind(json['itemKind'] as String?),
       occasions: json['occasions'] != null
           ? List<String>.from(json['occasions'])
           : (json['occasion'] != null
@@ -96,6 +110,7 @@ class Cloth {
       'colorTags': colorTags.toJson(),
       'clothType': clothType,
       'category': category,
+      'itemKind': itemKind,
       'occasions': occasions,
       if (aiDetected != null) 'aiDetected': aiDetected!.toJson(),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -118,6 +133,7 @@ class Cloth {
     ColorTags? colorTags,
     String? clothType,
     String? category,
+    String? itemKind,
     List<String>? occasions,
     AiDetected? aiDetected,
     DateTime? createdAt,
@@ -139,6 +155,7 @@ class Cloth {
       colorTags: colorTags ?? this.colorTags,
       clothType: clothType ?? this.clothType,
       category: category ?? this.category,
+      itemKind: itemKind ?? this.itemKind,
       occasions: occasions ?? this.occasions,
       aiDetected: aiDetected ?? this.aiDetected,
       createdAt: createdAt ?? this.createdAt,

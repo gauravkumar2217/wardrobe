@@ -28,6 +28,7 @@ class ClothService {
     required String category,
     required List<String> occasions,
     String visibility = 'private',
+    String itemKind = 'cloth',
     AiDetected? aiDetected,
   }) async {
     try {
@@ -54,10 +55,12 @@ class ClothService {
         'imageUrl': imageUrl,
         'season': season,
         'placement': placement,
-        if (placementDetails != null) 'placementDetails': placementDetails.toJson(),
+        if (placementDetails != null)
+          'placementDetails': placementDetails.toJson(),
         'colorTags': colorTags.toJson(),
         'clothType': clothType,
         'category': category,
+        'itemKind': itemKind,
         'occasions': occasions,
         'visibility': visibility,
         'likesCount': 0,
@@ -98,18 +101,16 @@ class ClothService {
       debugPrint('   userId: $userId');
       debugPrint('   wardrobeId: $wardrobeId');
       debugPrint('   clothId: $clothId');
-      
+
       // Try top-level clothes collection first (has better rules for shared clothes)
       // This collection allows authenticated users to read, and GET rule checks canReadCloth
       try {
         debugPrint('📂 Trying top-level clothes collection...');
-        final topLevelDoc = await _firestore
-            .collection('clothes')
-            .doc(clothId)
-            .get();
+        final topLevelDoc =
+            await _firestore.collection('clothes').doc(clothId).get();
 
         debugPrint('   exists: ${topLevelDoc.exists}');
-        
+
         if (topLevelDoc.exists) {
           final data = topLevelDoc.data();
           if (data != null) {
@@ -124,7 +125,8 @@ class ClothService {
               final cloth = Cloth.fromJson(data, clothId);
               debugPrint('✅ Successfully parsed cloth from top-level');
               debugPrint('   clothType: ${cloth.clothType}');
-              debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
+              debugPrint(
+                  '   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
               return cloth;
             } catch (e, stackTrace) {
               debugPrint('❌ Error parsing cloth from top-level: $e');
@@ -147,7 +149,7 @@ class ClothService {
       // Note: This might fail for non-owners due to permissions, but we try anyway
       debugPrint('📂 Trying subcollection path...');
       debugPrint('   path: ${_clothesPath(userId, wardrobeId)}');
-      
+
       try {
         final doc = await _firestore
             .collection(_clothesPath(userId, wardrobeId))
@@ -158,7 +160,8 @@ class ClothService {
 
         if (!doc.exists) {
           debugPrint('❌ Cloth not found in subcollection');
-          debugPrint('💡 This might be a permission issue or the cloth doesn\'t exist');
+          debugPrint(
+              '💡 This might be a permission issue or the cloth doesn\'t exist');
           return null;
         }
 
@@ -176,7 +179,8 @@ class ClothService {
           final cloth = Cloth.fromJson(data, clothId);
           debugPrint('✅ Successfully parsed cloth from subcollection');
           debugPrint('   clothType: ${cloth.clothType}');
-          debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
+          debugPrint(
+              '   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
           return cloth;
         } catch (e, stackTrace) {
           debugPrint('❌ Error parsing cloth from subcollection: $e');
@@ -188,10 +192,13 @@ class ClothService {
         debugPrint('   Error type: ${e.runtimeType}');
         debugPrint('   Error message: ${e.toString()}');
         if (e.toString().contains('permission-denied')) {
-          debugPrint('🔒 PERMISSION DENIED: User may not have access to this cloth');
+          debugPrint(
+              '🔒 PERMISSION DENIED: User may not have access to this cloth');
           debugPrint('   This could mean:');
-          debugPrint('   1. Cloth visibility is "private" and user is not in sharedWith');
-          debugPrint('   2. Cloth visibility is "friends" but users are not friends');
+          debugPrint(
+              '   1. Cloth visibility is "private" and user is not in sharedWith');
+          debugPrint(
+              '   2. Cloth visibility is "friends" but users are not friends');
           debugPrint('   3. Cloth was not properly shared via DM');
         }
         debugPrint('   StackTrace: $stackTrace');
@@ -349,7 +356,8 @@ class ClothService {
       await batch.commit();
 
       if (kDebugMode) {
-        debugPrint('Cloth moved from wardrobe $oldWardrobeId to $newWardrobeId');
+        debugPrint(
+            'Cloth moved from wardrobe $oldWardrobeId to $newWardrobeId');
       }
     } catch (e) {
       debugPrint('Failed to move cloth: $e');
@@ -427,14 +435,16 @@ class ClothService {
           .doc(clothId)
           .update({
         'wornAt': Timestamp.fromDate(now),
-        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
+        'placement':
+            'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Also update top-level collection
       await _firestore.collection('clothes').doc(clothId).update({
         'wornAt': Timestamp.fromDate(now),
-        'placement': 'OutWardrobe', // Automatically mark as out of wardrobe when worn
+        'placement':
+            'OutWardrobe', // Automatically mark as out of wardrobe when worn
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -595,7 +605,8 @@ class ClothService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {
-        debugPrint('Failed to update likesCount in subcollection (non-critical): $e');
+        debugPrint(
+            'Failed to update likesCount in subcollection (non-critical): $e');
         // Continue - like document is already created
       }
 
@@ -606,7 +617,8 @@ class ClothService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {
-        debugPrint('Failed to update likesCount in top-level collection (non-critical): $e');
+        debugPrint(
+            'Failed to update likesCount in top-level collection (non-critical): $e');
         // Continue - like document is already created
       }
 
@@ -668,7 +680,8 @@ class ClothService {
             'updatedAt': FieldValue.serverTimestamp(),
           });
         } catch (e) {
-          debugPrint('Failed to update likesCount in subcollection (non-critical): $e');
+          debugPrint(
+              'Failed to update likesCount in subcollection (non-critical): $e');
           // Continue - like document is already deleted
         }
 
@@ -679,7 +692,8 @@ class ClothService {
             'updatedAt': FieldValue.serverTimestamp(),
           });
         } catch (e) {
-          debugPrint('Failed to update likesCount in top-level collection (non-critical): $e');
+          debugPrint(
+              'Failed to update likesCount in top-level collection (non-critical): $e');
           // Continue - like document is already deleted
         }
       }
@@ -743,9 +757,10 @@ class ClothService {
     try {
       // Filter content before posting
       final isSafe = await ContentFilterService.isContentSafe(text);
-      
+
       if (!isSafe) {
-        throw Exception('Your comment contains inappropriate content and cannot be posted. Please revise your message.');
+        throw Exception(
+            'Your comment contains inappropriate content and cannot be posted. Please revise your message.');
       }
 
       final commentId = _firestore.collection('comments').doc().id;
@@ -764,10 +779,9 @@ class ClothService {
       });
 
       // Update commentsCount on subcollection cloth document
-      final clothRef = _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId);
-      
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
       // Check if cloth exists before updating
       final clothDoc = await clothRef.get();
       if (!clothDoc.exists) {
@@ -790,7 +804,8 @@ class ClothService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {
-        debugPrint('Failed to update commentsCount in subcollection (non-critical): $e');
+        debugPrint(
+            'Failed to update commentsCount in subcollection (non-critical): $e');
         // Continue - comment document is already created
       }
 
@@ -801,7 +816,8 @@ class ClothService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {
-        debugPrint('Failed to update commentsCount in top-level collection (non-critical): $e');
+        debugPrint(
+            'Failed to update commentsCount in top-level collection (non-critical): $e');
         // Continue - comment document is already created
       }
 
@@ -887,10 +903,9 @@ class ClothService {
           .delete();
 
       // Update commentsCount on subcollection cloth document
-      final clothRef = _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId);
-      
+      final clothRef =
+          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
+
       // Check if cloth exists before updating
       final clothDoc = await clothRef.get();
       if (clothDoc.exists) {
