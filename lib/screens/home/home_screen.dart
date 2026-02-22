@@ -8,7 +8,10 @@ import '../../providers/friend_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/filter_provider.dart';
 import '../../models/cloth.dart';
+import '../../models/banner.dart' as models;
 import '../../widgets/cloth_card.dart';
+import '../../widgets/full_screen_ad_slider_widget.dart';
+import '../../services/banner_service.dart';
 import '../wardrobe/wardrobe_list_screen.dart';
 import '../filter/filter_selection_screen.dart';
 import '../cloth/add_cloth_screen.dart';
@@ -20,6 +23,7 @@ import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../services/tag_list_service.dart';
 import '../../models/wardrobe.dart';
+import 'dart:async';
 
 /// Scroll physics that make vertical PageView commit to swipe direction with a short drag:
 /// lower fling threshold and less friction so a small swipe up/down moves to next/prev page instead of snapping back.
@@ -60,6 +64,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   bool _showSearchBar = false;
 
+  // Full screen ad state
+  final BannerService _bannerService = BannerService();
+  List<models.Banner> _fullScreenBanners = [];
+  DateTime? _scrollStartTime;
+  Timer? _adTimer;
+  bool _hasShownAd = false;
+  bool _isAdVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadClothes();
       _checkForFilterParameters();
+      _loadFullScreenBanners();
     });
   }
 
@@ -110,7 +123,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
+    _adTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadFullScreenBanners() async {
+    try {
+      final banners = await _bannerService.getBanners(
+        location: 'home_screen',
+        type: '1080x1920',
+      );
+      if (mounted) {
+        setState(() {
+          _fullScreenBanners = banners;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading full screen banners: $e');
+    }
+  }
+
+  void _startScrollTimer() {
+    // Only start timer if we haven't shown ad yet and have banners
+    if (_hasShownAd || _fullScreenBanners.isEmpty || _isAdVisible) return;
+
+    // Record scroll start time
+    if (_scrollStartTime == null) {
+      _scrollStartTime = DateTime.now();
+    }
+
+    // Cancel existing timer
+    _adTimer?.cancel();
+
+    // Start new timer for 10 minutes
+    _adTimer = Timer(const Duration(minutes: 10), () {
+      if (mounted && !_hasShownAd && _fullScreenBanners.isNotEmpty && !_isAdVisible) {
+        _showFullScreenAd();
+      }
+    });
+  }
+
+  void _showFullScreenAd() {
+    if (_fullScreenBanners.isEmpty || _isAdVisible) return;
+
+    setState(() {
+      _isAdVisible = true;
+      _hasShownAd = true;
+    });
+
+    // Show full screen ad dialog with slider
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => FullScreenAdSliderWidget(
+        banners: _fullScreenBanners,
+        onClose: () {
+          Navigator.of(context).pop();
+          setState(() {
+            _isAdVisible = false;
+          });
+        },
+      ),
+    );
   }
 
   @override
@@ -732,6 +806,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   _loadLikeStatus(filteredClothes[index],
                                       authProvider.user!.uid);
                                 }
+                                // Track scrolling for full screen ad
+                                _startScrollTimer();
                               },
                               itemBuilder: (context, index) {
                                 final cloth = filteredClothes[index];

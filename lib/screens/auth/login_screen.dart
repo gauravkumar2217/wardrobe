@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
+import '../../services/banner_service.dart';
 import '../../models/user_profile.dart';
+import '../../models/banner.dart' as models;
+import '../../widgets/banner_slider_widget.dart';
 import 'profile_setup_screen.dart';
 import 'eula_acceptance_screen.dart';
 import '../main_navigation.dart';
@@ -23,12 +26,35 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSigningInWithUsername = false;
   bool _isSigningInWithGoogle = false;
   bool _isSigningInWithApple = false;
+  final BannerService _bannerService = BannerService();
+  List<models.Banner> _banners = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanners();
+  }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBanners() async {
+    try {
+      final banners = await _bannerService.getBannersByLocation('login');
+      if (mounted) {
+        setState(() {
+          _banners = banners;
+        });
+        debugPrint('Loaded ${banners.length} banner(s) for login screen');
+      }
+    } catch (e) {
+      debugPrint('Error loading banners: $e');
+      // Silently handle errors - banners are optional
+    }
   }
 
   Future<void> _signInWithGoogle() async {
@@ -264,32 +290,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 24),
                     Center(
-                      child: Image.asset(
-                        'assets/images/logo-chat.png',
-                        height: 80,
-                        width: 80,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.checkroom,
-                            size: 80,
-                            color: Theme.of(context).colorScheme.primary,
-                          );
-                        },
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[100],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/images/logo-chat.png',
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                child: Icon(
+                                  Icons.checkroom,
+                                  size: 60,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Welcome',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Sign in to continue',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 40),
                     TextFormField(
@@ -391,6 +424,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           foregroundColor: Colors.black,
                           side: const BorderSide(color: Colors.black),
                         ),
+                      ),
+                    ],
+                    // Banner slider at the bottom
+                    if (_banners.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      BannerSliderWidget(
+                        banners: _banners,
+                        width: double.infinity,
+                        height: 100,
                       ),
                     ],
                   ],

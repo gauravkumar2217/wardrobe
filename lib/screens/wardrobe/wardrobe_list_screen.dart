@@ -5,8 +5,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/filter_provider.dart';
 import '../../widgets/wardrobe_card.dart';
+import '../../widgets/banner_slider_widget.dart';
 import '../../services/wardrobe_service.dart';
+import '../../services/banner_service.dart';
 import '../../models/wardrobe.dart';
+import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
 
 /// Wardrobe list screen
@@ -25,13 +28,30 @@ class WardrobeListScreen extends StatefulWidget {
 }
 
 class _WardrobeListScreenState extends State<WardrobeListScreen> {
+  final BannerService _bannerService = BannerService();
+  List<models.Banner> _banners = [];
+
   @override
   void initState() {
     super.initState();
     // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadWardrobes();
+      _loadBanners();
     });
+  }
+
+  Future<void> _loadBanners() async {
+    try {
+      final banners = await _bannerService.getBannersByLocation('wardrobe_list');
+      if (mounted) {
+        setState(() {
+          _banners = banners;
+        });
+      }
+    } catch (e) {
+      // Silently handle errors - banners are optional
+    }
   }
 
   void _loadWardrobes() {
@@ -244,16 +264,27 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   : RefreshIndicator(
                       onRefresh: () async {
                         _loadWardrobes();
+                        _loadBanners();
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
                       color: const Color(0xFF043915),
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: wardrobeProvider.wardrobes.length,
+                        itemCount: (_banners.isNotEmpty ? 1 : 0) + wardrobeProvider.wardrobes.length,
                         itemBuilder: (context, index) {
-                          final wardrobe = wardrobeProvider.wardrobes[index];
+                          // Show banner slider as first item if available
+                          if (_banners.isNotEmpty && index == 0) {
+                            return BannerSliderWidget(
+                              banners: _banners,
+                              width: double.infinity,
+                              height: 100,
+                            );
+                          }
+                          // Adjust index for wardrobe items
+                          final wardrobeIndex = _banners.isNotEmpty ? index - 1 : index;
+                          final wardrobe = wardrobeProvider.wardrobes[wardrobeIndex];
                           return TweenAnimationBuilder<double>(
-                            duration: Duration(milliseconds: 300 + (index * 50)),
+                            duration: Duration(milliseconds: 300 + (wardrobeIndex * 50)),
                             tween: Tween(begin: 0.0, end: 1.0),
                             curve: Curves.easeOut,
                             builder: (context, value, child) {
