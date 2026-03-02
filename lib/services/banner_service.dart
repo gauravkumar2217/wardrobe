@@ -1,11 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/banner.dart';
 
 /// Service for fetching banners from the API
 class BannerService {
-  static const String baseUrl = 'https://www.wardrobe.chat/api';
+  /// Get banner API base URL from environment variables
+  /// Falls back to default if not set
+  static String get baseUrl {
+    return dotenv.env['BANNER_API_BASE_URL'] ?? 'https://www.wardrobe.chat/api';
+  }
 
   /// Get banners for a specific location
   /// 

@@ -5,6 +5,7 @@ import '../models/cloth.dart';
 import 'storage_service.dart';
 import 'push_notification_service.dart';
 import 'content_filter_service.dart';
+import 'background_removal_service.dart';
 
 /// Cloth service for managing clothes
 class ClothService {
@@ -40,7 +41,7 @@ class ClothService {
       final clothId = _firestore.collection('clothes').doc().id;
       final now = DateTime.now();
 
-      // Upload image
+      // Upload original image
       final imageUrl = await StorageService.uploadClothImage(
         userId: userId,
         wardrobeId: wardrobeId,
@@ -48,11 +49,36 @@ class ClothService {
         imageFile: imageFile,
       );
 
+      // Process background removal (in background, non-blocking)
+      String? processedImageUrl;
+      bool hasProcessedImage = false;
+      
+      try {
+        // Remove background (processes in isolate for performance)
+        final processedImage = await BackgroundRemovalService.removeBackgroundAuto(imageFile);
+        if (processedImage != null) {
+          // Upload processed image
+          processedImageUrl = await StorageService.uploadClothImage(
+            userId: userId,
+            wardrobeId: wardrobeId,
+            clothId: clothId,
+            imageFile: processedImage,
+          );
+          hasProcessedImage = true;
+          debugPrint('Background removed and processed image uploaded');
+        }
+      } catch (e) {
+        // Background removal is optional - continue even if it fails
+        debugPrint('Background removal failed (non-critical): $e');
+      }
+
       // Create cloth document
       final clothData = {
         'ownerId': userId,
         'wardrobeId': wardrobeId,
         'imageUrl': imageUrl,
+        if (processedImageUrl != null) 'processedImageUrl': processedImageUrl,
+        'hasProcessedImage': hasProcessedImage,
         'season': season,
         'placement': placement,
         if (placementDetails != null)

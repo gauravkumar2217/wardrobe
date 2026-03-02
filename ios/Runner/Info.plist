@@ -52,7 +52,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need access to save images of your clothing items to your photo library.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to let you take photos of your clothing items to add them to your wardrobe.</string>
+	<string>We need camera access to scan your body for virtual try-on and to take photos of your clothing items to add them to your wardrobe.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>We need permission to send you daily outfit suggestions and notifications about your wardrobe.</string>
 	

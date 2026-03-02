@@ -12,8 +12,11 @@ import '../friends/friends_list_screen.dart';
 import '../friends/friend_requests_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'edit_profile_screen.dart';
+import 'body_scan_screen.dart';
 import 'settings_screen.dart';
 import '../auth/login_screen.dart';
+import '../changing_room/changing_room_screen.dart';
+import '../cloth/batch_convert_screen.dart';
 
 /// Profile screen displaying user info and stats
 class ProfileScreen extends StatefulWidget {
@@ -393,6 +396,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           // Profile is automatically updated via AuthProvider when updateProfile is called
                           _loadStats(); // Reload stats to reflect any changes
                         }
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.camera_alt,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Body Scan',
+                          style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const BodyScanScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.checkroom,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Changing Room',
+                          style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ChangingRoomScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: const Icon(Icons.batch_prediction,
+                          color: Color(0xFF043915), size: 18),
+                      title: const Text('Batch Convert',
+                          style: TextStyle(fontSize: 13)),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const BatchConvertScreen()),
+                        );
                       },
                     ),
                     const Divider(height: 1),

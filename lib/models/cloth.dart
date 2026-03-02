@@ -6,6 +6,8 @@ class Cloth {
   final String ownerId;
   final String wardrobeId;
   final String imageUrl;
+  final String? processedImageUrl; // Clean front picture without background
+  final bool hasProcessedImage; // Boolean flag
   final String season;
   final String placement;
   final PlacementDetails? placementDetails; // Details for Laundry, DryCleaning, Repairing
@@ -29,6 +31,8 @@ class Cloth {
     required this.ownerId,
     required this.wardrobeId,
     required this.imageUrl,
+    this.processedImageUrl,
+    this.hasProcessedImage = false,
     required this.season,
     required this.placement,
     this.placementDetails,
@@ -63,6 +67,8 @@ class Cloth {
       ownerId: json['ownerId'] as String,
       wardrobeId: json['wardrobeId'] as String,
       imageUrl: json['imageUrl'] as String,
+      processedImageUrl: json['processedImageUrl'] as String?,
+      hasProcessedImage: json['hasProcessedImage'] as bool? ?? false,
       season: json['season'] as String,
       placement: json['placement'] as String,
       placementDetails: json['placementDetails'] != null
@@ -104,6 +110,8 @@ class Cloth {
       'ownerId': ownerId,
       'wardrobeId': wardrobeId,
       'imageUrl': imageUrl,
+      if (processedImageUrl != null) 'processedImageUrl': processedImageUrl,
+      'hasProcessedImage': hasProcessedImage,
       'season': season,
       'placement': placement,
       if (placementDetails != null) 'placementDetails': placementDetails!.toJson(),
@@ -127,6 +135,8 @@ class Cloth {
     String? ownerId,
     String? wardrobeId,
     String? imageUrl,
+    String? processedImageUrl,
+    bool? hasProcessedImage,
     String? season,
     String? placement,
     PlacementDetails? placementDetails,
@@ -149,6 +159,8 @@ class Cloth {
       ownerId: ownerId ?? this.ownerId,
       wardrobeId: wardrobeId ?? this.wardrobeId,
       imageUrl: imageUrl ?? this.imageUrl,
+      processedImageUrl: processedImageUrl ?? this.processedImageUrl,
+      hasProcessedImage: hasProcessedImage ?? this.hasProcessedImage,
       season: season ?? this.season,
       placement: placement ?? this.placement,
       placementDetails: placementDetails ?? this.placementDetails,
