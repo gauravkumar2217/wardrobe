@@ -136,65 +136,75 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Statistics'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final clothProvider =
-              Provider.of<ClothProvider>(context, listen: false);
-          final authProvider =
-              Provider.of<AuthProvider>(context, listen: false);
-          if (authProvider.user != null) {
-            await clothProvider.loadClothes(userId: authProvider.user!.uid);
-            _calculateStatistics();
-            await _loadWardrobes();
-          }
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // My Wardrobes Section
-              _buildWardrobesSection(),
-              const SizedBox(height: 8),
-              // Type Statistics
-              _buildSection(
-                title: 'By Type',
-                icon: Icons.checkroom,
-                counts: _typeCounts,
-                onTap: (type) => _navigateToHomeWithFilter(type: type),
-              ),
-              const SizedBox(height: 8),
-              // Occasion Statistics
-              _buildSection(
-                title: 'By Occasion',
-                icon: Icons.event,
-                counts: _occasionCounts,
-                onTap: (occasion) =>
-                    _navigateToHomeWithFilter(occasion: occasion),
-              ),
-              const SizedBox(height: 8),
-              // Season Statistics
-              _buildSection(
-                title: 'By Season',
-                icon: Icons.wb_sunny,
-                counts: _seasonCounts,
-                onTap: (season) => _navigateToHomeWithFilter(season: season),
-              ),
-              const SizedBox(height: 8),
-              // Color Statistics
-              _buildSection(
-                title: 'By Color',
-                icon: Icons.palette,
-                counts: _colorCounts,
-                onTap: (color) => _navigateToHomeWithFilter(color: color),
-              ),
-            ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: EdgeInsets.zero,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            final clothProvider =
+                Provider.of<ClothProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
+            if (authProvider.user != null) {
+              await clothProvider.loadClothes(userId: authProvider.user!.uid);
+              _calculateStatistics();
+              await _loadWardrobes();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(10, 10, 10, 16 + keyboardInset),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // My Wardrobes Section
+                _buildWardrobesSection(),
+                const SizedBox(height: 8),
+                // Type Statistics
+                _buildSection(
+                  title: 'By Type',
+                  icon: Icons.checkroom,
+                  counts: _typeCounts,
+                  onTap: (type) => _navigateToHomeWithFilter(type: type),
+                ),
+                const SizedBox(height: 8),
+                // Occasion Statistics
+                _buildSection(
+                  title: 'By Occasion',
+                  icon: Icons.event,
+                  counts: _occasionCounts,
+                  onTap: (occasion) =>
+                      _navigateToHomeWithFilter(occasion: occasion),
+                ),
+                const SizedBox(height: 8),
+                // Season Statistics
+                _buildSection(
+                  title: 'By Season',
+                  icon: Icons.wb_sunny,
+                  counts: _seasonCounts,
+                  onTap: (season) =>
+                      _navigateToHomeWithFilter(season: season),
+                ),
+                const SizedBox(height: 8),
+                // Color Statistics
+                _buildSection(
+                  title: 'By Color',
+                  icon: Icons.palette,
+                  counts: _colorCounts,
+                  onTap: (color) => _navigateToHomeWithFilter(color: color),
+                ),
+              ],
+            ),
           ),
         ),
       ),
