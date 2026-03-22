@@ -195,15 +195,22 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Create Avatar'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: EdgeInsets.zero,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + keyboardInset),
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -381,6 +388,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
               ],
             ],
           ),
+        ),
         ),
       ),
     );
