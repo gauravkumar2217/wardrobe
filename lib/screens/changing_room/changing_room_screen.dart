@@ -24,7 +24,6 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
 
   /// `all` | `tops` | `bottoms` | `shoes` | `accessories`
   String _clothFilter = 'all';
-  String? _activeTryOnClothId;
 
   bool _isLoading = true;
   String? _tryOnResultUrl;
@@ -197,34 +196,66 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     }
   }
 
+  /// Ordered slots sent to the API (shirt → pants → shoes → accessory).
+  static const List<String> _outfitSlotOrder = [
+    'shirt',
+    'pants',
+    'shoes',
+    'accessory',
+  ];
+
+  List<Cloth> _currentOutfitGarments() {
+    final list = <Cloth>[];
+    for (final key in _outfitSlotOrder) {
+      final c = _currentOutfit.items[key];
+      if (c != null) list.add(c);
+    }
+    return list;
+  }
+
+  bool _isClothInCurrentOutfit(Cloth item) {
+    return _currentOutfit.items.values.whereType<Cloth>().any(
+          (c) => c.id == item.id,
+        );
+  }
+
   Future<void> _selectClothForTryOn(Cloth item) async {
     if (_avatar == null || _avatar!.avatarImageUrl == null) return;
 
     final categoryKey = _outfitCategoryKey(item);
     setState(() {
-      _activeTryOnClothId = item.id;
       _applyOutfitSlot(item, categoryKey);
     });
 
-    await _generateTryOn(item);
+    await _generateTryOnFromCurrentOutfit();
   }
 
-  Future<void> _generateTryOn(Cloth item) async {
+  Future<void> _generateTryOnFromCurrentOutfit() async {
     if (_avatar == null || _avatar!.avatarImageUrl == null) return;
+
+    final garments = _currentOutfitGarments();
+    if (garments.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _tryOnResultUrl = null;
+          _isGeneratingTryOn = false;
+        });
+      }
+      return;
+    }
 
     setState(() {
       _isGeneratingTryOn = true;
-      _tryOnResultUrl = null;
     });
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.user == null) return;
 
-      final resultUrl = await TryOn2DService.createTryOnFromCloth(
+      final resultUrl = await TryOn2DService.createTryOnForOutfit(
         userId: authProvider.user!.uid,
         avatarUrl: _avatar!.avatarImageUrl!,
-        cloth: item,
+        garments: garments,
       );
 
       if (mounted) {
@@ -247,7 +278,6 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
   void _clearTryOnResult() {
     setState(() {
       _tryOnResultUrl = null;
-      _activeTryOnClothId = null;
     });
   }
 
@@ -287,7 +317,6 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
         },
       );
       _tryOnResultUrl = null;
-      _activeTryOnClothId = null;
     });
   }
 
@@ -373,7 +402,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Text(
-                'Tap a thumbnail to try it on your avatar (Gemini AI)',
+                'Tap items to build a full outfit — each type stacks; same type replaces',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey[800],
@@ -508,7 +537,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
                         final item = filtered[index];
                         final thumbUrl =
                             item.processedImageUrl ?? item.imageUrl;
-                        final selected = _activeTryOnClothId == item.id;
+                        final selected = _isClothInCurrentOutfit(item);
                         return Padding(
                           padding: const EdgeInsets.only(right: 10),
                           child: GestureDetector(

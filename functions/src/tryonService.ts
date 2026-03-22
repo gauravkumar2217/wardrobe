@@ -5,7 +5,10 @@ import * as admin from "firebase-admin";
 const sharp = require("sharp");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const fetch: (input: any, init?: any) => Promise<any> = require("node-fetch");
-import {blendClothingWithGemini} from "./geminiService";
+import {
+  blendMultipleClothesWithGemini,
+  type GarmentBlendLayer,
+} from "./geminiService";
 import {getStorageBucket} from "./storageBucket";
 import {geminiApiKey} from "./secrets";
 
@@ -48,6 +51,38 @@ function detectClothingCategory(
     }
   }
   return "shirt"; // Default
+}
+
+const OUTFIT_LAYER_ORDER = ["shirt", "pants", "shoes", "accessory"];
+
+interface GarmentInput {
+  clothingItemId?: string;
+  clothingImageUrl: string;
+  clothingType?: string;
+}
+
+function layerOrderIndex(category: string): number {
+  const i = OUTFIT_LAYER_ORDER.indexOf(category.toLowerCase());
+  return i === -1 ? OUTFIT_LAYER_ORDER.length : i;
+}
+
+/** One garment per category; later entries replace earlier (same-type replace). */
+function normalizeGarmentsList(raw: GarmentInput[]): GarmentInput[] {
+  const byCategory = new Map<string, GarmentInput>();
+  for (const g of raw) {
+    if (!g.clothingImageUrl || !String(g.clothingImageUrl).trim()) {
+      continue;
+    }
+    const cat = detectClothingCategory(g.clothingType);
+    byCategory.set(cat, g);
+  }
+  const list = Array.from(byCategory.values());
+  list.sort(
+    (a, b) =>
+      layerOrderIndex(detectClothingCategory(a.clothingType)) -
+      layerOrderIndex(detectClothingCategory(b.clothingType))
+  );
+  return list;
 }
 
 /**
@@ -166,7 +201,9 @@ function base64ToBuffer(base64: string): Buffer {
 /**
  * Callable Cloud Function: Create Try-On
  * 
- * Input: { userId, avatarUrl, clothingItemId, clothingImageUrl, clothingType? }
+ * Input: { userId, avatarUrl, clothingItemId?, clothingImageUrl?, clothingType? }
+ *   or { userId, avatarUrl, garments: [{ clothingItemId?, clothingImageUrl, clothingType? }, ...] }
+ *   Multiple categories are blended in one result; duplicate categories keep the last item.
  * 
  * Process:
  * 1. Download avatar and clothing images
@@ -188,6 +225,7 @@ export const createTryOn = onCall(
     const clothingItemId = (data && data.clothingItemId) as string | undefined;
     const clothingImageUrl = (data && data.clothingImageUrl) as string | undefined;
     const clothingType = (data && data.clothingType) as string | undefined;
+    const garmentsRaw = data && data.garments;
 
     if (!request.auth || !request.auth.uid) {
       throw new HttpsError(
@@ -203,31 +241,57 @@ export const createTryOn = onCall(
       );
     }
 
-    if (!avatarUrl || !clothingImageUrl) {
+    let garmentsList: GarmentInput[] = [];
+    if (Array.isArray(garmentsRaw) && garmentsRaw.length > 0) {
+      garmentsList = garmentsRaw
+        .filter((g: any) => g && typeof g.clothingImageUrl === "string")
+        .map((g: any) => ({
+          clothingItemId: g.clothingItemId as string | undefined,
+          clothingImageUrl: g.clothingImageUrl as string,
+          clothingType: g.clothingType as string | undefined,
+        }));
+    } else if (clothingImageUrl) {
+      garmentsList = [{
+        clothingItemId,
+        clothingImageUrl,
+        clothingType,
+      }];
+    }
+
+    garmentsList = normalizeGarmentsList(garmentsList);
+
+    if (!avatarUrl || garmentsList.length === 0) {
       throw new HttpsError(
         "invalid-argument",
-        "avatarUrl and clothingImageUrl are required"
+        "avatarUrl and at least one garment (clothingImageUrl or garments[]) are required"
       );
     }
 
     try {
+      const idSummary = garmentsList
+        .map((g) => g.clothingItemId || "item")
+        .join(",");
       logger.info(
-        `Creating try-on for user: ${userId}, clothing: ${clothingItemId}`
+        `Creating try-on for user: ${userId}, garments: ${garmentsList.length} (${idSummary})`
       );
 
-      // Step 1: Download images
+      // Step 1: Download avatar + all garment images
       logger.info("Downloading avatar and clothing images...");
-      const [avatarResponse, clothingResponse] = await Promise.all([
-        fetch(avatarUrl),
-        fetch(clothingImageUrl),
-      ]);
-
-      if (!avatarResponse.ok || !clothingResponse.ok) {
-        throw new Error("Failed to download images");
+      const avatarResponse = await fetch(avatarUrl);
+      if (!avatarResponse.ok) {
+        throw new Error("Failed to download avatar");
       }
-
       const avatarBuffer = Buffer.from(await avatarResponse.arrayBuffer());
-      const clothingBuffer = Buffer.from(await clothingResponse.arrayBuffer());
+
+      const clothingBuffers = await Promise.all(
+        garmentsList.map(async (g) => {
+          const r = await fetch(g.clothingImageUrl);
+          if (!r.ok) {
+            throw new Error(`Failed to download clothing: ${g.clothingImageUrl}`);
+          }
+          return Buffer.from(await r.arrayBuffer());
+        })
+      );
 
       // Step 2: Load pose landmarks from Firestore
       logger.info("Loading pose landmarks from Firestore...");
@@ -241,47 +305,58 @@ export const createTryOn = onCall(
       const avatarData = avatarDoc.data();
       const poseLandmarks = (avatarData?.poseLandmarks || {}) as PoseLandmarks;
 
-      // Step 3: Detect clothing category
-      const category = detectClothingCategory(clothingType);
-
-      // Step 4: Get avatar dimensions
+      // Step 3–6: Per-garment category, position, resize
       const avatarMetadata = await sharp(avatarBuffer).metadata();
       const avatarWidth = avatarMetadata.width || 1024;
       const avatarHeight = avatarMetadata.height || 1024;
 
-      // Step 5: Calculate clothing position
-      const positionData = calculateClothingPosition(
-        category,
-        poseLandmarks,
-        avatarWidth,
-        avatarHeight
-      );
-
-      // Step 6: Resize clothing
-      logger.info("Resizing clothing...");
-      const resizedClothing = await resizeClothing(
-        clothingBuffer,
-        avatarWidth,
-        avatarHeight,
-        positionData.scale
-      );
-
-      // Step 7: Convert to base64 for Gemini
       const avatarBase64 = bufferToBase64(avatarBuffer);
-      const clothingBase64 = bufferToBase64(resizedClothing);
 
-      // Step 8: Call Gemini for blending
-      logger.info("Blending clothing with Gemini...");
-      const blendedResultBase64 = await blendClothingWithGemini(
-        avatarBase64,
-        clothingBase64,
-        {
+      const layers: GarmentBlendLayer[] = [];
+      const categories: string[] = [];
+
+      for (let i = 0; i < garmentsList.length; i++) {
+        const g = garmentsList[i];
+        const clothingBuffer = clothingBuffers[i];
+        const category = detectClothingCategory(g.clothingType);
+        categories.push(category);
+
+        const positionData = calculateClothingPosition(
           category,
-          x: positionData.x,
-          y: positionData.y,
-          scale: positionData.scale,
-          rotation: positionData.rotation,
-        }
+          poseLandmarks,
+          avatarWidth,
+          avatarHeight
+        );
+
+        logger.info(`Resizing clothing (${category})...`);
+        const resizedClothing = await resizeClothing(
+          clothingBuffer,
+          avatarWidth,
+          avatarHeight,
+          positionData.scale
+        );
+
+        layers.push({
+          clothingBase64: bufferToBase64(resizedClothing),
+          category,
+          positionData: {
+            x: positionData.x,
+            y: positionData.y,
+            scale: positionData.scale,
+            rotation: positionData.rotation,
+          },
+        });
+      }
+
+      const primaryCategory = categories[0] || "shirt";
+
+      // Step 7: Call Gemini (multi-garment when needed)
+      logger.info(
+        `Blending ${layers.length} garment(s) with Gemini...`
+      );
+      const blendedResultBase64 = await blendMultipleClothesWithGemini(
+        avatarBase64,
+        layers
       );
 
       const resultBuffer = base64ToBuffer(blendedResultBase64);
@@ -289,7 +364,7 @@ export const createTryOn = onCall(
       // Step 9: Upload result to Storage
       logger.info("Uploading try-on result to Storage...");
       const bucket = getStorageBucket();
-      const resultId = `${clothingItemId || "tryon"}_${Date.now()}`;
+      const resultId = `tryon_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const resultFileName = `users/${userId}/tryon/${resultId}.png`;
       const resultFile = bucket.file(resultFileName);
 
@@ -308,10 +383,13 @@ export const createTryOn = onCall(
       const tryOnDoc = {
         userId,
         avatarUrl,
-        clothingItemId: clothingItemId || "unknown",
-        clothingImageUrl,
+        clothingItemId: garmentsList[0]?.clothingItemId || clothingItemId || "unknown",
+        clothingImageUrl: garmentsList[0]?.clothingImageUrl || clothingImageUrl,
+        clothingItemIds: garmentsList.map((g) => g.clothingItemId || ""),
+        garmentCategories: categories,
         resultUrl,
-        category,
+        category: primaryCategory,
+        garmentCount: garmentsList.length,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
@@ -323,7 +401,8 @@ export const createTryOn = onCall(
         success: true,
         resultId,
         resultUrl,
-        category,
+        category: primaryCategory,
+        garmentCount: garmentsList.length,
       };
     } catch (error: any) {
       logger.error("Error creating try-on:", error);

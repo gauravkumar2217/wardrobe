@@ -150,4 +150,42 @@ class TryOn2DService {
       clothingType: cloth.clothType,
     );
   }
+
+  /// Full outfit: one item per category (shirt, pants, shoes, accessory).
+  /// Backend dedupes by category; same slot replaces previous.
+  static Future<String> createTryOnForOutfit({
+    required String userId,
+    required String avatarUrl,
+    required List<Cloth> garments,
+  }) async {
+    if (garments.isEmpty) {
+      throw Exception('At least one garment is required');
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '👔 Creating multi try-on: ${garments.length} piece(s)',
+      );
+    }
+
+    final data = await _callFunctionHttp('createTryOn', {
+      'userId': userId,
+      'avatarUrl': avatarUrl,
+      'garments': garments
+          .map(
+            (c) => {
+              'clothingItemId': c.id,
+              'clothingImageUrl': clothingImageUrlForTryOn(c),
+              'clothingType': c.clothType,
+            },
+          )
+          .toList(),
+    });
+    final resultUrl = data['resultUrl'] as String;
+
+    if (kDebugMode) {
+      debugPrint('✅ Try-on outfit created: $resultUrl');
+    }
+
+    return resultUrl;
+  }
 }

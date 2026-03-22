@@ -264,3 +264,141 @@ Return ONLY the final composite image as base64-encoded PNG data with transparen
     throw error;
   }
 }
+
+export interface GarmentBlendLayer {
+  clothingBase64: string;
+  category: string;
+  positionData: {
+    x: number;
+    y: number;
+    scale: number;
+    rotation?: number;
+  };
+}
+
+/**
+ * Blend multiple clothing items onto one avatar in a single pass (full outfit).
+ */
+export async function blendMultipleClothesWithGemini(
+  avatarBase64: string,
+  layers: GarmentBlendLayer[]
+): Promise<string> {
+  if (!layers.length) {
+    throw new Error("No garments to blend");
+  }
+  if (layers.length === 1) {
+    const g = layers[0];
+    return blendClothingWithGemini(avatarBase64, g.clothingBase64, {
+      category: g.category,
+      x: g.positionData.x,
+      y: g.positionData.y,
+      scale: g.positionData.scale,
+      rotation: g.positionData.rotation,
+    });
+  }
+
+  const url = buildGenerateContentUrl();
+
+  const categoryInstructions: Record<string, string> = {
+    shirt: "upper body / top / dress / outerwear — fit to shoulders and torso",
+    pants: "lower body — waist through legs (skip if image 1 already shows a full-length dress covering legs)",
+    shoes: "feet only — correct perspective and ground contact",
+    accessory: "appropriate zone (head, neck, wrist, or carried) without duplicating body parts",
+  };
+
+  const lines = layers.map((g, i) => {
+    const hint =
+      categoryInstructions[g.category.toLowerCase()] ||
+      "place naturally on the body";
+    const scaleHint =
+      typeof g.positionData.scale === "number" ?
+        ` (scale guide ~${g.positionData.scale.toFixed(2)})` :
+        "";
+    return `- Image ${i + 2}: **${g.category}** — ${hint}${scaleHint}`;
+  });
+
+  const prompt = `You are an AI fashion visualization expert.
+
+Image 1 is one full-body person on a **transparent PNG** background.
+
+The following ${layers.length} images are **separate product photos** of clothing or accessories. Apply **all of them at once** to the **same person** in image 1 so they appear to be wearing the **complete outfit** together:
+
+${lines.join("\n")}
+
+Rules:
+1. Preserve the person's identity, pose, and proportions from image 1.
+2. Warp and perspective-match each garment to the body; do not paste flat rectangles.
+3. **Shirt/top/dress/jacket** and **pants/skirt** must both appear if both are provided; if a **dress** covers the lower body, do not add conflicting separate bottoms.
+4. Match lighting and add subtle contact shadows; edges must blend naturally.
+5. Keep the background **fully transparent** outside the person, like image 1.
+6. Ignore mannequins, hangers, or hands in product images — only the garment design matters.
+
+Return ONLY the final composite as base64-encoded PNG with transparent background.`;
+
+  const parts: Array<
+    | {text: string}
+    | {inline_data: {mime_type: string; data: string}}
+  > = [{text: prompt}, {
+    inline_data: {mime_type: "image/png", data: avatarBase64},
+  }];
+
+  for (const g of layers) {
+    parts.push({
+      inline_data: {mime_type: "image/png", data: g.clothingBase64},
+    });
+  }
+
+  const body = {
+    contents: [{parts}],
+    generationConfig: imageGenerationConfig,
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const json = (await response.json()) as GeminiResponse;
+    const candidates = json.candidates;
+
+    if (!candidates || !candidates.length) {
+      throw new Error("No candidates returned from Gemini API");
+    }
+
+    const respParts = candidates[0]?.content?.parts;
+    if (!respParts || !respParts.length) {
+      throw new Error("No content parts in Gemini response");
+    }
+
+    const imagePart = respParts.find((p) => partImageBase64(p));
+    const img = imagePart && partImageBase64(imagePart);
+    if (img) {
+      return img;
+    }
+
+    const textPart = respParts.find((p) => p.text);
+    if (textPart?.text) {
+      const base64Match = textPart.text.match(
+        /data:image\/png;base64,([A-Za-z0-9+/=]+)/
+      );
+      if (base64Match && base64Match[1]) {
+        return base64Match[1];
+      }
+    }
+
+    throw new Error("Could not extract image data from Gemini response");
+  } catch (error) {
+    functions.logger.error(
+      "Error calling Gemini API for multi-garment blend:",
+      error
+    );
+    throw error;
+  }
+}
