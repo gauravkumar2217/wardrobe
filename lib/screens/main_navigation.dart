@@ -11,6 +11,7 @@ import '../services/app_state_service.dart';
 import '../services/fcm_service.dart';
 import '../services/onboarding_service.dart';
 import '../widgets/tooltip_overlay.dart';
+import '../utils/main_shell_navigation.dart';
 import 'home/home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
 import 'friends/friends_list_screen.dart';
@@ -213,7 +214,7 @@ class _MainNavigationState extends State<MainNavigation>
               id: 'home',
               title: 'Welcome to Wardrobe!',
               description:
-                  'Swipe through your clothes here. Tap on any cloth to see details, like, comment, or share with friends.',
+                  'Home — tap Clothes for the swipe feed, or open wardrobes, changing room, scheduler, friends, chats, and more.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -406,33 +407,46 @@ class _MainNavigationState extends State<MainNavigation>
           : null,
       hasMoreSteps: onboardingProvider.hasMoreSteps,
       hasPreviousSteps: onboardingProvider.currentStepIndex > 0,
-      child: Scaffold(
-        body: IndexedStack(
-          index: navigationProvider.currentIndex,
-          children: _screens,
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: navigationProvider.currentIndex,
-          onTap: (index) {
-            // If tapping home icon (index 0), clear all filters
-            if (index == 0) {
-              final filterProvider =
-                  Provider.of<FilterProvider>(context, listen: false);
-              final wardrobeProvider =
-                  Provider.of<WardrobeProvider>(context, listen: false);
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (!mounted) return;
+          handleMainShellBackButton(context);
+        },
+        child: Scaffold(
+          body: IndexedStack(
+            index: navigationProvider.currentIndex,
+            children: _screens,
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: navigationProvider.currentIndex,
+            onTap: (index) {
+              // Pop any pushed routes (feed, try-on, settings, etc.) so the tab body is visible
+              final nav = Navigator.of(context);
+              if (nav.canPop()) {
+                nav.popUntil((route) => route.isFirst);
+              }
 
-              // Clear all filters and selected wardrobe
-              filterProvider.clearFilters();
-              wardrobeProvider.setSelectedWardrobe(null);
-            }
+              // Home (logo): clear filters and always show hub
+              if (index == 0) {
+                final filterProvider =
+                    Provider.of<FilterProvider>(context, listen: false);
+                final wardrobeProvider =
+                    Provider.of<WardrobeProvider>(context, listen: false);
+                filterProvider.clearFilters();
+                wardrobeProvider.setSelectedWardrobe(null);
+                navigationProvider.goHomeTab();
+                return;
+              }
 
-            navigationProvider.setCurrentIndex(index);
-          },
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFF043915),
-          unselectedItemColor: Colors.grey,
-          key: _bottomNavKey,
-          items: [
+              navigationProvider.setCurrentIndex(index);
+            },
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: const Color(0xFF043915),
+            unselectedItemColor: Colors.grey,
+            key: _bottomNavKey,
+            items: [
             BottomNavigationBarItem(
               icon: Image.asset(
                 'assets/images/logo-chat.png',
@@ -491,7 +505,8 @@ class _MainNavigationState extends State<MainNavigation>
               icon: Icon(Icons.person),
               label: 'Profile',
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

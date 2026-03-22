@@ -11,6 +11,7 @@ import '../../services/banner_service.dart';
 import '../../models/wardrobe.dart';
 import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
+import '../../utils/main_shell_navigation.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -92,6 +93,8 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
         title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: mainShellAppBarLeading(context),
         actions: [
           // Only show add button when not in selection mode
           if (!widget.selectionMode)

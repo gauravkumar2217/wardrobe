@@ -8,6 +8,7 @@ import '../../models/user_profile.dart';
 import '../../models/friend_request.dart';
 import '../friends/search_users_screen.dart';
 import '../chat/chat_detail_screen.dart';
+import '../../utils/main_shell_navigation.dart';
 
 /// Friends list screen
 class FriendsListScreen extends StatefulWidget {
@@ -252,6 +253,8 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
         title: const Text('Friends'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: mainShellAppBarLeading(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),

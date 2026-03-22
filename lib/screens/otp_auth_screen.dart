@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sms_autofill/sms_autofill.dart';
-import 'home/home_screen.dart';
+import 'main_navigation.dart';
 import '../services/fcm_token_service.dart';
 
 class OTPAuthScreen extends StatefulWidget {
@@ -145,7 +145,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         },
@@ -261,7 +261,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         }
@@ -292,7 +292,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
               if (mounted) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  MaterialPageRoute(builder: (context) => const MainNavigation()),
                 );
               }
             });
@@ -536,7 +536,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         }
@@ -586,7 +586,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
             if (mounted) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                MaterialPageRoute(builder: (context) => const MainNavigation()),
               );
             }
           }

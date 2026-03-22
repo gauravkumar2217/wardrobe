@@ -7,10 +7,18 @@ class NavigationProvider with ChangeNotifier {
   int get currentIndex => _currentIndex;
 
   void setCurrentIndex(int index) {
-    if (_currentIndex != index) {
-      _currentIndex = index;
+    if (_currentIndex == index) {
       notifyListeners();
+      return;
     }
+    _currentIndex = index;
+    notifyListeners();
+  }
+
+  /// Switch to Home tab and notify even if already on Home (e.g. pop overlays).
+  void goHomeTab() {
+    _currentIndex = 0;
+    notifyListeners();
   }
 
   void navigateToHome() {

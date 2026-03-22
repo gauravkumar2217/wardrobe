@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_service.dart';
 import 'chat_detail_screen.dart';
+import '../../utils/main_shell_navigation.dart';
 
 /// Chat list screen showing all user chats
 class ChatListScreen extends StatefulWidget {
@@ -85,6 +86,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         title: const Text('Messages'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: mainShellAppBarLeading(context),
       ),
       body: chatProvider.isLoading && chatProvider.chats.isEmpty
           ? const Center(child: CircularProgressIndicator())

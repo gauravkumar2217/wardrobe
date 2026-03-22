@@ -17,6 +17,8 @@ import 'settings_screen.dart';
 import '../auth/login_screen.dart';
 import '../changing_room/changing_room_screen.dart';
 import '../cloth/batch_convert_screen.dart';
+import '../home/home_screen.dart';
+import '../../utils/main_shell_navigation.dart';
 
 /// Profile screen displaying user info and stats
 class ProfileScreen extends StatefulWidget {
@@ -135,6 +137,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Profile'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: mainShellAppBarLeading(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -275,6 +279,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Card(
                 child: Column(
                   children: [
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.asset(
+                          'assets/images/logo-chat.png',
+                          width: 28,
+                          height: 28,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.home_rounded,
+                            color: Color(0xFF043915),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      title: const Text('Home',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: const Text(
+                        'Feature cards — Clothes opens swipe closet',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const HomeScreen(showAppBar: true),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(
