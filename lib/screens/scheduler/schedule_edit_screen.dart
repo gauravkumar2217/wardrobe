@@ -152,30 +152,30 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             title: const Text('Select Days', style: TextStyle(fontSize: 14)),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(7, (index) {
-                    return CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(dayNames[index],
-                          style: const TextStyle(fontSize: 13)),
-                      value: tempSelectedDays.contains(index),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          if (value == true) {
-                            tempSelectedDays.add(index);
-                          } else {
-                            tempSelectedDays.remove(index);
-                          }
-                        });
-                      },
-                    );
-                  }),
-                ),
+            // No maxHeight: a 300px cap hid Saturday unless the user scrolled.
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(7, (index) {
+                  return CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      dayNames[index],
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    value: tempSelectedDays.contains(index),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        if (value == true) {
+                          tempSelectedDays.add(index);
+                        } else {
+                          tempSelectedDays.remove(index);
+                        }
+                      });
+                    },
+                  );
+                }),
               ),
             ),
             actions: [
@@ -291,7 +291,10 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(widget.schedule == null ? 'New Schedule' : 'Edit Schedule'),
         backgroundColor: const Color(0xFF043915),
@@ -299,11 +302,21 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
       ),
       body: _isLoadingData
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
+          : SafeArea(
+              top: false,
+              bottom: true,
+              minimum: EdgeInsets.zero,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    // Breathing room above safe area; extra scroll extent when keyboard is open
+                    24 + keyboardInset,
+                  ),
+                  children: [
                   // Title
                   TextFormField(
                     controller: _titleController,
@@ -518,6 +531,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                           ),
                   ),
                 ],
+                ),
               ),
             ),
     );

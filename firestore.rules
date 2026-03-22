@@ -341,6 +341,11 @@ service cloud.firestore {
         // Only the owner can read or write their rendered outfits
         allow read, write: if isOwner(userId);
       }
+
+      // Schedules: users/{userId}/schedules/{scheduleId} — outfit reminder schedules
+      match /schedules/{scheduleId} {
+        allow read, create, update, delete: if isOwner(userId);
+      }
       
       // Notifications subcollection: users/{userId}/notifications/{notificationId}
       match /notifications/{notificationId} {
