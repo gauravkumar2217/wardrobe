@@ -202,73 +202,45 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Column(
         children: [
-          Material(
-            elevation: 2,
-            shadowColor: brand.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(24),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: brand.withValues(alpha: 0.08),
-                      boxShadow: [
-                        BoxShadow(
-                          color: brand.withValues(alpha: 0.12),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo-chat.png',
-                      height: 64,
-                      width: 64,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Icon(
+          Center(
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/logo-chat.png',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => ColoredBox(
+                    color: brand.withValues(alpha: 0.1),
+                    child: Center(
+                      child: Icon(
                         Icons.checkroom_rounded,
-                        size: 64,
+                        size: 30,
                         color: brand,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Home',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: brand,
-                          letterSpacing: -0.8,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Wardrobe',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Everything in one place',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.black45,
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
