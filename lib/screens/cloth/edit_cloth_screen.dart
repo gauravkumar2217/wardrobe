@@ -272,21 +272,36 @@ class _EditClothScreenState extends State<EditClothScreen> {
     if (_isLoadingTags) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit Cloth')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const SafeArea(
+          top: false,
+          bottom: true,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     final tags = TagListService.getCachedTagLists();
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Edit Cloth'),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: EdgeInsets.zero,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            24 + keyboardInset,
+          ),
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -611,6 +626,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

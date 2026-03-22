@@ -7,6 +7,7 @@ import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../models/wardrobe.dart';
 import '../../utils/cloth_tag_color.dart';
+import '../../utils/open_clothes_feed.dart';
 
 /// Statistics screen showing counts by type, occasion, season, and color
 class StatisticsScreen extends StatefulWidget {
@@ -107,10 +108,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       color: color,
     );
 
-    // Navigate to home screen
+    // Home tab + Clothes swipe screen (filters applied there)
     final navigationProvider =
         Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
+    openClothesFeed(navigationProvider);
 
     // Pop statistics screen
     Navigator.pop(context);
@@ -126,10 +127,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
     filterProvider.clearFilters();
 
-    // Navigate to home screen
+    // Home tab + Clothes swipe screen (wardrobe selection applies there)
     final navigationProvider =
         Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
+    openClothesFeed(navigationProvider);
 
     // Pop statistics screen
     Navigator.pop(context);

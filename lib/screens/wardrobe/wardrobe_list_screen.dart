@@ -12,6 +12,7 @@ import '../../models/wardrobe.dart';
 import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
 import '../../utils/main_shell_navigation.dart';
+import '../../utils/open_clothes_feed.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -73,9 +74,9 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
     filterProvider.clearFilters();
     
-    // Navigate to home screen
+    // Home tab + open Clothes feed (swipe closet), same as Home "Clothes" card
     final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
+    openClothesFeed(navigationProvider);
     
     // Pop wardrobe list screen if it was pushed (i.e., not from main navigation tab)
     if (Navigator.canPop(context)) {
