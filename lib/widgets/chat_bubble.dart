@@ -316,17 +316,6 @@ class _ClothShareCardState extends State<_ClothShareCard> {
       return _buildSimpleCard('Cloth shared');
     }
 
-    // If we have an error but haven't tried loading yet, try loading
-    if (_hasError && !_isLoading && _cachedCloth == null) {
-      debugPrint('🔄 ClothShareCard: Had error, retrying load...');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _hasError = false;
-          _loadCloth();
-        }
-      });
-    }
-
     if (_isLoading) {
       debugPrint('⏳ ClothShareCard: Still loading, showing loader');
       return _buildSimpleCard('Loading...', showLoader: true);
