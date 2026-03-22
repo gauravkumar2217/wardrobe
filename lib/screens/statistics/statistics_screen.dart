@@ -6,6 +6,7 @@ import '../../providers/filter_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../models/wardrobe.dart';
+import '../../utils/cloth_tag_color.dart';
 
 /// Statistics screen showing counts by type, occasion, season, and color
 class StatisticsScreen extends StatefulWidget {
@@ -202,10 +203,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   icon: Icons.palette,
                   counts: _colorCounts,
                   onTap: (color) => _navigateToHomeWithFilter(color: color),
+                  rowLeading: _colorSwatch,
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _colorSwatch(String label) {
+    final c = colorForClothTag(label);
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: c,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: borderColorForSwatch(c)),
         ),
       ),
     );
@@ -216,6 +233,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required IconData icon,
     required Map<String, int> counts,
     required Function(String) onTap,
+    Widget? Function(String label)? rowLeading,
   }) {
     if (counts.isEmpty) {
       return Card(
@@ -260,10 +278,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
             const SizedBox(height: 8),
             ...sortedEntries.map((entry) {
+              final leading = rowLeading?.call(entry.key);
               return ListTile(
                 dense: true,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                leading: leading,
                 title: Text(entry.key, style: const TextStyle(fontSize: 13)),
                 trailing: Chip(
                   label: Text('${entry.value}',
