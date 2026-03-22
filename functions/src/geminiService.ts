@@ -170,17 +170,22 @@ export async function blendClothingWithGemini(
   const categoryInstruction = categoryInstructions[positionData.category.toLowerCase()] ||
     "Place the clothing item naturally on the avatar.";
 
+  const scaleHint = typeof positionData.scale === "number" ?
+    `Approximate scale factor relative to body: ${positionData.scale.toFixed(2)} (use as a loose guide only).` :
+    "";
+
   const prompt = `You are an AI fashion visualization expert. Your task is to blend a clothing item onto an avatar image.
 
 Instructions:
-1. Take the transparent avatar (first image) and the clothing item (second image)
+1. Take the transparent avatar (first image) as the body; use the clothing item (second image) as the garment to wear.
 2. ${categoryInstruction}
-3. Match the lighting and shadows of the avatar
-4. Ensure the clothing follows the body's natural curves and contours
-5. Blend edges seamlessly for a realistic appearance
-6. Maintain the transparent background of the avatar
-7. Scale the clothing appropriately to fit the avatar's proportions
-8. Apply realistic fabric draping and texture
+3. ${scaleHint}
+4. Warp and perspective-match the garment to the avatar's pose — do not paste it as a flat rectangle; it must wrap the torso, legs, or feet naturally.
+5. Match the lighting and shadows of the avatar; add subtle contact shadows where fabric meets skin.
+6. Ensure the clothing follows the body's natural curves and contours.
+7. Blend edges seamlessly for a realistic appearance.
+8. Keep the background fully transparent outside the person, like the input avatar.
+9. If the second image still shows a mannequin or hanger, ignore it and only transfer the garment's fabric, color, and design onto the avatar.
 
 The result should look like the person is actually wearing the clothing item, with:
 - Natural fit and proportions

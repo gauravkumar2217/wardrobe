@@ -127,6 +127,15 @@ class TryOn2DService {
     }
   }
 
+  /// Best image URL for try-on (cutout helps Gemini fit the garment).
+  static String clothingImageUrlForTryOn(Cloth cloth) {
+    if (cloth.processedImageUrl != null &&
+        cloth.processedImageUrl!.trim().isNotEmpty) {
+      return cloth.processedImageUrl!;
+    }
+    return cloth.imageUrl;
+  }
+
   /// Create try-on from Cloth model
   static Future<String> createTryOnFromCloth({
     required String userId,
@@ -137,7 +146,7 @@ class TryOn2DService {
       userId: userId,
       avatarUrl: avatarUrl,
       clothingItemId: cloth.id,
-      clothingImageUrl: cloth.imageUrl,
+      clothingImageUrl: clothingImageUrlForTryOn(cloth),
       clothingType: cloth.clothType,
     );
   }

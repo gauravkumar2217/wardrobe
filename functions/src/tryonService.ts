@@ -32,16 +32,18 @@ function detectClothingCategory(
 ): string {
   if (clothingType) {
     const type = clothingType.toLowerCase();
-    if (["shirt", "t-shirt", "top", "blouse", "sweater", "hoodie"].includes(type)) {
+    if (["shirt", "t-shirt", "top", "blouse", "sweater", "hoodie", "dress", "gown",
+      "jumpsuit", "romper", "jacket", "coat", "blazer", "cardigan", "vest", "kurta",
+      "tank", "polo", "crop"].includes(type)) {
       return "shirt";
     }
-    if (["pants", "trousers", "jeans", "shorts", "leggings"].includes(type)) {
+    if (["pants", "trousers", "jeans", "shorts", "leggings", "skirt", "cargo"].includes(type)) {
       return "pants";
     }
-    if (["shoes", "sneakers", "boots", "sandals", "heels", "footwear"].includes(type)) {
+    if (["shoes", "sneakers", "boots", "sandals", "heels", "footwear", "loafers", "flats"].includes(type)) {
       return "shoes";
     }
-    if (["accessory", "bag", "hat", "watch", "jewelry", "belt"].includes(type)) {
+    if (["accessory", "bag", "hat", "watch", "jewelry", "belt", "scarf", "sunglasses"].includes(type)) {
       return "accessory";
     }
   }
