@@ -216,5 +216,18 @@ class StorageService {
       rethrow;
     }
   }
+
+  /// Get storage reference (helper for avatar service)
+  static Reference getStorageRef() {
+    return _storage.ref();
+  }
+
+  /// Get metadata for uploads (helper for avatar service)
+  static SettableMetadata getMetadata({String? contentType, String? cacheControl}) {
+    return SettableMetadata(
+      contentType: contentType ?? 'image/jpeg',
+      cacheControl: cacheControl ?? 'max-age=31536000',
+    );
+  }
 }
 

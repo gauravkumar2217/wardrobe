@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cloth_provider.dart';
-import '../../models/body_profile.dart';
+import '../../models/avatar.dart' as avatar_model show Avatar;
 import '../../models/cloth.dart';
 import '../../models/tryon_outfit.dart';
 import '../../services/user_service.dart';
-import '../../widgets/body_with_clothes_widget.dart';
+import '../../services/tryon_2d_service.dart';
 import '../../widgets/item_selector_widget.dart';
+import '../../widgets/avatar_2d_display_widget.dart';
 
 /// Changing room screen for virtual try-on
 class ChangingRoomScreen extends StatefulWidget {
@@ -18,10 +20,12 @@ class ChangingRoomScreen extends StatefulWidget {
 }
 
 class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
-  BodyProfile? _bodyProfile;
+  avatar_model.Avatar? _avatar;
   TryOnOutfit _currentOutfit = TryOnOutfit();
   String? _selectedCategory; // 'shirt', 'pants', 'shoes', 'accessory'
   bool _isLoading = true;
+  String? _tryOnResultUrl;
+  bool _isGeneratingTryOn = false;
 
   @override
   void initState() {
@@ -45,14 +49,24 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     }
 
     try {
-      final bodyProfile = await UserService.getBodyProfile(authProvider.user!.uid);
-      if (mounted) {
-        setState(() {
-          _bodyProfile = bodyProfile;
-        });
+      // Try to load avatar first (new system)
+      final avatar = await UserService.getAvatar(authProvider.user!.uid);
+      if (avatar != null && avatar.isGenerated) {
+        if (mounted) {
+          setState(() {
+            _avatar = avatar;
+          });
+        }
+      } else {
+        // No avatar available
+        if (mounted) {
+          setState(() {
+            _avatar = null;
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Error loading body profile: $e');
+      debugPrint('Error loading avatar/body profile: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -85,7 +99,8 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     final shirts = clothes.where((c) => _isShirtType(c.clothType)).toList();
     final pants = clothes.where((c) => _isPantsType(c.clothType)).toList();
     final shoes = clothes.where((c) => _isShoesType(c.clothType)).toList();
-    final accessories = clothes.where((c) => _isAccessoryType(c.clothType)).toList();
+    final accessories =
+        clothes.where((c) => _isAccessoryType(c.clothType)).toList();
 
     // Select random items
     final random = DateTime.now().millisecondsSinceEpoch;
@@ -175,7 +190,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     });
   }
 
-  void _onItemSelected(Cloth item) {
+  void _onItemSelected(Cloth item) async {
     setState(() {
       final category = _selectedCategory ?? 'shirt';
       _currentOutfit = _currentOutfit.copyWith(
@@ -201,6 +216,48 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
           break;
       }
     });
+
+    // Generate try-on result
+    if (_avatar != null && _avatar!.avatarImageUrl != null) {
+      await _generateTryOn(item);
+    }
+  }
+
+  Future<void> _generateTryOn(Cloth item) async {
+    if (_avatar == null || _avatar!.avatarImageUrl == null) return;
+
+    setState(() {
+      _isGeneratingTryOn = true;
+      _tryOnResultUrl = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.user == null) return;
+
+      final resultUrl = await TryOn2DService.createTryOnFromCloth(
+        userId: authProvider.user!.uid,
+        avatarUrl: _avatar!.avatarImageUrl!,
+        cloth: item,
+      );
+
+      if (mounted) {
+        setState(() {
+          _tryOnResultUrl = resultUrl;
+          _isGeneratingTryOn = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating try-on: $e');
+      if (mounted) {
+        setState(() {
+          _isGeneratingTryOn = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating try-on: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -218,7 +275,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
       );
     }
 
-    if (_bodyProfile == null) {
+    if (_avatar == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Changing Room'),
@@ -229,15 +286,15 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_off, size: 64, color: Colors.grey),
+              const Icon(Icons.face, size: 64, color: Colors.grey),
               const SizedBox(height: 16),
               const Text(
-                'Body profile required',
+                'Avatar required',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Please scan your body profile first',
+                'Please create your avatar first',
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),
@@ -266,20 +323,63 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
       ),
       body: Column(
         children: [
-          // Body with clothes display
+          // Avatar display and try-on result
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
-              child: Center(
-                child: BodyWithClothesWidget(
-                  bodyProfile: _bodyProfile,
-                  shirt: _currentOutfit.items['shirt'],
-                  pants: _currentOutfit.items['pants'],
-                  shoes: _currentOutfit.items['shoes'],
-                  accessory: _currentOutfit.items['accessory'],
-                  width: MediaQuery.of(context).size.width * 0.6,
-                  height: MediaQuery.of(context).size.height * 0.5,
-                ),
+              child: Column(
+                children: [
+                  // Avatar display
+                  Expanded(
+                    child: Center(
+                      child: _avatar != null && _avatar!.isGenerated
+                          ? Avatar2DDisplayWidget(
+                              avatar: _avatar,
+                              width: MediaQuery.of(context).size.width * 0.8,
+                              height: MediaQuery.of(context).size.height * 0.4,
+                            )
+                          : const Text(
+                              'Avatar not ready yet. Please create your avatar first.',
+                            ),
+                    ),
+                  ),
+                  // Try-on result
+                  if (_isGeneratingTryOn)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 8),
+                          Text('Generating try-on...'),
+                        ],
+                      ),
+                    )
+                  else if (_tryOnResultUrl != null)
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: CachedNetworkImage(
+                            imageUrl: _tryOnResultUrl!,
+                            fit: BoxFit.contain,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.error,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

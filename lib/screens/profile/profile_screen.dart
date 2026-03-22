@@ -12,7 +12,7 @@ import '../friends/friends_list_screen.dart';
 import '../friends/friend_requests_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'edit_profile_screen.dart';
-import 'body_scan_screen.dart';
+import 'create_avatar_screen.dart';
 import 'settings_screen.dart';
 import '../auth/login_screen.dart';
 import '../changing_room/changing_room_screen.dart';
@@ -403,16 +403,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 2),
-                      leading: const Icon(Icons.camera_alt,
+                      leading: const Icon(Icons.face,
                           color: Color(0xFF043915), size: 18),
-                      title: const Text('Body Scan',
+                      title: const Text('Create Avatar',
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const BodyScanScreen()),
+                              builder: (_) => const CreateAvatarScreen()),
                         );
                       },
                     ),
