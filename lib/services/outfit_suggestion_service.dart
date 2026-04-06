@@ -4,13 +4,266 @@ import 'dart:convert';
 import 'dart:math';
 import '../models/cloth.dart';
 import '../models/outfit_suggestion.dart';
-import '../services/cloth_service.dart';
 
 /// Service for generating outfit suggestions based on unworn clothes
 class OutfitSuggestionService {
   static const String _suggestionsKey = 'outfit_suggestions';
+  static const String _dailySuggestionKey = 'daily_outfit_suggestion';
   static const int _maxStoredSuggestions = 10; // Keep last 10 suggestions
   static const int _daysNotWornThreshold = 7; // Consider "not worn recently" if not worn in 7+ days
+
+  static String _dayKey(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y$m$d';
+  }
+
+  static int _stableSeed(String input) {
+    // Simple stable 32-bit hash (FNV-1a like) for deterministic daily picks.
+    var hash = 0x811C9DC5;
+    for (final codeUnit in input.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash;
+  }
+
+  static bool _isEligibleForSuggestion(Cloth cloth) {
+    // Only suggest items that are actually wearable / available.
+    // Keep this conservative so suggestions don't include donated/repair items.
+    const blockedPlacements = {
+      'Donated',
+      'Sold',
+      'Storage',
+      'Repairing',
+      'DryCleaning',
+      'Laundry',
+      'Lent',
+    };
+    return !blockedPlacements.contains(cloth.placement);
+  }
+
+  static int _daysSinceWorn(Cloth cloth, DateTime now) {
+    if (cloth.wornAt == null) return 100000; // "Never worn" gets max priority.
+    return now.difference(cloth.wornAt!).inDays;
+  }
+
+  static Set<String> _tagsFor(Cloth cloth) {
+    final tags = <String>{};
+    tags.add('kind:${cloth.itemKind}');
+    tags.add('type:${cloth.clothType}');
+    tags.add('season:${cloth.season}');
+    tags.add('category:${cloth.category}');
+    for (final occ in cloth.occasions) {
+      tags.add('occasion:$occ');
+    }
+    for (final c in cloth.colorTags.colors) {
+      tags.add('color:$c');
+    }
+    return tags;
+  }
+
+  static int _tagMatchScore(Set<String> a, Set<String> b) {
+    // Weighted matching: occasion/category/season/color are more meaningful than type/kind.
+    var score = 0;
+    for (final tag in a) {
+      if (!b.contains(tag)) continue;
+      if (tag.startsWith('occasion:')) score += 5;
+      else if (tag.startsWith('category:')) score += 4;
+      else if (tag.startsWith('season:')) score += 3;
+      else if (tag.startsWith('color:')) score += 2;
+      else score += 1;
+    }
+    return score;
+  }
+
+  static Cloth? _pickBest({
+    required List<Cloth> pool,
+    required Set<String> wantedTags,
+    required DateTime now,
+    required Random random,
+    Set<String>? excludeIds,
+    String? itemKind,
+  }) {
+    final excluded = excludeIds ?? const <String>{};
+    final candidates = pool.where((c) {
+      if (excluded.contains(c.id)) return false;
+      if (itemKind != null && c.itemKind != itemKind) return false;
+      return true;
+    }).toList();
+
+    if (candidates.isEmpty) return null;
+
+    // Score = staleness + tag match; add tiny randomness so ties rotate.
+    Cloth best = candidates.first;
+    var bestScore = -1.0;
+    for (final c in candidates) {
+      final staleness = _daysSinceWorn(c, now);
+      final match = _tagMatchScore(_tagsFor(c), wantedTags);
+      final jitter = random.nextDouble() * 0.25;
+      final score = (staleness * 1.0) + (match * 10.0) + jitter;
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  static OutfitSuggestion? _buildSuggestion({
+    required String userId,
+    required List<Cloth> pool,
+    required int index,
+    required DateTime now,
+    required Random random,
+    String? purpose,
+    String? dayKey,
+  }) {
+    if (pool.length < 2) return null;
+
+    final eligible = pool.where(_isEligibleForSuggestion).toList();
+    if (eligible.length < 2) return null;
+
+    // Prefer anchoring suggestions on real clothing items when possible.
+    final eligibleCloth = eligible.where((c) => c.itemKind == 'cloth').toList();
+    final anchorPool = eligibleCloth.isNotEmpty ? eligibleCloth : eligible;
+    anchorPool.sort(
+        (a, b) => _daysSinceWorn(b, now).compareTo(_daysSinceWorn(a, now)));
+    final anchor = anchorPool.first;
+    final wantedTags = _tagsFor(anchor);
+
+    final selected = <Cloth>[anchor];
+    final selectedIds = <String>{anchor.id};
+
+    // Pick 1-2 more "cloth" items matching the anchor's tags.
+    for (var i = 0; i < 2; i++) {
+      final next = _pickBest(
+        pool: eligible,
+        wantedTags: wantedTags,
+        now: now,
+        random: random,
+        excludeIds: selectedIds,
+        itemKind: 'cloth',
+      );
+      if (next == null) break;
+      selected.add(next);
+      selectedIds.add(next.id);
+    }
+
+    // Add footwear if available.
+    final footwear = _pickBest(
+      pool: eligible,
+      wantedTags: wantedTags,
+      now: now,
+      random: random,
+      excludeIds: selectedIds,
+      itemKind: 'footwear',
+    );
+    if (footwear != null) {
+      selected.add(footwear);
+      selectedIds.add(footwear.id);
+    }
+
+    // Add up to 2 accessories (optional).
+    for (var i = 0; i < 2; i++) {
+      final acc = _pickBest(
+        pool: eligible,
+        wantedTags: wantedTags,
+        now: now,
+        random: random,
+        excludeIds: selectedIds,
+        itemKind: 'accessories',
+      );
+      if (acc == null) break;
+      selected.add(acc);
+      selectedIds.add(acc.id);
+    }
+
+    if (selected.length < 2) return null;
+
+    final createdAt = now;
+    final suggestionId = dayKey != null
+        ? '${_dailySuggestionKey}_${userId}_$dayKey'
+        : '${DateTime.now().millisecondsSinceEpoch}_$index';
+
+    final anchorDays = _daysSinceWorn(anchor, now);
+    final titleParts = <String>[];
+    if (anchor.category.isNotEmpty) titleParts.add(anchor.category);
+    if (anchor.season.isNotEmpty) titleParts.add(anchor.season);
+    final title = titleParts.isEmpty ? 'Daily Suggestion' : '${titleParts.join(' • ')} look';
+
+    final description = anchor.wornAt == null
+        ? 'Based on items you haven’t worn yet, plus matching tags (season/occasion/colors).'
+        : 'Based on items you haven’t worn in $anchorDays days, plus matching tags (season/occasion/colors).';
+
+    return OutfitSuggestion(
+      id: suggestionId,
+      userId: userId,
+      createdAt: createdAt,
+      clothIds: selected.map((c) => c.id).toList(),
+      title: title,
+      description: description,
+      metadata: {
+        if (purpose != null) 'purpose': purpose,
+        if (dayKey != null) 'dayKey': dayKey,
+        'anchorId': anchor.id,
+        'anchorDaysSinceWorn': anchorDays,
+        'anchorCategory': anchor.category,
+        'anchorSeason': anchor.season,
+        'anchorOccasions': anchor.occasions,
+        'anchorColors': anchor.colorTags.colors,
+        'includedKinds': selected.map((c) => c.itemKind).toSet().toList(),
+      },
+    );
+  }
+
+  /// Return today's suggestion (stable for the day) and cache it locally.
+  /// Also stores it in the normal suggestions history so it can show up in history screens.
+  static Future<OutfitSuggestion?> getOrCreateDailySuggestion({
+    required String userId,
+    required List<Cloth> availableClothes,
+    DateTime? forDate,
+    bool forceNew = false,
+  }) async {
+    final date = forDate ?? DateTime.now();
+    final key = _dayKey(date);
+    final prefsKey = '${_dailySuggestionKey}_${userId}_$key';
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!forceNew) {
+        final cached = prefs.getString(prefsKey);
+        if (cached != null && cached.isNotEmpty) {
+          final json = jsonDecode(cached) as Map<String, dynamic>;
+          return OutfitSuggestion.fromJson(json);
+        }
+      }
+
+      final now = DateTime.now();
+      final seed = _stableSeed('$userId-$key');
+      final random = Random(seed);
+      final suggestion = _buildSuggestion(
+        userId: userId,
+        pool: availableClothes,
+        index: 0,
+        now: now,
+        random: random,
+        purpose: 'daily_suggestion',
+        dayKey: key,
+      );
+      if (suggestion == null) return null;
+
+      await prefs.setString(prefsKey, jsonEncode(suggestion.toJson()));
+      await saveSuggestion(userId, suggestion);
+      return suggestion;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to get/create daily suggestion: $e');
+      }
+      return null;
+    }
+  }
 
   /// Generate outfit suggestions from unworn clothes
   /// Returns a list of outfit suggestions (each containing 2-4 clothes)
@@ -28,8 +281,10 @@ class OutfitSuggestionService {
       final now = DateTime.now();
       final thresholdDate = now.subtract(Duration(days: _daysNotWornThreshold));
 
+      final eligible = availableClothes.where(_isEligibleForSuggestion).toList();
+
       // Filter clothes that haven't been worn recently
-      final unwornClothes = availableClothes.where((cloth) {
+      final unwornClothes = eligible.where((cloth) {
         if (cloth.wornAt == null) {
           // Never worn - prioritize these
           return true;
@@ -47,61 +302,24 @@ class OutfitSuggestionService {
           debugPrint('   ⚠️ No unworn clothes found. Using all available clothes.');
         }
         // If no unworn clothes, use all available clothes
-        return _generateFromAllClothes(availableClothes, maxSuggestions, userId);
-      }
-
-      // Group clothes by type for better outfit combinations
-      final clothesByType = <String, List<Cloth>>{};
-      for (final cloth in unwornClothes) {
-        clothesByType.putIfAbsent(cloth.clothType, () => []).add(cloth);
+        return _generateFromAllClothes(eligible, maxSuggestions, userId);
       }
 
       final suggestions = <OutfitSuggestion>[];
       final random = Random();
 
       // Generate suggestions
-      for (int i = 0; i < maxSuggestions && unwornClothes.isNotEmpty; i++) {
-        final outfitClothes = <Cloth>[];
-
-        // Try to create a balanced outfit (top, bottom, outerwear, accessories)
-        final typesToInclude = ['Top', 'Bottom', 'Outerwear', 'Accessories'];
-        
-        for (final type in typesToInclude) {
-          final availableOfType = clothesByType[type] ?? [];
-          if (availableOfType.isNotEmpty) {
-            final selected = availableOfType[random.nextInt(availableOfType.length)];
-            outfitClothes.add(selected);
-            // Remove from available to avoid duplicates in same suggestion
-            availableOfType.remove(selected);
-            clothesByType[type] = availableOfType;
-          }
-        }
-
-        // If we don't have enough clothes, add random ones
-        while (outfitClothes.length < 2 && unwornClothes.isNotEmpty) {
-          final randomCloth = unwornClothes[random.nextInt(unwornClothes.length)];
-          if (!outfitClothes.any((c) => c.id == randomCloth.id)) {
-            outfitClothes.add(randomCloth);
-          } else {
-            // If all clothes are already included, break
-            break;
-          }
-        }
-
-        if (outfitClothes.length >= 2) {
-          final suggestion = OutfitSuggestion(
-            id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
-            userId: userId,
-            createdAt: DateTime.now(),
-            clothIds: outfitClothes.map((c) => c.id).toList(),
-            title: _generateSuggestionTitle(outfitClothes),
-            description: _generateSuggestionDescription(outfitClothes),
-            metadata: {
-              'clothCount': outfitClothes.length,
-              'types': outfitClothes.map((c) => c.clothType).toList(),
-              'seasons': outfitClothes.map((c) => c.season).toSet().toList(),
-            },
-          );
+      final pool = unwornClothes.isNotEmpty ? unwornClothes : eligible;
+      for (int i = 0; i < maxSuggestions; i++) {
+        final suggestion = _buildSuggestion(
+          userId: userId,
+          pool: pool,
+          index: i,
+          now: now,
+          random: random,
+          purpose: 'scheduled_suggestion',
+        );
+        if (suggestion != null) {
           suggestions.add(suggestion);
         }
       }
@@ -125,72 +343,30 @@ class OutfitSuggestionService {
     int maxSuggestions,
     String userId,
   ) {
-    if (clothes.length < 2) {
+    final eligible = clothes.where(_isEligibleForSuggestion).toList();
+    if (eligible.length < 2) {
       return [];
     }
 
     final suggestions = <OutfitSuggestion>[];
     final random = Random();
 
-    for (int i = 0; i < maxSuggestions && i < clothes.length ~/ 2; i++) {
-      final selectedClothes = <Cloth>[];
-      final usedIndices = <int>{};
-
-      // Select 2-3 random clothes
-      final count = min(3, clothes.length);
-      while (selectedClothes.length < count && usedIndices.length < clothes.length) {
-        final index = random.nextInt(clothes.length);
-        if (!usedIndices.contains(index)) {
-          usedIndices.add(index);
-          selectedClothes.add(clothes[index]);
-        }
-      }
-
-      if (selectedClothes.length >= 2) {
-        suggestions.add(OutfitSuggestion(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
-          userId: userId,
-          createdAt: DateTime.now(),
-          clothIds: selectedClothes.map((c) => c.id).toList(),
-          title: _generateSuggestionTitle(selectedClothes),
-          description: _generateSuggestionDescription(selectedClothes),
-          metadata: {
-            'clothCount': selectedClothes.length,
-            'types': selectedClothes.map((c) => c.clothType).toList(),
-          },
-        ));
+    final now = DateTime.now();
+    for (int i = 0; i < maxSuggestions; i++) {
+      final suggestion = _buildSuggestion(
+        userId: userId,
+        pool: eligible,
+        index: i,
+        now: now,
+        random: random,
+        purpose: 'fallback_suggestion',
+      );
+      if (suggestion != null) {
+        suggestions.add(suggestion);
       }
     }
 
     return suggestions;
-  }
-
-  /// Generate a title for the suggestion
-  static String _generateSuggestionTitle(List<Cloth> clothes) {
-    if (clothes.isEmpty) return 'Outfit Suggestion';
-    
-    final types = clothes.map((c) => c.clothType).toSet().toList();
-    if (types.length == 1) {
-      return '${types.first} Outfit';
-    }
-    return '${types.length} Piece Outfit';
-  }
-
-  /// Generate a description for the suggestion
-  static String _generateSuggestionDescription(List<Cloth> clothes) {
-    if (clothes.isEmpty) return 'Try this outfit today!';
-    
-    final unwornCount = clothes.where((c) => c.wornAt == null).length;
-    if (unwornCount > 0) {
-      return 'You haven\'t worn ${unwornCount} of these items recently. Perfect time to try them!';
-    }
-    
-    final daysSinceWorn = clothes
-        .where((c) => c.wornAt != null)
-        .map((c) => DateTime.now().difference(c.wornAt!).inDays)
-        .fold<int>(0, (sum, days) => sum + days) ~/ clothes.length;
-    
-    return 'Haven\'t worn these in about $daysSinceWorn days. Give them another chance!';
   }
 
   /// Save a suggestion to local storage

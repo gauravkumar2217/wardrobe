@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/schedule.dart';
+import '../screens/suggestions/daily_suggestion_screen.dart';
 import '../screens/suggestions/outfit_suggestion_screen.dart';
 import '../utils/navigator_key.dart' show navigatorKey;
 
@@ -119,6 +120,16 @@ class LocalNotificationService {
                 builder: (_) => const OutfitSuggestionScreen(),
               ),
             );
+          } else if (type == 'daily_suggestion') {
+            if (kDebugMode) {
+              debugPrint(
+                  'Daily suggestion notification tapped - navigating to daily suggestion screen');
+            }
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => const DailySuggestionScreen(),
+              ),
+            );
           }
         }
       } catch (e) {
@@ -191,6 +202,13 @@ class LocalNotificationService {
           schedule.id.hashCode.abs() % 2147483647; // Max int32
 
       // Schedule the notification
+      final purpose = schedule.filterSettings['purpose'] as String?;
+      final payloadData = {
+        'type': purpose == 'daily_suggestion' ? 'daily_suggestion' : 'outfit_suggestion',
+        'scheduleId': schedule.id,
+      };
+      final payload = jsonEncode(payloadData);
+
       await _notifications.zonedSchedule(
         notificationId,
         schedule.title,
@@ -201,7 +219,7 @@ class LocalNotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: _getDateTimeComponents(schedule),
-        payload: schedule.id,
+        payload: payload,
       );
 
       if (kDebugMode) {

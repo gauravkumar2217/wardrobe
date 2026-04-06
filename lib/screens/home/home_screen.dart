@@ -1,21 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/navigation_provider.dart';
-import '../changing_room/changing_room_screen.dart';
+import '../../services/banner_service.dart';
+import '../../widgets/banner_slider_widget.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/settings_screen.dart';
 import '../scheduler/scheduler_list_screen.dart';
+import '../suggestions/daily_suggestion_screen.dart';
 import '../statistics/statistics_screen.dart';
 import 'clothes_screen.dart';
+import '../../models/banner.dart' as models;
 
 /// Main [HomeScreen]: logo header and feature cards (bottom tab Home).
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   /// When true (e.g. opened from Profile), shows an app bar with back.
   final bool showAppBar;
 
   const HomeScreen({super.key, this.showAppBar = false});
 
   static const Color _brand = Color(0xFF043915);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _bannerRefreshToken = 0;
+
+  Future<void> _refresh() async {
+    setState(() {
+      _bannerRefreshToken++;
+    });
+    // Give the header time to start its reload; RefreshIndicator expects a Future.
+    await Future.delayed(const Duration(milliseconds: 250));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +55,26 @@ class HomeScreen extends StatelessWidget {
         color: const Color(0xFF2E7D32),
         onTap: (ctx) => _goTab(ctx, 1),
       ),
+      // _HomeFeature(
+      //   icon: Icons.auto_awesome_rounded,
+      //   title: 'Changing room',
+      //   subtitle: 'Try outfits on your avatar',
+      //   color: const Color(0xFF6A1B9A),
+      //   // Disabled for now: my Gemini API key is suspended, so I can't use this feature.
+      //   // Re-enable once a new Gemini API key is generated and configured.
+      //   onTap: (ctx) => Navigator.push(
+      //     ctx,
+      //     MaterialPageRoute(builder: (_) => const ChangingRoomScreen()),
+      //   ),
+      // ),
       _HomeFeature(
-        icon: Icons.auto_awesome_rounded,
-        title: 'Changing room',
-        subtitle: 'Try outfits on your avatar',
-        color: const Color(0xFF6A1B9A),
+        icon: Icons.lightbulb_rounded,
+        title: 'Daily suggestion',
+        subtitle: 'See your outfit ideas for today',
+        color: const Color(0xFF00897B),
         onTap: (ctx) => Navigator.push(
           ctx,
-          MaterialPageRoute(builder: (_) => const ChangingRoomScreen()),
+          MaterialPageRoute(builder: (_) => const DailySuggestionScreen()),
         ),
       ),
       _HomeFeature(
@@ -111,10 +141,10 @@ class HomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: showAppBar
+      appBar: widget.showAppBar
           ? AppBar(
               title: const Text('Home'),
-              backgroundColor: _brand,
+              backgroundColor: HomeScreen._brand,
               foregroundColor: Colors.white,
             )
           : null,
@@ -131,37 +161,44 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          top: !showAppBar,
-          child: CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(
-                child: _HomeHeader(brand: _brand),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 0.98,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final f = features[index];
-                      return _FeatureCard(
-                        icon: f.icon,
-                        title: f.title,
-                        subtitle: f.subtitle,
-                        accent: f.color,
-                        onTap: () => f.onTap(context),
-                      );
-                    },
-                    childCount: features.length,
+          top: !widget.showAppBar,
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _HomeHeader(
+                    brand: HomeScreen._brand,
+                    refreshToken: _bannerRefreshToken,
                   ),
                 ),
-              ),
-            ],
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 0.98,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final f = features[index];
+                        return _FeatureCard(
+                          icon: f.icon,
+                          title: f.title,
+                          subtitle: f.subtitle,
+                          accent: f.color,
+                          onTap: () => f.onTap(context),
+                        );
+                      },
+                      childCount: features.length,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -196,8 +233,56 @@ class _HomeFeature {
 
 class _HomeHeader extends StatelessWidget {
   final Color brand;
+  final int refreshToken;
 
-  const _HomeHeader({required this.brand});
+  const _HomeHeader({required this.brand, required this.refreshToken});
+
+  @override
+  Widget build(BuildContext context) {
+    return _HomeHeaderBody(brand: brand, refreshToken: refreshToken);
+  }
+}
+
+class _HomeHeaderBody extends StatefulWidget {
+  final Color brand;
+  final int refreshToken;
+
+  const _HomeHeaderBody({required this.brand, required this.refreshToken});
+
+  @override
+  State<_HomeHeaderBody> createState() => _HomeHeaderBodyState();
+}
+
+class _HomeHeaderBodyState extends State<_HomeHeaderBody> {
+  final BannerService _bannerService = BannerService();
+  List<models.Banner> _banners = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanners();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeHeaderBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _loadBanners();
+    }
+  }
+
+  Future<void> _loadBanners() async {
+    try {
+      final banners = await _bannerService.getBannersByLocation('home_screen');
+      if (mounted) {
+        setState(() {
+          _banners = banners;
+        });
+      }
+    } catch (_) {
+      // banners are optional
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,12 +312,12 @@ class _HomeHeader extends StatelessWidget {
                   height: 56,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => ColoredBox(
-                    color: brand.withValues(alpha: 0.1),
+                    color: widget.brand.withValues(alpha: 0.1),
                     child: Center(
                       child: Icon(
                         Icons.checkroom_rounded,
                         size: 30,
-                        color: brand,
+                        color: widget.brand,
                       ),
                     ),
                   ),
@@ -241,6 +326,15 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          // Advertisement space (same style as login screen) - shown after logo, before features.
+          if (_banners.isNotEmpty) ...[
+            BannerSliderWidget(
+              banners: _banners,
+              width: double.infinity,
+              height: 100,
+            ),
+            const SizedBox(height: 6),
+          ],
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(

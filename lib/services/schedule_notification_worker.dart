@@ -594,6 +594,7 @@ class ScheduleNotificationWorker {
 
       List<OutfitSuggestion> suggestions = [];
       String notificationBody;
+      final purpose = schedule.filterSettings['purpose'] as String?;
 
       if (filteredClothes.isEmpty) {
         notificationBody =
@@ -603,44 +604,57 @@ class ScheduleNotificationWorker {
               '   Message: No clothes found (using default or description)');
         }
       } else {
-        // Generate outfit suggestions (focus on unworn clothes)
-        suggestions = await OutfitSuggestionService.generateSuggestions(
-          userId: userId,
-          availableClothes: filteredClothes,
-          maxSuggestions: 3,
-        );
-
-        // Save suggestions for later retrieval
-        for (final suggestion in suggestions) {
-          await OutfitSuggestionService.saveSuggestion(userId, suggestion);
-        }
-
-        if (kDebugMode) {
-          debugPrint('   Generated ${suggestions.length} outfit suggestion(s)');
-        }
-
-        // Create notification message with suggestion info
-        if (suggestions.isNotEmpty) {
-          final unwornCount = filteredClothes
-              .where((c) =>
-                  c.wornAt == null ||
-                  DateTime.now().difference(c.wornAt!).inDays >= 7)
-              .length;
-
-          notificationBody = schedule.description ??
-              'New outfit suggestion! You have $unwornCount unworn item${unwornCount > 1 ? 's' : ''} ready to try. Tap to see suggestions!';
-
-          if (kDebugMode) {
-            debugPrint(
-                '   Message: Outfit suggestion with $unwornCount unworn items');
+        if (purpose == 'daily_suggestion') {
+          final daily = await OutfitSuggestionService.getOrCreateDailySuggestion(
+            userId: userId,
+            availableClothes: filteredClothes,
+          );
+          if (daily != null) {
+            suggestions = [daily];
           }
-        } else {
-          final count = filteredClothes.length;
           notificationBody = schedule.description ??
-              'You have $count item${count > 1 ? 's' : ''} matching your criteria!';
+              'Your daily outfit suggestion is ready. Tap to view.';
+        } else {
+          // Generate outfit suggestions (focus on unworn clothes)
+          suggestions = await OutfitSuggestionService.generateSuggestions(
+            userId: userId,
+            availableClothes: filteredClothes,
+            maxSuggestions: 3,
+          );
+
+          // Save suggestions for later retrieval
+          for (final suggestion in suggestions) {
+            await OutfitSuggestionService.saveSuggestion(userId, suggestion);
+          }
+
           if (kDebugMode) {
             debugPrint(
-                '   Message: Found $count item(s) (no suggestions generated)');
+                '   Generated ${suggestions.length} outfit suggestion(s)');
+          }
+
+          // Create notification message with suggestion info
+          if (suggestions.isNotEmpty) {
+            final unwornCount = filteredClothes
+                .where((c) =>
+                    c.wornAt == null ||
+                    DateTime.now().difference(c.wornAt!).inDays >= 7)
+                .length;
+
+            notificationBody = schedule.description ??
+                'New outfit suggestion! You have $unwornCount unworn item${unwornCount > 1 ? 's' : ''} ready to try. Tap to see suggestions!';
+
+            if (kDebugMode) {
+              debugPrint(
+                  '   Message: Outfit suggestion with $unwornCount unworn items');
+            }
+          } else {
+            final count = filteredClothes.length;
+            notificationBody = schedule.description ??
+                'You have $count item${count > 1 ? 's' : ''} matching your criteria!';
+            if (kDebugMode) {
+              debugPrint(
+                  '   Message: Found $count item(s) (no suggestions generated)');
+            }
           }
         }
       }
@@ -654,7 +668,7 @@ class ScheduleNotificationWorker {
 
       // Prepare notification payload with suggestion data
       final payloadData = {
-        'type': 'outfit_suggestion',
+        'type': purpose == 'daily_suggestion' ? 'daily_suggestion' : 'outfit_suggestion',
         'scheduleId': schedule.id,
         'suggestionIds': suggestions.map((s) => s.id).toList(),
         'clothIds': suggestions.isNotEmpty

@@ -9,7 +9,17 @@ class BannerService {
   /// Get banner API base URL from environment variables
   /// Falls back to default if not set
   static String get baseUrl {
-    return dotenv.env['BANNER_API_BASE_URL'] ?? 'https://www.wardrobe.chat/api';
+    const fallback = 'https://www.wardrobe.chat/api';
+    try {
+      if (!dotenv.isInitialized) return fallback;
+      final v = dotenv.env['BANNER_API_BASE_URL'];
+      if (v == null || v.trim().isEmpty) return fallback;
+      return v.trim();
+    } catch (_) {
+      // In some situations (e.g. if .env asset failed to load), flutter_dotenv throws
+      // NotInitializedError when accessing dotenv.env. Banners are optional, so fall back.
+      return fallback;
+    }
   }
 
   /// Get banners for a specific location
