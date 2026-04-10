@@ -35,7 +35,21 @@ class BannerService {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
         if (jsonData['success'] == true) {
           final List<dynamic> banners = jsonData['data'] as List<dynamic>;
-          return banners.map((banner) => Banner.fromJson(banner as Map<String, dynamic>)).toList();
+          final parsed = <Banner>[];
+          for (final b in banners) {
+            try {
+              if (b is Map<String, dynamic>) {
+                final banner = Banner.fromJson(b);
+                if (banner.imageUrl.trim().isNotEmpty) {
+                  parsed.add(banner);
+                }
+              }
+            } catch (e) {
+              debugPrint('Skipping invalid banner item: $e');
+            }
+          }
+          parsed.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+          return parsed;
         }
       }
       return [];
@@ -64,7 +78,21 @@ class BannerService {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
         if (jsonData['success'] == true) {
           final List<dynamic> banners = jsonData['data'] as List<dynamic>;
-          return banners.map((banner) => Banner.fromJson(banner as Map<String, dynamic>)).toList();
+          final parsed = <Banner>[];
+          for (final b in banners) {
+            try {
+              if (b is Map<String, dynamic>) {
+                final banner = Banner.fromJson(b);
+                if (banner.imageUrl.trim().isNotEmpty) {
+                  parsed.add(banner);
+                }
+              }
+            } catch (e) {
+              debugPrint('Skipping invalid banner item: $e');
+            }
+          }
+          parsed.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+          return parsed;
         }
       }
       return [];

@@ -41,6 +41,34 @@ class _BannerSliderWidgetState extends State<BannerSliderWidget> {
   }
 
   @override
+  void didUpdateWidget(covariant BannerSliderWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If banners load asynchronously (0 -> N) or count changes, make sure autoplay reflects it.
+    final oldCount = oldWidget.banners.length;
+    final newCount = widget.banners.length;
+    final countChanged = oldCount != newCount;
+
+    if (_currentPage >= newCount && newCount > 0) {
+      _currentPage = 0;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+    }
+
+    if (!widget.autoPlay || newCount <= 1) {
+      _autoPlayTimer?.cancel();
+      _autoPlayTimer = null;
+      return;
+    }
+
+    // If we newly became eligible for autoplay (e.g. 1 -> 2), start it.
+    if (countChanged || oldWidget.autoPlay != widget.autoPlay) {
+      _startAutoPlay();
+    }
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _autoPlayTimer?.cancel();
@@ -88,56 +116,46 @@ class _BannerSliderWidgetState extends State<BannerSliderWidget> {
     double bannerWidth = widget.width ?? MediaQuery.of(context).size.width;
     double bannerHeight = widget.height ?? _getDefaultHeight(widget.banners.first.type);
 
-    return Column(
-      children: [
-        SizedBox(
-          width: bannerWidth,
-          height: bannerHeight,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: widget.banners.length,
-            itemBuilder: (context, index) {
-              return _buildBannerItem(widget.banners[index], bannerWidth, bannerHeight);
-            },
-          ),
-        ),
-        // Page indicators
-        if (widget.banners.length > 1) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.banners.length,
-              (index) => Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _currentPage == index
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey[300],
-                ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SizedBox(
+        width: bannerWidth,
+        height: bannerHeight,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: _onPageChanged,
+                itemCount: widget.banners.length,
+                itemBuilder: (context, index) {
+                  return _buildBannerItem(widget.banners[index], bannerWidth, bannerHeight);
+                },
               ),
             ),
-          ),
-        ],
-      ],
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildSingleBanner(models.Banner banner) {
     double bannerWidth = widget.width ?? MediaQuery.of(context).size.width;
     double bannerHeight = widget.height ?? _getDefaultHeight(banner.type);
-    return _buildBannerItem(banner, bannerWidth, bannerHeight);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SizedBox(
+        width: bannerWidth,
+        height: bannerHeight,
+        child: _buildBannerItem(banner, bannerWidth, bannerHeight),
+      ),
+    );
   }
 
   Widget _buildBannerItem(models.Banner banner, double width, double height) {
     return Container(
       width: width,
       height: height,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         boxShadow: [

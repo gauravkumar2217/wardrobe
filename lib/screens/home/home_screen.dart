@@ -273,7 +273,12 @@ class _HomeHeaderBodyState extends State<_HomeHeaderBody> {
 
   Future<void> _loadBanners() async {
     try {
-      final banners = await _bannerService.getBannersByLocation('home_screen');
+      // Prefer home-specific banners; fall back to wardrobe_list banners
+      // (same as Wardrobe screen) if none are configured yet.
+      var banners = await _bannerService.getBannersByLocation('home_screen');
+      if (banners.isEmpty) {
+        banners = await _bannerService.getBannersByLocation('wardrobe_list');
+      }
       if (mounted) {
         setState(() {
           _banners = banners;

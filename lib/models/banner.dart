@@ -19,14 +19,22 @@ class Banner {
   });
 
   factory Banner.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic v, {int fallback = 0}) {
+      if (v == null) return fallback;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      final s = v.toString().trim();
+      return int.tryParse(s) ?? fallback;
+    }
+
     return Banner(
-      id: json['id'] as int,
-      type: json['type'] as String,
-      imageUrl: json['image_url'] as String,
+      id: parseInt(json['id']),
+      type: (json['type'] ?? '').toString(),
+      imageUrl: (json['image_url'] ?? '').toString(),
       altTag: json['alt_tag'] as String?,
-      displayLocation: json['display_location'] as String,
+      displayLocation: (json['display_location'] ?? '').toString(),
       expireDate: json['expire_date'] as String?,
-      sortOrder: json['sort_order'] as int,
+      sortOrder: parseInt(json['sort_order']),
     );
   }
 
