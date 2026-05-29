@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 
+/// Exchanges a verified Firebase ID token for a Laravel Sanctum API token.
 class LaravelAuthService {
   static const _tokenKey = 'laravel_sanctum_token';
 
@@ -20,22 +21,27 @@ class LaravelAuthService {
     await prefs.remove(_tokenKey);
   }
 
-  /// Ensures a Sanctum token exists for the current Firebase user.
-  /// Laravel backend currently trusts the Firebase UID (no server-side token verification).
-  static Future<String> ensureToken() async {
-    final cached = await getCachedToken();
-    if (cached != null) return cached;
+  /// Returns a cached Sanctum token, or verifies Firebase and creates one.
+  static Future<String> ensureToken({bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = await getCachedToken();
+      if (cached != null) return cached;
+    }
     return await verifyAndCreateToken();
   }
 
+  /// Verifies the current user's Firebase ID token with Laravel and caches Sanctum token.
   static Future<String> verifyAndCreateToken() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      throw Exception('User is not authenticated');
+      throw Exception('User is not authenticated with Firebase');
     }
 
+    final idToken = await user.getIdToken(true);
+
     final uri = Uri.parse(ApiConfig.authVerifyToken);
-    final payload = {
+    final payload = <String, dynamic>{
+      'id_token': idToken,
       'uid': user.uid,
       if (user.email != null) 'email': user.email,
       if (user.displayName != null) 'display_name': user.displayName,
@@ -54,14 +60,27 @@ class LaravelAuthService {
         )
         .timeout(ApiConfig.requestTimeout);
 
-    final body = jsonDecode(response.body);
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw Exception(
+        'Laravel auth returned invalid JSON (${response.statusCode})',
+      );
+    }
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw Exception(
+        body['message']?.toString() ?? 'Firebase token rejected by server',
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         'Laravel auth failed (${response.statusCode}): ${response.body}',
       );
     }
-    if (body is! Map<String, dynamic> || body['success'] != true) {
-      throw Exception('Laravel auth failed: ${response.body}');
+    if (body['success'] != true) {
+      throw Exception(body['message']?.toString() ?? 'Laravel auth failed');
     }
 
     final data = body['data'];
@@ -70,16 +89,36 @@ class LaravelAuthService {
     }
     final token = data['token']?.toString();
     if (token == null || token.trim().isEmpty) {
-      throw Exception('Laravel auth: token missing');
+      throw Exception('Laravel auth: Sanctum token missing');
     }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token.trim());
 
     if (kDebugMode) {
-      debugPrint('✅ Laravel Sanctum token cached');
+      debugPrint('✅ Laravel Sanctum token issued after Firebase verification');
     }
     return token.trim();
   }
-}
 
+  /// Call Laravel logout and clear cached Sanctum token.
+  static Future<void> logout() async {
+    final token = await getCachedToken();
+    if (token != null) {
+      try {
+        await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/auth/logout'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(ApiConfig.requestTimeout);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Laravel logout request failed (ignored): $e');
+        }
+      }
+    }
+    await clearToken();
+  }
+}
