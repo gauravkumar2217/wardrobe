@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../models/cloth.dart';
 import '../models/body_profile.dart';
 

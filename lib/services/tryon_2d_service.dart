@@ -1,51 +1,79 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:http/http.dart' as http;
 import '../models/cloth.dart';
+import '../config/api_config.dart';
+import 'laravel_auth_service.dart';
 
 /// Service for 2D virtual try-on
 class TryOn2DService {
-  static Future<Map<String, dynamic>> _callFunctionHttp(
-    String functionName,
+  static Future<Map<String, dynamic>> _postLaravel(
     Map<String, dynamic> payload,
   ) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      throw Exception('User is not authenticated');
+    final token = await LaravelAuthService.ensureToken();
+    final url = Uri.parse(ApiConfig.tryOnRender);
+    final response = await http
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.requestTimeout);
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid response: ${response.body}');
     }
-
-    final idToken = await currentUser.getIdToken();
-    final projectId = Firebase.app().options.projectId;
-    final url = Uri.parse(
-      'https://us-central1-$projectId.cloudfunctions.net/$functionName',
-    );
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode({'data': payload}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Function $functionName failed (${response.statusCode}): ${response.body}',
-      );
+    if (decoded['success'] != true) {
+      throw Exception(decoded['message']?.toString() ?? 'Try-on failed');
     }
+    final data = decoded['data'];
+    if (data is Map<String, dynamic>) return data;
+    return <String, dynamic>{};
+  }
 
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    if (decoded['error'] != null) {
-      throw Exception('Function $functionName error: ${decoded['error']}');
+  static Future<String> _pollResultUrl(String resultId) async {
+    final token = await LaravelAuthService.ensureToken();
+    final url = Uri.parse(ApiConfig.tryOnStatus(resultId));
+    var attempts = 0;
+    while (attempts < ApiConfig.maxPollingAttempts) {
+      await Future.delayed(ApiConfig.pollingInterval);
+      final res = await http.get(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(ApiConfig.requestTimeout);
+
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map<String, dynamic>) {
+        attempts++;
+        continue;
+      }
+      if (decoded['success'] != true) {
+        throw Exception(decoded['message']?.toString() ?? 'Try-on failed');
+      }
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) {
+        final status = data['status']?.toString();
+        if (status == 'completed') {
+          final resultUrl = data['result_url']?.toString();
+          if (resultUrl != null && resultUrl.isNotEmpty) return resultUrl;
+          throw Exception('Try-on completed but result_url missing');
+        }
+        if (status == 'failed') {
+          throw Exception(data['error_message']?.toString() ?? 'Try-on failed');
+        }
+      }
+      attempts++;
     }
-
-    final result = decoded['result'];
-    if (result is Map<String, dynamic>) return result;
-    throw Exception('Unexpected function response for $functionName');
+    throw Exception('Try-on timed out');
   }
 
   /// Create try-on result by overlaying clothing on avatar
@@ -65,14 +93,22 @@ class TryOn2DService {
         debugPrint('👔 Creating try-on for user: $userId, clothing: $clothingItemId');
       }
 
-      final data = await _callFunctionHttp('createTryOn', {
-        'userId': userId,
-        'avatarUrl': avatarUrl,
-        'clothingItemId': clothingItemId,
-        'clothingImageUrl': clothingImageUrl,
-        if (clothingType != null) 'clothingType': clothingType,
+      final data = await _postLaravel({
+        'clothing_item_id': clothingItemId,
+        if (clothingType != null) 'clothing_type': clothingType,
+        // clothing_image_url is optional; backend can resolve from DB if it owns the cloth
       });
-      final resultUrl = data['resultUrl'] as String;
+
+      final status = data['status']?.toString();
+      final resultId = data['result_id']?.toString();
+      if (status == 'completed') {
+        final url = data['result_url']?.toString();
+        if (url != null && url.isNotEmpty) return url;
+      }
+      if (resultId == null || resultId.isEmpty) {
+        throw Exception('Try-on started but result_id missing');
+      }
+      final resultUrl = await _pollResultUrl(resultId);
 
       if (kDebugMode) {
         debugPrint('✅ Try-on created: $resultUrl');
@@ -167,20 +203,27 @@ class TryOn2DService {
       );
     }
 
-    final data = await _callFunctionHttp('createTryOn', {
-      'userId': userId,
-      'avatarUrl': avatarUrl,
+    final data = await _postLaravel({
       'garments': garments
           .map(
             (c) => {
-              'clothingItemId': c.id,
-              'clothingImageUrl': clothingImageUrlForTryOn(c),
-              'clothingType': c.clothType,
+              'clothing_item_id': c.id,
+              'clothing_type': c.clothType,
             },
           )
           .toList(),
     });
-    final resultUrl = data['resultUrl'] as String;
+
+    final status = data['status']?.toString();
+    final resultId = data['result_id']?.toString();
+    if (status == 'completed') {
+      final url = data['result_url']?.toString();
+      if (url != null && url.isNotEmpty) return url;
+    }
+    if (resultId == null || resultId.isEmpty) {
+      throw Exception('Try-on started but result_id missing');
+    }
+    final resultUrl = await _pollResultUrl(resultId);
 
     if (kDebugMode) {
       debugPrint('✅ Try-on outfit created: $resultUrl');

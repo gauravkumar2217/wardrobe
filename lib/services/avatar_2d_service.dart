@@ -1,62 +1,60 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:http/http.dart' as http;
 import '../models/avatar.dart';
-import 'storage_service.dart';
 import 'user_service.dart';
 import 'image_processing_service.dart';
+import '../config/api_config.dart';
+import 'laravel_auth_service.dart';
 
 /// Service for 2D avatar generation from a single full-body photo
 class Avatar2DService {
-  static Future<Map<String, dynamic>> _callFunctionHttp(
-    String functionName,
-    Map<String, dynamic> payload,
-  ) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      throw Exception('User is not authenticated');
+  static Map<String, dynamic> _extractData(Map<String, dynamic> decoded) {
+    if (decoded['success'] == true && decoded['data'] is Map<String, dynamic>) {
+      return decoded['data'] as Map<String, dynamic>;
     }
+    throw Exception(decoded['message']?.toString() ?? 'Avatar request failed');
+  }
 
-    final idToken = await currentUser.getIdToken();
-    final projectId = Firebase.app().options.projectId;
-    final url = Uri.parse(
-      'https://us-central1-$projectId.cloudfunctions.net/$functionName',
-    );
-
-    final response = await http.post(
-      url,
+  static Future<Map<String, dynamic>> _getAvatarStatus(String avatarId) async {
+    final token = await LaravelAuthService.ensureToken();
+    final res = await http.get(
+      Uri.parse(ApiConfig.avatarStatus(avatarId)),
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'data': payload}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Function $functionName failed (${response.statusCode}): ${response.body}',
-      );
+    ).timeout(ApiConfig.requestTimeout);
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid response: ${res.body}');
     }
+    return _extractData(decoded);
+  }
 
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    if (decoded['error'] != null) {
-      throw Exception('Function $functionName error: ${decoded['error']}');
+  static Future<Map<String, dynamic>> _getAvatarMe() async {
+    final token = await LaravelAuthService.ensureToken();
+    final res = await http.get(
+      Uri.parse(ApiConfig.avatarMe),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(ApiConfig.requestTimeout);
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid response: ${res.body}');
     }
-
-    final result = decoded['result'];
-    if (result is Map<String, dynamic>) return result;
-    throw Exception('Unexpected function response for $functionName');
+    return _extractData(decoded);
   }
 
   /// Generate 2D avatar from a single full-body photo
   /// 
   /// Process:
-  /// 1. Upload body image to Firebase Storage
-  /// 2. Call Cloud Function to generate avatar
-  /// 3. Save avatar data to Firestore
+  /// 1. Send body image to Laravel `/avatar/generate` (multipart)
+  /// 2. Poll `/avatar/status/{avatarId}` until completed
+  /// 3. Fetch `/avatar/me` and save avatar data to Firestore
   static Future<Avatar> generateAvatar({
     required String userId,
     required File bodyImageFile,
@@ -67,9 +65,9 @@ class Avatar2DService {
         debugPrint('🎨 Starting 2D avatar generation for user: $userId');
       }
 
-      // Step 1: Process and upload body image
+      // Step 1: Process image (client-side) then upload to Laravel
       if (kDebugMode) {
-        debugPrint('📤 Uploading body image to Firebase Storage...');
+        debugPrint('📤 Uploading body image to Laravel...');
       }
 
       final processedImage =
@@ -78,45 +76,79 @@ class Avatar2DService {
         throw Exception('Failed to process body image');
       }
 
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'body_$timestamp.jpg';
-      // Keep upload path aligned with storage.rules:
-      // match /users/{userId}/avatar/{imageType}/{imageName}
-      final ref = StorageService.getStorageRef()
-          .child('users/$userId/avatar/body/$fileName');
-      final metadata = StorageService.getMetadata(contentType: 'image/jpeg');
+      final token = await LaravelAuthService.ensureToken();
+      final req = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConfig.avatarGenerate),
+      );
+      req.headers['Accept'] = 'application/json';
+      req.headers['Authorization'] = 'Bearer $token';
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          'body_image',
+          processedImage.path,
+        ),
+      );
+      req.fields['user_height_cm'] = (userHeightCm ?? 170).toString();
 
-      await ref.putFile(processedImage, metadata);
-      final bodyImageUrl = await ref.getDownloadURL();
-
-      if (kDebugMode) {
-        debugPrint('✅ Body image uploaded: $bodyImageUrl');
+      final streamed = await req.send().timeout(ApiConfig.requestTimeout);
+      final responseBody = await streamed.stream.bytesToString();
+      final decoded = jsonDecode(responseBody);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Invalid response: $responseBody');
+      }
+      final data = _extractData(decoded);
+      final avatarId = data['avatar_id']?.toString();
+      if (avatarId == null || avatarId.isEmpty) {
+        throw Exception('Avatar generation started but avatar_id missing');
       }
 
-      // Step 2: Call Cloud Function to generate avatar
       if (kDebugMode) {
-        debugPrint('☁️ Calling Cloud Function: generateAvatar...');
+        debugPrint('✅ Avatar generation started: $avatarId');
       }
 
-      final data = await _callFunctionHttp('generateAvatar', {
-        'userId': userId,
-        'bodyImageUrl': bodyImageUrl,
-        if (userHeightCm != null) 'userHeightCm': userHeightCm,
-      });
-      final avatarUrl = data['avatarUrl'] as String;
-      final poseLandmarks = data['poseLandmarks'] as Map<String, dynamic>?;
-      final measurements = data['measurements'] as Map<String, dynamic>?;
+      // Step 2: Poll status until completed
+      if (kDebugMode) {
+        debugPrint('⏳ Polling avatar status...');
+      }
+
+      Map<String, dynamic> status = {};
+      var attempts = 0;
+      while (attempts < ApiConfig.maxPollingAttempts) {
+        await Future.delayed(ApiConfig.pollingInterval);
+        status = await _getAvatarStatus(avatarId);
+        final s = status['generation_status']?.toString();
+        if (s == 'completed') break;
+        if (s == 'failed') {
+          throw Exception(status['error_message']?.toString() ?? 'Avatar generation failed');
+        }
+        attempts++;
+      }
+      if (status['generation_status']?.toString() != 'completed') {
+        throw Exception('Avatar generation timed out');
+      }
+
+      // Step 3: Fetch full avatar info
+      final me = await _getAvatarMe();
+      final avatarUrl = me['avatar_image_url']?.toString();
+      final bodyImageUrl = me['body_image_url']?.toString();
+      final previewUrl = me['avatar_preview_url']?.toString();
+      final poseLandmarks = me['pose_landmarks'] as Map<String, dynamic>?;
+      final measurements = me['measurements'] as Map<String, dynamic>?;
 
       if (kDebugMode) {
         debugPrint('✅ Avatar generated: $avatarUrl');
       }
 
-      // Step 3: Create avatar model
       final bodyMeasurements = measurements != null
           ? BodyMeasurements(
-              shoulderWidthCm: (measurements['shoulderWidthCm'] as num?)?.toDouble(),
-              hipWidthCm: (measurements['hipWidthCm'] as num?)?.toDouble(),
-              heightCm: (measurements['heightCm'] as num?)?.toDouble(),
+              shoulderWidthCm:
+                  (measurements['shoulder_width_cm'] as num?)?.toDouble() ??
+                      (measurements['shoulderWidthCm'] as num?)?.toDouble(),
+              hipWidthCm: (measurements['hip_width_cm'] as num?)?.toDouble() ??
+                  (measurements['hipWidthCm'] as num?)?.toDouble(),
+              heightCm: (measurements['height_cm'] as num?)?.toDouble() ??
+                  (measurements['heightCm'] as num?)?.toDouble(),
             )
           : null;
 
@@ -124,15 +156,17 @@ class Avatar2DService {
         userId: userId,
         bodyImageUrl: bodyImageUrl,
         avatarImageUrl: avatarUrl,
+        avatarPreviewUrl: previewUrl,
         poseLandmarks: poseLandmarks,
         userHeightCm: userHeightCm ?? bodyMeasurements?.heightCm,
         measurements: bodyMeasurements,
         generationStatus: 'completed',
+        generationJobId: avatarId,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      // Step 4: Save to Firestore
+      // Step 4: Save to Firestore (app uses this for Changing Room)
       await UserService.saveAvatar(avatar);
 
       if (kDebugMode) {
