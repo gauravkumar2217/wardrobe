@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
-import '../../screens/notifications/notifications_screen.dart';
-import '../../screens/profile/profile_screen.dart';
-import '../../screens/profile/settings_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
 
 /// Fixed app shell header: profile + search | floating logo | notifications + settings.
@@ -19,7 +16,16 @@ class WardrobeTopHeader extends StatelessWidget {
   /// 40% out, 60% in.
   static const double logoOutFraction = 0.4;
 
-  const WardrobeTopHeader({super.key});
+  final VoidCallback onProfilePressed;
+  final VoidCallback onNotificationsPressed;
+  final VoidCallback onSettingsPressed;
+
+  const WardrobeTopHeader({
+    super.key,
+    required this.onProfilePressed,
+    required this.onNotificationsPressed,
+    required this.onSettingsPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,12 +63,7 @@ class WardrobeTopHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _HeaderIconButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileScreen(),
-                        ),
-                      ),
+                      onPressed: onProfilePressed,
                       tooltip: 'Profile',
                       child: Hero(
                         tag: 'wardrobe_avatar',
@@ -91,22 +92,12 @@ class WardrobeTopHeader extends StatelessWidget {
                     ),
                     const Spacer(),
                     _HeaderIconButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen(),
-                        ),
-                      ),
+                      onPressed: onNotificationsPressed,
                       tooltip: 'Notifications',
                       icon: Icons.notifications_none_rounded,
                     ),
                     _HeaderIconButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      ),
+                      onPressed: onSettingsPressed,
                       tooltip: 'Settings',
                       icon: Icons.settings_rounded,
                     ),

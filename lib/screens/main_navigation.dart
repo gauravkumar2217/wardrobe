@@ -18,6 +18,9 @@ import 'wardrobe/wardrobe_list_screen.dart';
 import 'tryon/tryon_hub_screen.dart';
 import 'community/community_screen.dart';
 import 'assistant/ai_assistant_screen.dart';
+import 'profile/profile_screen.dart';
+import 'notifications/notifications_screen.dart';
+import 'profile/settings_screen.dart';
 import 'auth/login_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
@@ -35,6 +38,8 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation>
     with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _contentNavigatorKey =
+      GlobalKey<NavigatorState>();
   final List<Widget> _screens = [
     const WardrobeHomeScreen(),
     const WardrobeListScreen(),
@@ -426,17 +431,44 @@ class _MainNavigationState extends State<MainNavigation>
                         (WardrobeTopHeader.logoSize *
                             WardrobeTopHeader.logoOutFraction),
                   ),
-                  child: IndexedStack(
-                    index: navigationProvider.currentIndex,
-                    children: _screens,
+                  child: Navigator(
+                    key: _contentNavigatorKey,
+                    onGenerateRoute: (_) => MaterialPageRoute<void>(
+                      builder: (_) => IndexedStack(
+                        index: navigationProvider.currentIndex,
+                        children: _screens,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-                child: WardrobeTopHeader(),
+                child: WardrobeTopHeader(
+                  onProfilePressed: () {
+                    _contentNavigatorKey.currentState?.push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ProfileScreen(),
+                      ),
+                    );
+                  },
+                  onNotificationsPressed: () {
+                    _contentNavigatorKey.currentState?.push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                  onSettingsPressed: () {
+                    _contentNavigatorKey.currentState?.push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -445,11 +477,9 @@ class _MainNavigationState extends State<MainNavigation>
             currentIndex: navigationProvider.currentIndex,
             unreadCount: chatProvider.totalUnreadCount,
             onSelectIndex: (index) {
-              // Pop any pushed routes so the tab body is visible.
-              final nav = Navigator.of(context, rootNavigator: true);
-              if (nav.canPop()) {
-                nav.popUntil((route) => route.isFirst);
-              }
+              // Pop any pushed routes in the content area (e.g. Profile).
+              _contentNavigatorKey.currentState
+                  ?.popUntil((route) => route.isFirst);
 
               // Home: clear filters and always show hub.
               if (index == 0) {
