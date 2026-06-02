@@ -22,6 +22,7 @@ import 'services/update_service.dart';
 import 'services/schedule_notification_worker.dart';
 
 import 'utils/navigator_key.dart' show navigatorKey;
+import 'theme/wardrobe_theme.dart';
 
 // Background message handler for FCM
 @pragma('vm:entry-point')
@@ -113,13 +114,7 @@ class WardrobeApp extends StatelessWidget {
           navigatorKey: navigatorKey,
           title: 'Wardrobe',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF043915),
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-          ),
+          theme: WardrobeTheme.theme(),
           home: const SplashScreen(),
         ),
       ),

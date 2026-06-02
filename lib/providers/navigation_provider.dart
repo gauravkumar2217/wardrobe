@@ -29,11 +29,11 @@ class NavigationProvider with ChangeNotifier {
     setCurrentIndex(1);
   }
 
-  void navigateToFriends() {
+  void navigateToTryOn() {
     setCurrentIndex(2);
   }
 
-  void navigateToChats() {
+  void navigateToCommunity() {
     setCurrentIndex(3);
   }
 

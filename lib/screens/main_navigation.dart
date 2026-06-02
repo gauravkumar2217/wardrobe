@@ -11,11 +11,12 @@ import '../services/app_state_service.dart';
 import '../services/fcm_service.dart';
 import '../services/onboarding_service.dart';
 import '../widgets/tooltip_overlay.dart';
+import '../widgets/premium/wardrobe_top_header.dart';
 import '../utils/main_shell_navigation.dart';
-import 'home/home_screen.dart';
+import 'home/wardrobe_home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
-import 'friends/friends_list_screen.dart';
-import 'chat/chat_list_screen.dart';
+import 'tryon/tryon_hub_screen.dart';
+import 'community/community_screen.dart';
 import 'profile/profile_screen.dart';
 import 'auth/login_screen.dart';
 
@@ -35,10 +36,10 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation>
     with WidgetsBindingObserver {
   final List<Widget> _screens = [
-    const HomeScreen(),
+    const WardrobeHomeScreen(),
     const WardrobeListScreen(),
-    const FriendsListScreen(),
-    const ChatListScreen(),
+    const TryOnHubScreen(),
+    const CommunityScreen(),
     const ProfileScreen(),
   ];
   int _previousIndex = 0;
@@ -415,20 +416,42 @@ class _MainNavigationState extends State<MainNavigation>
           handleMainShellBackButton(context);
         },
         child: Scaffold(
-          body: IndexedStack(
-            index: navigationProvider.currentIndex,
-            children: _screens,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top +
+                        WardrobeTopHeader.barHeight +
+                        (WardrobeTopHeader.logoSize *
+                            WardrobeTopHeader.logoOutFraction),
+                  ),
+                  child: IndexedStack(
+                    index: navigationProvider.currentIndex,
+                    children: _screens,
+                  ),
+                ),
+              ),
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: WardrobeTopHeader(),
+              ),
+            ],
           ),
-          bottomNavigationBar: BottomNavigationBar(
+          bottomNavigationBar: _PremiumBottomNavBar(
+            bottomNavKey: _bottomNavKey,
             currentIndex: navigationProvider.currentIndex,
-            onTap: (index) {
-              // Pop any pushed routes (feed, try-on, settings, etc.) so the tab body is visible
+            unreadCount: chatProvider.totalUnreadCount,
+            onSelectIndex: (index) {
+              // Pop any pushed routes so the tab body is visible.
               final nav = Navigator.of(context);
               if (nav.canPop()) {
                 nav.popUntil((route) => route.isFirst);
               }
 
-              // Home (logo): clear filters and always show hub
+              // Home: clear filters and always show hub.
               if (index == 0) {
                 final filterProvider =
                     Provider.of<FilterProvider>(context, listen: false);
@@ -442,70 +465,148 @@ class _MainNavigationState extends State<MainNavigation>
 
               navigationProvider.setCurrentIndex(index);
             },
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: const Color(0xFF043915),
-            unselectedItemColor: Colors.grey,
-            key: _bottomNavKey,
-            items: [
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/images/logo-chat.png',
-                height: 24,
-                width: 24,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.home),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumBottomNavBar extends StatelessWidget {
+  final GlobalKey bottomNavKey;
+  final int currentIndex;
+  final int unreadCount;
+  final ValueChanged<int> onSelectIndex;
+
+  const _PremiumBottomNavBar({
+    required this.bottomNavKey,
+    required this.currentIndex,
+    required this.unreadCount,
+    required this.onSelectIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Center TRY-ON action is implemented as a docked FAB over a Material 3 NavigationBar.
+    return SizedBox(
+      height: 92 + MediaQuery.of(context).padding.bottom,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          NavigationBar(
+            key: bottomNavKey,
+            selectedIndex: currentIndex,
+            onDestinationSelected: onSelectIndex,
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.home_rounded),
+                label: 'Home',
               ),
-              label: 'Home',
+              const NavigationDestination(
+                icon: Icon(Icons.inventory_2_rounded),
+                label: 'Wardrobe',
+              ),
+              const NavigationDestination(
+                // Spacer destination: the actual TRY-ON action is the docked FAB.
+                icon: SizedBox.shrink(),
+                selectedIcon: SizedBox.shrink(),
+                label: '',
+              ),
+              NavigationDestination(
+                icon: Badge(
+                  isLabelVisible: unreadCount > 0,
+                  label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+                  child: const Icon(Icons.people_alt_rounded),
+                ),
+                label: 'Community',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
+          ),
+          Positioned(
+            // Keep the FAB high enough to avoid colliding with destination labels.
+            bottom: 22 + MediaQuery.of(context).padding.bottom,
+            child: _TryOnFab(
+              selected: currentIndex == 2,
+              onPressed: () => onSelectIndex(2),
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2),
-              label: 'Wardrobes',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Friends',
-            ),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.chat),
-                  if (chatProvider.totalUnreadCount > 0)
-                    Positioned(
-                      right: -8,
-                      top: -8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          chatProvider.totalUnreadCount > 99
-                              ? '99+'
-                              : '${chatProvider.totalUnreadCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TryOnFab extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onPressed;
+
+  const _TryOnFab({required this.selected, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'Try-On',
+      child: Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          onTap: onPressed,
+          radius: 34,
+          child: Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  scheme.primary,
+                  scheme.primary.withValues(alpha: 0.82),
                 ],
               ),
-              label: 'Chats',
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.28),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+              border: Border.all(
+                color: scheme.onSurface.withValues(alpha: 0.10),
+                width: 1,
+              ),
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  color: scheme.onPrimary,
+                  size: 24,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'TRY-ON',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                        fontSize: 9,
+                      ),
+                ),
+              ],
             ),
-            ],
           ),
         ),
       ),

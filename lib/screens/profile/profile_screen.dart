@@ -17,7 +17,6 @@ import 'settings_screen.dart';
 import '../auth/login_screen.dart';
 import '../changing_room/changing_room_screen.dart';
 import '../cloth/batch_convert_screen.dart';
-import '../../utils/main_shell_navigation.dart';
 
 /// Profile screen displaying user info and stats
 class ProfileScreen extends StatefulWidget {
@@ -132,24 +131,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = authProvider.user;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        leading: mainShellAppBarLeading(context),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: _loadStats,
         child: SingleChildScrollView(

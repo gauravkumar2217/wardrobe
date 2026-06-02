@@ -11,7 +11,6 @@ import '../../services/banner_service.dart';
 import '../../models/wardrobe.dart';
 import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
-import '../../utils/main_shell_navigation.dart';
 import '../../utils/open_clothes_feed.dart';
 
 /// Wardrobe list screen
@@ -90,26 +89,6 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     final wardrobeProvider = Provider.of<WardrobeProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        leading: mainShellAppBarLeading(context),
-        actions: [
-          // Only show add button when not in selection mode
-          if (!widget.selectionMode)
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CreateWardrobeScreen()),
-                ).then((_) => _loadWardrobes());
-              },
-            ),
-        ],
-      ),
       body: wardrobeProvider.isLoading
           ? Center(
               child: Column(
