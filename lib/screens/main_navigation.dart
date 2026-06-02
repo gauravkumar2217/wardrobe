@@ -17,7 +17,7 @@ import 'home/wardrobe_home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
 import 'tryon/tryon_hub_screen.dart';
 import 'community/community_screen.dart';
-import 'profile/profile_screen.dart';
+import 'assistant/ai_assistant_screen.dart';
 import 'auth/login_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
@@ -40,7 +40,7 @@ class _MainNavigationState extends State<MainNavigation>
     const WardrobeListScreen(),
     const TryOnHubScreen(),
     const CommunityScreen(),
-    const ProfileScreen(),
+    const AiAssistantScreen(),
   ];
   int _previousIndex = 0;
   final AppStateService _appStateService = AppStateService();
@@ -256,10 +256,10 @@ class _MainNavigationState extends State<MainNavigation>
             break;
           case 4:
             step = OnboardingStep(
-              id: 'profile',
-              title: 'Your Profile',
+              id: 'assistant',
+              title: 'AI Assistant',
               description:
-                  'Manage your account, settings, and view your statistics. Customize your wardrobe experience here.',
+                  'Ask Wardrobe for outfit ideas, planning, and AI-powered recommendations.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,
@@ -446,7 +446,7 @@ class _MainNavigationState extends State<MainNavigation>
             unreadCount: chatProvider.totalUnreadCount,
             onSelectIndex: (index) {
               // Pop any pushed routes so the tab body is visible.
-              final nav = Navigator.of(context);
+              final nav = Navigator.of(context, rootNavigator: true);
               if (nav.canPop()) {
                 nav.popUntil((route) => route.isFirst);
               }
@@ -488,48 +488,75 @@ class _PremiumBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Center TRY-ON action is implemented as a docked FAB over a Material 3 NavigationBar.
+    const fabSize = 68.0; // match top header logo
+    const navBarHeight = 80.0; // Material 3 NavigationBar default
+    final safeBottom = MediaQuery.of(context).padding.bottom;
     return SizedBox(
-      height: 92 + MediaQuery.of(context).padding.bottom,
+      // Keep the bar as compact as possible; allow FAB to paint overflow above.
+      height: navBarHeight + safeBottom,
       child: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          NavigationBar(
-            key: bottomNavKey,
-            selectedIndex: currentIndex,
-            onDestinationSelected: onSelectIndex,
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.inventory_2_rounded),
-                label: 'Wardrobe',
-              ),
-              const NavigationDestination(
-                // Spacer destination: the actual TRY-ON action is the docked FAB.
-                icon: SizedBox.shrink(),
-                selectedIcon: SizedBox.shrink(),
-                label: '',
-              ),
-              NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: unreadCount > 0,
-                  label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
-                  child: const Icon(Icons.people_alt_rounded),
-                ),
-                label: 'Community',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
-            ],
-          ),
           Positioned(
-            // Keep the FAB high enough to avoid colliding with destination labels.
-            bottom: 22 + MediaQuery.of(context).padding.bottom,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.9),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+              child: NavigationBar(
+                key: bottomNavKey,
+                selectedIndex: currentIndex,
+                onDestinationSelected: onSelectIndex,
+                destinations: [
+                  const NavigationDestination(
+                    icon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  const NavigationDestination(
+                    icon: Icon(Icons.inventory_2_rounded),
+                    label: 'Wardrobe',
+                  ),
+                  const NavigationDestination(
+                    // Spacer destination: the actual TRY-ON action is the docked FAB.
+                    icon: SizedBox.shrink(),
+                    selectedIcon: SizedBox.shrink(),
+                    label: '',
+                  ),
+                  NavigationDestination(
+                    icon: Badge(
+                      isLabelVisible: unreadCount > 0,
+                      label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+                      child: const Icon(Icons.people_alt_rounded),
+                    ),
+                    label: 'Community',
+                  ),
+              const NavigationDestination(
+                icon: Icon(Icons.auto_awesome_rounded),
+                label: 'Assistant',
+              ),
+                ],
+              ),
+            ),
+          ),
+          // Place the FAB so it straddles the bar top edge:
+          // 40% above the bar (out), 60% inside.
+          Positioned(
+            // From the bottom of the bar: navBarHeight - (60% of fab size).
+            // This makes 40% of the fab sit above the top border line.
+            bottom: safeBottom + (navBarHeight - (fabSize * 0.6)),
             child: _TryOnFab(
+              size: fabSize,
               selected: currentIndex == 2,
               onPressed: () => onSelectIndex(2),
             ),
@@ -541,10 +568,15 @@ class _PremiumBottomNavBar extends StatelessWidget {
 }
 
 class _TryOnFab extends StatelessWidget {
+  final double size;
   final bool selected;
   final VoidCallback onPressed;
 
-  const _TryOnFab({required this.selected, required this.onPressed});
+  const _TryOnFab({
+    required this.size,
+    required this.selected,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -556,10 +588,10 @@ class _TryOnFab extends StatelessWidget {
         color: Colors.transparent,
         child: InkResponse(
           onTap: onPressed,
-          radius: 34,
+          radius: size / 2 + 6,
           child: Container(
-            width: 62,
-            height: 62,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -593,7 +625,7 @@ class _TryOnFab extends StatelessWidget {
                 Icon(
                   Icons.auto_awesome_rounded,
                   color: scheme.onPrimary,
-                  size: 24,
+                  size: 26,
                 ),
                 const SizedBox(height: 2),
                 Text(

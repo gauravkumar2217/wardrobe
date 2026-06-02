@@ -12,6 +12,7 @@ import '../../models/wardrobe.dart';
 import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
 import '../../utils/open_clothes_feed.dart';
+import '../../theme/wardrobe_tokens.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -87,6 +88,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final wardrobeProvider = Provider.of<WardrobeProvider>(context);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: wardrobeProvider.isLoading
@@ -94,15 +96,15 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF043915)),
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'Loading wardrobes...',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: scheme.onSurface.withValues(alpha: 0.72),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -114,13 +116,20 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: scheme.secondary,
+                      ),
                       const SizedBox(height: 16),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           wardrobeProvider.errorMessage!,
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: scheme.onSurface.withValues(alpha: 0.78),
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -132,10 +141,6 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         },
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF043915),
-                          foregroundColor: Colors.white,
-                        ),
                       ),
                     ],
                   ),
@@ -155,25 +160,28 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    const Color(0xFF043915).withValues(alpha: 0.1),
-                                    const Color(0xFF9F7AEA).withValues(alpha: 0.1),
+                                    scheme.primary.withValues(alpha: 0.18),
+                                    WardrobeTokens.emeraldCard,
                                   ],
                                 ),
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: WardrobeTokens.outlineGold,
+                                ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.inventory_2_rounded,
                                 size: 48,
-                                color: Color(0xFF043915),
+                                color: scheme.primary,
                               ),
                             ),
                             const SizedBox(height: 32),
-                            const Text(
+                            Text(
                               'No Wardrobes Yet',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A),
+                                color: scheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -181,63 +189,25 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               'Create your first wardrobe to organize\nyour clothes and keep them organized!',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[600],
+                                color: scheme.onSurface.withValues(alpha: 0.72),
                                 height: 1.5,
                               ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 32),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Color(0xFF043915),
-                                    Color(0xFF9F7AEA),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF043915).withValues(alpha: 0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => const CreateWardrobeScreen()),
-                                    ).then((_) => _loadWardrobes());
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 32, vertical: 16),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.add_rounded,
-                                            color: Colors.white, size: 20),
-                                        SizedBox(width: 12),
-                                        Text(
-                                          'Create Your First Wardrobe',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const CreateWardrobeScreen(),
                                     ),
-                                  ),
-                                ),
+                                  ).then((_) => _loadWardrobes());
+                                },
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Create Wardrobe'),
                               ),
                             ),
                           ],

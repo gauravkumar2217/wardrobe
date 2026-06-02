@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/wardrobe.dart';
+import '../theme/wardrobe_tokens.dart';
+import 'premium/premium_card.dart';
 
 /// Wardrobe card widget with improved UI/UX
 class WardrobeCard extends StatefulWidget {
@@ -45,6 +47,7 @@ class _WardrobeCardState extends State<WardrobeCard>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -53,203 +56,148 @@ class _WardrobeCardState extends State<WardrobeCard>
           child: child,
         );
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              const Color(0xFF043915).withValues(alpha: 0.02),
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            onTapDown: (_) {
-              _animationController.forward();
-            },
-            onTapUp: (_) {
-              _animationController.reverse();
-            },
-            onTapCancel: () {
-              _animationController.reverse();
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: PremiumCard(
+          onTap: widget.onTap,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  // Header section with icon, name and item count
-                  Row(
-                    children: [
-                      // Wardrobe icon
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF043915),
-                              Color(0xFF9F7AEA),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF043915)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.inventory_2,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          scheme.primary.withValues(alpha: 0.22),
+                          const Color(0xFF06211C),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      // Name and location
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.wardrobe.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A),
-                                letterSpacing: -0.5,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on_rounded,
-                                  size: 12,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 3),
-                                Flexible(
-                                  child: Text(
-                                    widget.wardrobe.location,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Item count badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF043915).withValues(alpha: 0.15),
-                              const Color(0xFF9F7AEA).withValues(alpha: 0.15),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color:
-                                const Color(0xFF043915).withValues(alpha: 0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.checkroom,
-                              size: 12,
-                              color: Color(0xFF043915),
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${widget.wardrobe.totalItems}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF043915),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Action buttons at the bottom
-                  if (widget.onEdit != null || widget.onDelete != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 1,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.grey[300]!,
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
+                      border: Border.all(color: WardrobeTokens.outlineGold),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    child: Icon(
+                      Icons.inventory_2_rounded,
+                      color: scheme.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (widget.onEdit != null)
-                          _ActionButton(
-                            icon: Icons.edit_rounded,
-                            label: 'Edit',
-                            color: const Color(0xFF043915),
-                            onPressed: widget.onEdit!,
-                          ),
-                        if (widget.onEdit != null && widget.onDelete != null)
-                          const SizedBox(width: 12),
-                        if (widget.onDelete != null)
-                          _ActionButton(
-                            icon: Icons.delete_rounded,
-                            label: 'Delete',
-                            color: Colors.red,
-                            onPressed: widget.onDelete!,
-                          ),
+                        Text(
+                          widget.wardrobe.name,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.2,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_rounded,
+                              size: 14,
+                              color: scheme.onSurface.withValues(alpha: 0.72),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                widget.wardrobe.location,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color:
+                                          scheme.onSurface.withValues(alpha: 0.72),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  _CountPill(count: widget.wardrobe.totalItems),
                 ],
               ),
-            ),
+              if (widget.onEdit != null || widget.onDelete != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  height: 1,
+                  color: scheme.primary.withValues(alpha: 0.12),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (widget.onEdit != null)
+                      _ActionButton(
+                        icon: Icons.edit_rounded,
+                        label: 'Edit',
+                        color: scheme.primary,
+                        onPressed: widget.onEdit!,
+                      ),
+                    if (widget.onEdit != null && widget.onDelete != null)
+                      const SizedBox(width: 12),
+                    if (widget.onDelete != null)
+                      _ActionButton(
+                        icon: Icons.delete_rounded,
+                        label: 'Delete',
+                        color: Colors.redAccent,
+                        onPressed: widget.onDelete!,
+                      ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  final int count;
+  const _CountPill({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: WardrobeTokens.outlineGold),
+        color: Colors.white.withValues(alpha: 0.05),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.checkroom_rounded, size: 16, color: scheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            '$count',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: scheme.onSurface.withValues(alpha: 0.92),
+                ),
+          ),
+        ],
       ),
     );
   }
@@ -271,6 +219,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -279,10 +228,13 @@ class _ActionButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: color.withValues(alpha: 0.3),
+              color: (color == scheme.primary
+                      ? WardrobeTokens.outlineGold
+                      : color.withValues(alpha: 0.35))
+                  .withValues(alpha: 0.85),
               width: 1,
             ),
           ),

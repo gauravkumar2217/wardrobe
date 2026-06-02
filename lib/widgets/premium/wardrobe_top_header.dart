@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
-import '../../providers/navigation_provider.dart';
 import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profile/profile_screen.dart';
 import '../../screens/profile/settings_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
 
@@ -57,9 +57,12 @@ class WardrobeTopHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _HeaderIconButton(
-                      onPressed: () => context
-                          .read<NavigationProvider>()
-                          .navigateToProfile(),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      ),
                       tooltip: 'Profile',
                       child: Hero(
                         tag: 'wardrobe_avatar',
