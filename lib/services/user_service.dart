@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
+import '../models/body_profile.dart';
+import '../models/avatar.dart';
 import '../models/eula_acceptance.dart';
 
 /// User service for managing user profiles
@@ -498,5 +500,122 @@ class UserService {
   static String getCurrentEulaVersion() {
     // Update this when Terms & Conditions change
     return '1.0';
+  }
+
+  /// Get body profile for user
+  static Future<BodyProfile?> getBodyProfile(String userId) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('bodyProfile')
+          .doc('current')
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        return null;
+      }
+
+      return BodyProfile.fromJson(doc.data()!, userId);
+    } catch (e) {
+      debugPrint('Failed to get body profile: $e');
+      return null;
+    }
+  }
+
+  /// Save or update body profile
+  static Future<void> saveBodyProfile(BodyProfile bodyProfile) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(bodyProfile.userId)
+          .collection('bodyProfile')
+          .doc('current')
+          .set(bodyProfile.toJson());
+
+      debugPrint('Body profile saved successfully for user ${bodyProfile.userId}');
+    } catch (e) {
+      debugPrint('Failed to save body profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete body profile
+  static Future<void> deleteBodyProfile(String userId) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('bodyProfile')
+          .doc('current')
+          .delete();
+
+      debugPrint('Body profile deleted successfully for user $userId');
+    } catch (e) {
+      debugPrint('Failed to delete body profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Get avatar for user
+  static Future<Avatar?> getAvatar(String userId) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('avatar')
+          .doc('current')
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        return null;
+      }
+
+      return Avatar.fromJson(doc.data()!, userId);
+    } catch (e) {
+      debugPrint('Failed to get avatar: $e');
+      return null;
+    }
+  }
+
+  /// Save or update avatar
+  static Future<void> saveAvatar(Avatar avatar) async {
+    try {
+      final avatarData = avatar.toJson();
+      avatarData['updatedAt'] = FieldValue.serverTimestamp();
+      
+      if (!avatarData.containsKey('createdAt')) {
+        avatarData['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(avatar.userId)
+          .collection('avatar')
+          .doc('current')
+          .set(avatarData);
+
+      debugPrint('Avatar saved successfully for user ${avatar.userId}');
+    } catch (e) {
+      debugPrint('Failed to save avatar: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete avatar
+  static Future<void> deleteAvatar(String userId) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('avatar')
+          .doc('current')
+          .delete();
+
+      debugPrint('Avatar deleted successfully for user $userId');
+    } catch (e) {
+      debugPrint('Failed to delete avatar: $e');
+      rethrow;
+    }
   }
 }

@@ -5,9 +5,14 @@ import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/filter_provider.dart';
 import '../../widgets/wardrobe_card.dart';
+import '../../widgets/banner_slider_widget.dart';
 import '../../services/wardrobe_service.dart';
+import '../../services/banner_service.dart';
 import '../../models/wardrobe.dart';
+import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
+import '../../utils/main_shell_navigation.dart';
+import '../../utils/open_clothes_feed.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -25,13 +30,30 @@ class WardrobeListScreen extends StatefulWidget {
 }
 
 class _WardrobeListScreenState extends State<WardrobeListScreen> {
+  final BannerService _bannerService = BannerService();
+  List<models.Banner> _banners = [];
+
   @override
   void initState() {
     super.initState();
     // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadWardrobes();
+      _loadBanners();
     });
+  }
+
+  Future<void> _loadBanners() async {
+    try {
+      final banners = await _bannerService.getBannersByLocation('wardrobe_list');
+      if (mounted) {
+        setState(() {
+          _banners = banners;
+        });
+      }
+    } catch (e) {
+      // Silently handle errors - banners are optional
+    }
   }
 
   void _loadWardrobes() {
@@ -52,9 +74,9 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
     filterProvider.clearFilters();
     
-    // Navigate to home screen
+    // Home tab + open Clothes feed (swipe closet), same as Home "Clothes" card
     final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
+    openClothesFeed(navigationProvider);
     
     // Pop wardrobe list screen if it was pushed (i.e., not from main navigation tab)
     if (Navigator.canPop(context)) {
@@ -70,8 +92,10 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.selectionMode ? 'Select Wardrobe' : 'My Wardrobes'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: mainShellAppBarLeading(context),
         actions: [
           // Only show add button when not in selection mode
           if (!widget.selectionMode)
@@ -92,7 +116,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF043915)),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -130,7 +154,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -152,7 +176,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                                    const Color(0xFF043915).withValues(alpha: 0.1),
                                     const Color(0xFF9F7AEA).withValues(alpha: 0.1),
                                   ],
                                 ),
@@ -161,7 +185,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                               child: const Icon(
                                 Icons.inventory_2_rounded,
                                 size: 48,
-                                color: Color(0xFF7C3AED),
+                                color: Color(0xFF043915),
                               ),
                             ),
                             const SizedBox(height: 32),
@@ -190,14 +214,14 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    Color(0xFF7C3AED),
+                                    Color(0xFF043915),
                                     Color(0xFF9F7AEA),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                                    color: const Color(0xFF043915).withValues(alpha: 0.3),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -244,16 +268,27 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                   : RefreshIndicator(
                       onRefresh: () async {
                         _loadWardrobes();
+                        _loadBanners();
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
-                      color: const Color(0xFF7C3AED),
+                      color: const Color(0xFF043915),
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: wardrobeProvider.wardrobes.length,
+                        itemCount: (_banners.isNotEmpty ? 1 : 0) + wardrobeProvider.wardrobes.length,
                         itemBuilder: (context, index) {
-                          final wardrobe = wardrobeProvider.wardrobes[index];
+                          // Show banner slider as first item if available
+                          if (_banners.isNotEmpty && index == 0) {
+                            return BannerSliderWidget(
+                              banners: _banners,
+                              width: double.infinity,
+                              height: 100,
+                            );
+                          }
+                          // Adjust index for wardrobe items
+                          final wardrobeIndex = _banners.isNotEmpty ? index - 1 : index;
+                          final wardrobe = wardrobeProvider.wardrobes[wardrobeIndex];
                           return TweenAnimationBuilder<double>(
-                            duration: Duration(milliseconds: 300 + (index * 50)),
+                            duration: Duration(milliseconds: 300 + (wardrobeIndex * 50)),
                             tween: Tween(begin: 0.0, end: 1.0),
                             curve: Curves.easeOut,
                             builder: (context, value, child) {
@@ -369,7 +404,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFF7C3AED),
+                            Color(0xFF043915),
                             Color(0xFF9F7AEA),
                           ],
                         ),
@@ -714,7 +749,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFF7C3AED),
+                            Color(0xFF043915),
                             Color(0xFF9F7AEA),
                           ],
                         ),
@@ -770,7 +805,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF7C3AED),
+                        color: Color(0xFF043915),
                         width: 2,
                       ),
                     ),
@@ -812,7 +847,7 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF7C3AED),
+                        color: Color(0xFF043915),
                         width: 2,
                       ),
                     ),
@@ -862,14 +897,14 @@ class _EditWardrobeDialogState extends State<_EditWardrobeDialog> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0xFF7C3AED),
+                              Color(0xFF043915),
                               Color(0xFF9F7AEA),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                              color: const Color(0xFF043915).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),

@@ -41,10 +41,10 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
 
     if (user != null) {
       // Email is verified if user has email and it's verified, or if account was created with email
-      _emailVerified = user.email != null && 
-                      (user.emailVerified || 
-                       user.providerData.any((info) => info.providerId == 'password'));
-      
+      _emailVerified = user.email != null &&
+          (user.emailVerified ||
+              user.providerData.any((info) => info.providerId == 'password'));
+
       // Phone is verified if user has phoneNumber in Firebase Auth
       _phoneVerified = user.phoneNumber != null;
       _phoneNumber = user.phoneNumber ?? profile?.phone;
@@ -201,7 +201,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Email not verified yet. Please check your inbox and click the verification link.'),
+              content: Text(
+                  'Email not verified yet. Please check your inbox and click the verification link.'),
             ),
           );
         }
@@ -246,7 +247,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
       );
 
       await user.linkWithCredential(credential);
-      
+
       // Update profile with verified phone
       final profile = authProvider.userProfile;
       if (profile != null && _phoneNumber != null) {
@@ -289,7 +290,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Verify Contact'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -351,7 +352,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text(
                                         'Email Address',
@@ -383,7 +385,9 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
-                                    _emailVerified ? 'Verified' : 'Not Verified',
+                                    _emailVerified
+                                        ? 'Verified'
+                                        : 'Not Verified',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 11,
@@ -405,13 +409,17 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: _isLoading ? null : _sendEmailVerification,
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _sendEmailVerification,
                                   icon: const Icon(Icons.send, size: 16),
-                                  label: const Text('Send Verification Email', style: TextStyle(fontSize: 13)),
+                                  label: const Text('Send Verification Email',
+                                      style: TextStyle(fontSize: 13)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF7C3AED),
+                                    backgroundColor: const Color(0xFF043915),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -424,12 +432,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 child: OutlinedButton.icon(
                                   onPressed: _isLoading ? null : _verifyEmail,
                                   icon: const Icon(Icons.refresh, size: 16),
-                                  label: const Text('Check Status', style: TextStyle(fontSize: 13)),
+                                  label: const Text('Check Status',
+                                      style: TextStyle(fontSize: 13)),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFF7C3AED),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    foregroundColor: const Color(0xFF043915),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
                                     side: const BorderSide(
-                                      color: Color(0xFF7C3AED),
+                                      color: Color(0xFF043915),
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
@@ -477,7 +487,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text(
                                         'Phone Number',
@@ -512,7 +523,9 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
-                                    _phoneVerified ? 'Verified' : 'Not Verified',
+                                    _phoneVerified
+                                        ? 'Verified'
+                                        : 'Not Verified',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 11,
@@ -526,7 +539,8 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                               const SizedBox(height: 12),
                               const Divider(),
                               const SizedBox(height: 12),
-                              if (_phoneNumber == null || _phoneNumber!.isEmpty) ...[
+                              if (_phoneNumber == null ||
+                                  _phoneNumber!.isEmpty) ...[
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
@@ -563,17 +577,21 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
-                                      onPressed: _isLoading ? null : _sendPhoneOTP,
+                                      onPressed:
+                                          _isLoading ? null : _sendPhoneOTP,
                                       icon: const Icon(Icons.sms, size: 16),
-                                      label: const Text('Send OTP', style: TextStyle(fontSize: 13)),
+                                      label: const Text('Send OTP',
+                                          style: TextStyle(fontSize: 13)),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF7C3AED),
+                                        backgroundColor:
+                                            const Color(0xFF043915),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 10,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                       ),
                                     ),
@@ -602,18 +620,23 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                           maxLength: 6,
                                           decoration: InputDecoration(
                                             labelText: 'Enter OTP',
-                                            labelStyle: const TextStyle(fontSize: 13),
+                                            labelStyle:
+                                                const TextStyle(fontSize: 13),
                                             hintText: '000000',
-                                            hintStyle: const TextStyle(fontSize: 20),
+                                            hintStyle:
+                                                const TextStyle(fontSize: 20),
                                             counterText: '',
-                                            prefixIcon: const Icon(Icons.pin, size: 18),
+                                            prefixIcon:
+                                                const Icon(Icons.pin, size: 18),
                                             border: OutlineInputBorder(
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
                                             filled: true,
                                             fillColor: Colors.grey[50],
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 12),
                                           ),
                                           validator: (value) {
                                             if (value == null ||
@@ -633,11 +656,13 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                             onPressed: _isLoading
                                                 ? null
                                                 : _verifyPhoneOTP,
-                                            icon: const Icon(Icons.verified, size: 16),
-                                            label: const Text('Verify OTP', style: TextStyle(fontSize: 13)),
+                                            icon: const Icon(Icons.verified,
+                                                size: 16),
+                                            label: const Text('Verify OTP',
+                                                style: TextStyle(fontSize: 13)),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
-                                                  const Color(0xFF7C3AED),
+                                                  const Color(0xFF043915),
                                               foregroundColor: Colors.white,
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -665,11 +690,14 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                                           Center(
                                             child: TextButton.icon(
                                               onPressed: _sendPhoneOTP,
-                                              icon: const Icon(Icons.refresh, size: 16),
-                                              label: const Text('Resend OTP', style: TextStyle(fontSize: 13)),
+                                              icon: const Icon(Icons.refresh,
+                                                  size: 16),
+                                              label: const Text('Resend OTP',
+                                                  style:
+                                                      TextStyle(fontSize: 13)),
                                               style: TextButton.styleFrom(
                                                 foregroundColor:
-                                                    const Color(0xFF7C3AED),
+                                                    const Color(0xFF043915),
                                               ),
                                             ),
                                           ),
@@ -691,4 +719,3 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     );
   }
 }
-

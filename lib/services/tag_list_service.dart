@@ -39,6 +39,9 @@ class TagListService {
         debugPrint('   Occasions: ${_cachedTagLists!.occasions.length}');
         debugPrint('   Categories: ${_cachedTagLists!.categories.length}');
         debugPrint('   Common Colors: ${_cachedTagLists!.commonColors.length}');
+        debugPrint('   Makeup Types: ${_cachedTagLists!.makeupTypes.length}');
+        debugPrint('   Footwear Types: ${_cachedTagLists!.footwearTypes.length}');
+        debugPrint('   Accessory Types: ${_cachedTagLists!.accessoryTypes.length}');
         debugPrint('   Version: ${_cachedTagLists!.version}');
         if (_cachedTagLists!.lastUpdated != null) {
           debugPrint('   Last Updated: ${_cachedTagLists!.lastUpdated}');
@@ -224,6 +227,57 @@ class TagListService {
         'Peach',
         'Mint',
       ],
+      makeupTypes: [
+        'Lipstick',
+        'Foundation',
+        'Blush',
+        'Eyeshadow',
+        'Mascara',
+        'Eyeliner',
+        'Concealer',
+        'Highlighter',
+        'Bronzer',
+        'Setting Powder',
+        'Lip Gloss',
+        'Kajal',
+        'Primer',
+        'BB Cream',
+        'Nail Polish',
+      ],
+      footwearTypes: [
+        'Sneakers',
+        'Heels',
+        'Sandals',
+        'Boots',
+        'Flats',
+        'Loafers',
+        'Oxfords',
+        'Flip-Flops',
+        'Wedges',
+        'Ankle Boots',
+        'Sports Shoes',
+        'Formal Shoes',
+        'Slippers',
+        'Jutti',
+        'Kolhapuri',
+      ],
+      accessoryTypes: [
+        'Watch',
+        'Belt',
+        'Bag',
+        'Sunglasses',
+        'Scarf',
+        'Hat',
+        'Cap',
+        'Necklace',
+        'Earrings',
+        'Bracelet',
+        'Ring',
+        'Hair Clip',
+        'Wallet',
+        'Tie',
+        'Pocket Square',
+      ],
       version: 1,
     );
   }
@@ -235,6 +289,9 @@ class TagListService {
   static List<String> get occasions => getCachedTagLists().occasions;
   static List<String> get categories => getCachedTagLists().categories;
   static List<String> get commonColors => getCachedTagLists().commonColors;
+  static List<String> get makeupTypes => getCachedTagLists().makeupTypes;
+  static List<String> get footwearTypes => getCachedTagLists().footwearTypes;
+  static List<String> get accessoryTypes => getCachedTagLists().accessoryTypes;
 
   /// Add a new cloth type to Firestore (syncs across all users)
   /// Authenticated users can add new types discovered by AI detection

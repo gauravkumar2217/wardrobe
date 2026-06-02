@@ -47,10 +47,10 @@ class _TooltipOverlayState extends State<TooltipOverlay> {
 
   void _updateTargetPosition() {
     if (widget.step == null) return;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.step == null) return;
-      
+
       // Try to get position from key
       if (widget.step!.targetKey?.currentContext != null) {
         final RenderBox? targetBox = widget.step!.targetKey!.currentContext!
@@ -77,8 +77,10 @@ class _TooltipOverlayState extends State<TooltipOverlay> {
   @override
   Widget build(BuildContext context) {
     // Hide overlay if step is null OR all callbacks are null (onboarding inactive)
-    if (widget.step == null || 
-        (widget.onNext == null && widget.onPrevious == null && widget.onSkip == null)) {
+    if (widget.step == null ||
+        (widget.onNext == null &&
+            widget.onPrevious == null &&
+            widget.onSkip == null)) {
       return widget.child;
     }
 
@@ -151,13 +153,12 @@ class _DarkOverlayPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // Create path for entire screen
-    final path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     // Responsive padding based on target size
     final padding = (targetSize.width * 0.15).clamp(10.0, 14.0);
     final borderRadius = (targetSize.width * 0.2).clamp(12.0, 18.0);
-    
+
     // Create hole for target (with padding)
     final hole = Path()
       ..addRRect(
@@ -215,43 +216,45 @@ class _TooltipWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    final textScaleFactor = MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2);
-    
+    final textScaleFactor =
+        MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2);
+
     // Responsive tooltip dimensions
     final tooltipWidth = (screenWidth * 0.9).clamp(280.0, 360.0);
     final tooltipHeight = (screenHeight * 0.25).clamp(160.0, 220.0);
     const bottomNavHeight = 60.0;
     final padding = (screenWidth * 0.04).clamp(12.0, 20.0);
-    
+
     // Position tooltip above bottom navigation bar
     // If target is at bottom (navigation items), show tooltip above it
     // Otherwise show at bottom center of screen
     double tooltipY;
-    if (targetPosition != null && 
-        targetPosition!.dy > screenHeight - 150) {
+    if (targetPosition != null && targetPosition!.dy > screenHeight - 150) {
       // Target is near bottom (navigation bar)
       tooltipY = targetPosition!.dy - tooltipHeight - padding - 16;
     } else {
       // Show at bottom center, above navigation
       tooltipY = screenHeight - bottomNavHeight - tooltipHeight - padding - 16;
     }
-    
+
     // Center horizontally
     final tooltipX = (screenWidth - tooltipWidth) / 2;
 
     return Positioned(
       left: tooltipX.clamp(padding, screenWidth - tooltipWidth - padding),
       top: tooltipY.clamp(padding, screenHeight - tooltipHeight - padding),
-      child: _buildTooltipContent(context, tooltipWidth, tooltipHeight, textScaleFactor),
+      child: _buildTooltipContent(
+          context, tooltipWidth, tooltipHeight, textScaleFactor),
     );
   }
 
-  Widget _buildTooltipContent(BuildContext context, double width, double maxHeight, double textScaleFactor) {
+  Widget _buildTooltipContent(BuildContext context, double width,
+      double maxHeight, double textScaleFactor) {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = (screenWidth * 0.05).clamp(12.0, 20.0);
     final verticalPadding = (screenWidth * 0.03).clamp(10.0, 16.0);
     final borderRadius = (screenWidth * 0.05).clamp(16.0, 20.0);
-    
+
     return Container(
       width: width,
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -282,8 +285,8 @@ class _TooltipWidget extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF7C3AED),
-                  const Color(0xFF7C3AED).withValues(alpha: 0.8),
+                  const Color(0xFF043915),
+                  const Color(0xFF043915).withValues(alpha: 0.8),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -391,14 +394,15 @@ class _TooltipWidget extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
-                    if (hasPreviousSteps && onPrevious != null) SizedBox(
-                      width: (screenWidth * 0.03).clamp(8.0, 12.0),
-                    ),
+                    if (hasPreviousSteps && onPrevious != null)
+                      SizedBox(
+                        width: (screenWidth * 0.03).clamp(8.0, 12.0),
+                      ),
                     if (onNext != null)
                       ElevatedButton(
                         onPressed: onNext,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
                             horizontal: (screenWidth * 0.06).clamp(20.0, 24.0),
@@ -427,4 +431,3 @@ class _TooltipWidget extends StatelessWidget {
     );
   }
 }
-

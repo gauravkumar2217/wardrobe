@@ -84,13 +84,13 @@ class _ChatInputState extends State<ChatInput> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFF7C3AED),
+                              Color(0xFF043915),
                             ),
                           ),
                         )
                       : const Icon(Icons.send),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF043915),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(12),
                   ),
@@ -103,4 +103,3 @@ class _ChatInputState extends State<ChatInput> {
     );
   }
 }
-

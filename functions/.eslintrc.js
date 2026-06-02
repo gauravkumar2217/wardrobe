@@ -22,6 +22,10 @@ module.exports = {
     "*.json",
   ],
   rules: {
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {argsIgnorePattern: "^_", varsIgnorePattern: "^_"},
+    ],
     // Disable overly strict rules
     "max-len": "off",
     "indent": "off",

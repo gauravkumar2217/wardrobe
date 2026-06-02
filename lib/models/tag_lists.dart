@@ -9,6 +9,9 @@ class TagLists {
   final List<String> occasions;
   final List<String> categories;
   final List<String> commonColors;
+  final List<String> makeupTypes;
+  final List<String> footwearTypes;
+  final List<String> accessoryTypes;
   final DateTime? lastUpdated;
   final int version;
 
@@ -19,9 +22,14 @@ class TagLists {
     required this.occasions,
     required this.categories,
     required this.commonColors,
+    List<String>? makeupTypes,
+    List<String>? footwearTypes,
+    List<String>? accessoryTypes,
     this.lastUpdated,
     this.version = 1,
-  });
+  })  : makeupTypes = makeupTypes ?? [],
+        footwearTypes = footwearTypes ?? [],
+        accessoryTypes = accessoryTypes ?? [];
 
   factory TagLists.fromJson(Map<String, dynamic> json) {
     return TagLists(
@@ -31,6 +39,9 @@ class TagLists {
       occasions: List<String>.from(json['occasions'] ?? []),
       categories: List<String>.from(json['categories'] ?? []),
       commonColors: List<String>.from(json['commonColors'] ?? []),
+      makeupTypes: List<String>.from(json['makeupTypes'] ?? []),
+      footwearTypes: List<String>.from(json['footwearTypes'] ?? []),
+      accessoryTypes: List<String>.from(json['accessoryTypes'] ?? []),
       lastUpdated: json['lastUpdated'] != null
           ? (json['lastUpdated'] as Timestamp).toDate()
           : null,
@@ -46,6 +57,9 @@ class TagLists {
       'occasions': occasions,
       'categories': categories,
       'commonColors': commonColors,
+      'makeupTypes': makeupTypes,
+      'footwearTypes': footwearTypes,
+      'accessoryTypes': accessoryTypes,
       'lastUpdated': lastUpdated != null
           ? Timestamp.fromDate(lastUpdated!)
           : FieldValue.serverTimestamp(),
@@ -60,6 +74,9 @@ class TagLists {
     List<String>? occasions,
     List<String>? categories,
     List<String>? commonColors,
+    List<String>? makeupTypes,
+    List<String>? footwearTypes,
+    List<String>? accessoryTypes,
     DateTime? lastUpdated,
     int? version,
   }) {
@@ -70,6 +87,9 @@ class TagLists {
       occasions: occasions ?? this.occasions,
       categories: categories ?? this.categories,
       commonColors: commonColors ?? this.commonColors,
+      makeupTypes: makeupTypes ?? this.makeupTypes,
+      footwearTypes: footwearTypes ?? this.footwearTypes,
+      accessoryTypes: accessoryTypes ?? this.accessoryTypes,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       version: version ?? this.version,
     );

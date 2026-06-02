@@ -17,7 +17,8 @@ class OutfitSuggestionScreen extends StatefulWidget {
 
 class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
   List<OutfitSuggestion> _suggestions = [];
-  Map<String, List<Cloth>> _suggestionClothes = {}; // Map of suggestion ID to clothes
+  Map<String, List<Cloth>> _suggestionClothes =
+      {}; // Map of suggestion ID to clothes
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -55,7 +56,8 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
         final clothes = <Cloth>[];
         for (final clothId in suggestion.clothIds) {
           // Try to find the cloth - we need to search across all wardrobes
-          final allClothes = await ClothService.getAllUserClothes(authProvider.user!.uid);
+          final allClothes =
+              await ClothService.getAllUserClothes(authProvider.user!.uid);
           final cloth = allClothes.firstWhere(
             (c) => c.id == clothId,
             orElse: () => throw Exception('Cloth not found'),
@@ -83,7 +85,7 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Outfit Suggestions'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -93,7 +95,8 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                      Icon(Icons.error_outline,
+                          size: 48, color: Colors.grey[400]),
                       const SizedBox(height: 12),
                       Text(
                         _errorMessage!,
@@ -104,10 +107,11 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                       ElevatedButton(
                         onPressed: _loadSuggestions,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Retry', style: TextStyle(fontSize: 14)),
+                        child:
+                            const Text('Retry', style: TextStyle(fontSize: 14)),
                       ),
                     ],
                   ),
@@ -117,16 +121,19 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.lightbulb_outline, size: 48, color: Colors.grey[400]),
+                          Icon(Icons.lightbulb_outline,
+                              size: 48, color: Colors.grey[400]),
                           const SizedBox(height: 12),
                           Text(
                             'No suggestions yet',
-                            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.grey[600]),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Suggestions will appear here when you receive scheduled notifications',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[500]),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -138,7 +145,7 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                       itemBuilder: (context, index) {
                         final suggestion = _suggestions[index];
                         final clothes = _suggestionClothes[suggestion.id] ?? [];
-                        
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 16),
                           elevation: 2,
@@ -155,13 +162,14 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                       children: [
                                         const Icon(
                                           Icons.lightbulb,
-                                          color: Color(0xFF7C3AED),
+                                          color: Color(0xFF043915),
                                           size: 20,
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            suggestion.title ?? 'Outfit Suggestion',
+                                            suggestion.title ??
+                                                'Outfit Suggestion',
                                             style: const TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
@@ -197,12 +205,15 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                 child: clothes.isEmpty
                                     ? const Text(
                                         'Clothes not found',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey),
                                       )
                                     : GridView.builder(
                                         shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: 2,
                                           crossAxisSpacing: 8,
                                           mainAxisSpacing: 8,
@@ -213,16 +224,20 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                           final cloth = clothes[clothIndex];
                                           return GestureDetector(
                                             onTap: () async {
-                                              final authProvider = Provider.of<AuthProvider>(
+                                              final authProvider =
+                                                  Provider.of<AuthProvider>(
                                                 context,
                                                 listen: false,
                                               );
                                               await Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
-                                                  builder: (_) => ClothDetailScreen(
+                                                  builder: (_) =>
+                                                      ClothDetailScreen(
                                                     cloth: cloth,
-                                                    isOwner: authProvider.user?.uid == cloth.ownerId,
+                                                    isOwner: authProvider
+                                                            .user?.uid ==
+                                                        cloth.ownerId,
                                                   ),
                                                 ),
                                               );
@@ -230,23 +245,30 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                             child: Card(
                                               elevation: 1,
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Expanded(
                                                     child: ClipRRect(
-                                                      borderRadius: const BorderRadius.vertical(
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .vertical(
                                                         top: Radius.circular(4),
                                                       ),
                                                       child: Image.network(
                                                         cloth.imageUrl,
                                                         fit: BoxFit.cover,
                                                         width: double.infinity,
-                                                        errorBuilder: (context, error, stackTrace) {
+                                                        errorBuilder: (context,
+                                                            error, stackTrace) {
                                                           return Container(
-                                                            color: Colors.grey[300],
+                                                            color: Colors
+                                                                .grey[300],
                                                             child: const Icon(
-                                                              Icons.image_not_supported,
-                                                              color: Colors.grey,
+                                                              Icons
+                                                                  .image_not_supported,
+                                                              color:
+                                                                  Colors.grey,
                                                             ),
                                                           );
                                                         },
@@ -254,25 +276,33 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                                     ),
                                                   ),
                                                   Padding(
-                                                    padding: const EdgeInsets.all(6),
+                                                    padding:
+                                                        const EdgeInsets.all(6),
                                                     child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
                                                         Text(
                                                           cloth.clothType,
-                                                          style: const TextStyle(
+                                                          style:
+                                                              const TextStyle(
                                                             fontSize: 11,
-                                                            fontWeight: FontWeight.bold,
+                                                            fontWeight:
+                                                                FontWeight.bold,
                                                           ),
                                                           maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
-                                                        if (cloth.wornAt == null)
+                                                        if (cloth.wornAt ==
+                                                            null)
                                                           Text(
                                                             'Never worn',
                                                             style: TextStyle(
                                                               fontSize: 10,
-                                                              color: Colors.orange[700],
+                                                              color: Colors
+                                                                  .orange[700],
                                                             ),
                                                           )
                                                         else
@@ -280,7 +310,8 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
                                                             'Last worn: ${_formatDate(cloth.wornAt!)}',
                                                             style: TextStyle(
                                                               fontSize: 10,
-                                                              color: Colors.grey[600],
+                                                              color: Colors
+                                                                  .grey[600],
                                                             ),
                                                           ),
                                                       ],
@@ -319,4 +350,3 @@ class _OutfitSuggestionScreenState extends State<OutfitSuggestionScreen> {
     }
   }
 }
-

@@ -28,7 +28,8 @@ class ClothDetailScreen extends StatefulWidget {
     this.isOwner = false,
     this.isShared = false,
   }) : assert(
-          (cloth != null) || (clothId != null && ownerId != null && wardrobeId != null),
+          (cloth != null) ||
+              (clothId != null && ownerId != null && wardrobeId != null),
           'Either cloth or (clothId, ownerId, wardrobeId) must be provided',
         );
 
@@ -63,7 +64,9 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
   }
 
   Future<void> _loadCloth() async {
-    if (widget.clothId == null || widget.ownerId == null || widget.wardrobeId == null) {
+    if (widget.clothId == null ||
+        widget.ownerId == null ||
+        widget.wardrobeId == null) {
       debugPrint('❌ ClothDetailScreen: Missing required parameters');
       debugPrint('   clothId: ${widget.clothId}');
       debugPrint('   ownerId: ${widget.ownerId}');
@@ -90,7 +93,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     try {
       final clothProvider = Provider.of<ClothProvider>(context, listen: false);
       debugPrint('🔄 ClothDetailScreen: Calling getClothById...');
-      
+
       final cloth = await clothProvider.getClothById(
         userId: widget.ownerId!,
         wardrobeId: widget.wardrobeId!,
@@ -103,10 +106,11 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
       if (cloth != null) {
         debugPrint('✅ ClothDetailScreen: Cloth loaded successfully');
         debugPrint('   clothType: ${cloth.clothType}');
-        debugPrint('   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
+        debugPrint(
+            '   imageUrl: ${cloth.imageUrl.isNotEmpty ? "✅ Has image" : "❌ No image"}');
         debugPrint('   visibility: ${cloth.visibility}');
         debugPrint('   commentsCount: ${cloth.commentsCount}');
-        
+
         // Refresh comment count to ensure it's accurate
         Cloth updatedCloth = cloth;
         try {
@@ -116,16 +120,17 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
             clothId: widget.clothId!,
           );
           debugPrint('   actualCommentCount: $actualCommentCount');
-          
+
           // Update cloth with actual count if different
           if (actualCommentCount != cloth.commentsCount) {
             updatedCloth = cloth.copyWith(commentsCount: actualCommentCount);
-            debugPrint('   Updated commentsCount from ${cloth.commentsCount} to $actualCommentCount');
+            debugPrint(
+                '   Updated commentsCount from ${cloth.commentsCount} to $actualCommentCount');
           }
         } catch (e) {
           debugPrint('⚠️ Failed to refresh comment count: $e');
         }
-        
+
         setState(() {
           _cloth = updatedCloth;
           _isLoading = false;
@@ -163,14 +168,14 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       // Get actual like count from Firestore
       final actualCount = await clothProvider.getLikeCount(
         ownerId: _cloth!.ownerId,
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       if (mounted) {
         setState(() {
           _isLiked = isLiked;
@@ -189,8 +194,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
 
     if (_cloth == null || authProvider.user == null) return;
 
-    final wasWornToday = _cloth!.wornAt != null &&
-        _isSameDay(_cloth!.wornAt!, DateTime.now());
+    final wasWornToday =
+        _cloth!.wornAt != null && _isSameDay(_cloth!.wornAt!, DateTime.now());
 
     try {
       final newWornAt = await clothProvider.toggleWornStatus(
@@ -248,7 +253,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       // Refresh like status and count from Firestore
       final updatedIsLiked = await clothProvider.isLiked(
         userId: authProvider.user!.uid,
@@ -256,13 +261,13 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       final updatedCount = await clothProvider.getLikeCount(
         ownerId: _cloth!.ownerId,
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       if (mounted) {
         setState(() {
           _isLiked = updatedIsLiked;
@@ -280,13 +285,13 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       final actualCount = await clothProvider.getLikeCount(
         ownerId: _cloth!.ownerId,
         wardrobeId: _cloth!.wardrobeId,
         clothId: _cloth!.id,
       );
-      
+
       if (mounted) {
         setState(() {
           _isLiked = actualIsLiked;
@@ -296,7 +301,9 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${actualIsLiked ? "unlike" : "like"} cloth')),
+          SnackBar(
+              content:
+                  Text('Failed to ${actualIsLiked ? "unlike" : "like"} cloth')),
         );
       }
     }
@@ -326,7 +333,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -426,7 +434,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         backgroundColor: Colors.black,
         appBar: AppBar(
           title: const Text('Error'),
-          backgroundColor: const Color(0xFF7C3AED),
+          backgroundColor: const Color(0xFF043915),
           foregroundColor: Colors.white,
         ),
         body: Center(
@@ -438,7 +446,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
       );
     }
 
-    final isOwner = widget.isOwner || (authProvider.user?.uid == _cloth!.ownerId);
+    final isOwner =
+        widget.isOwner || (authProvider.user?.uid == _cloth!.ownerId);
     final isShared = widget.isShared;
     final isAuthenticated = authProvider.user != null;
     final canInteract = isAuthenticated && (isOwner || isShared);
@@ -452,47 +461,54 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
           isLiked: _isLiked,
           showBackButton: true,
           onLike: canInteract ? _handleLike : null,
-          onComment: canInteract ? () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CommentScreen(cloth: _cloth!),
-              ),
-            );
-            
-            // Refresh comment count after returning from comment screen
-            if (!mounted || _cloth == null) return;
-            try {
-              final clothProvider = Provider.of<ClothProvider>(this.context, listen: false);
-              final actualCount = await clothProvider.getCommentCount(
-                ownerId: _cloth!.ownerId,
-                wardrobeId: _cloth!.wardrobeId,
-                clothId: _cloth!.id,
-              );
-              
-              if (mounted && actualCount != _cloth!.commentsCount) {
-                setState(() {
-                  _cloth = _cloth!.copyWith(commentsCount: actualCount);
-                });
-              }
-            } catch (e) {
-              debugPrint('Failed to refresh comment count: $e');
-            }
-          } : null,
+          onComment: canInteract
+              ? () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CommentScreen(cloth: _cloth!),
+                    ),
+                  );
+
+                  // Refresh comment count after returning from comment screen
+                  if (!mounted || _cloth == null) return;
+                  try {
+                    final clothProvider =
+                        Provider.of<ClothProvider>(this.context, listen: false);
+                    final actualCount = await clothProvider.getCommentCount(
+                      ownerId: _cloth!.ownerId,
+                      wardrobeId: _cloth!.wardrobeId,
+                      clothId: _cloth!.id,
+                    );
+
+                    if (mounted && actualCount != _cloth!.commentsCount) {
+                      setState(() {
+                        _cloth = _cloth!.copyWith(commentsCount: actualCount);
+                      });
+                    }
+                  } catch (e) {
+                    debugPrint('Failed to refresh comment count: $e');
+                  }
+                }
+              : null,
           // Both users can share if not already shared, but only owner can actually share
           // For shared cloths, disable share button for both users
           onShare: isShared ? null : (isOwner ? _handleShare : null),
           // Both users can mark as worn if shared (friends can mark each other's shared clothes)
-          onMarkWorn: isShared ? _handleToggleWorn : (isOwner ? _handleToggleWorn : null),
+          onMarkWorn: isShared
+              ? _handleToggleWorn
+              : (isOwner ? _handleToggleWorn : null),
           // Anyone who can see the cloth can view wear history
-          onWornHistory: isAuthenticated ? () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => WornHistoryScreen(cloth: _cloth!),
-              ),
-            );
-          } : null,
+          onWornHistory: isAuthenticated
+              ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WornHistoryScreen(cloth: _cloth!),
+                    ),
+                  );
+                }
+              : null,
           // Only owner can edit
           onEdit: null, // Edit is handled elsewhere
           // Only owner can delete, and not if shared
@@ -533,23 +549,24 @@ class _ShareDialog extends StatelessWidget {
                     future: UserService.getUserProfile(friendId),
                     builder: (context, snapshot) {
                       final profile = snapshot.data;
-                      final displayName = profile?.displayName ?? 
-                                        (profile?.username != null 
-                                          ? '@${profile!.username}' 
-                                          : 'Friend');
-                      
+                      final displayName = profile?.displayName ??
+                          (profile?.username != null
+                              ? '@${profile!.username}'
+                              : 'Friend');
+
                       return ListTile(
                         leading: profile?.photoUrl != null
                             ? CircleAvatar(
-                                backgroundImage: NetworkImage(profile!.photoUrl!),
+                                backgroundImage:
+                                    NetworkImage(profile!.photoUrl!),
                                 radius: 20,
                               )
                             : CircleAvatar(
                                 backgroundColor: Colors.grey[700],
                                 radius: 20,
                                 child: Text(
-                                  displayName.isNotEmpty 
-                                      ? displayName[0].toUpperCase() 
+                                  displayName.isNotEmpty
+                                      ? displayName[0].toUpperCase()
                                       : 'F',
                                   style: const TextStyle(color: Colors.white),
                                 ),
@@ -582,4 +599,3 @@ class _ShareDialog extends StatelessWidget {
     );
   }
 }
-

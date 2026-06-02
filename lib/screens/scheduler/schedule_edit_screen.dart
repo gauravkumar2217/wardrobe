@@ -22,7 +22,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
   Set<int> _selectedDays = {1, 2, 3, 4, 5}; // Default: Weekdays
   bool _isEnabled = true;
@@ -87,7 +87,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+      final wardrobeProvider =
+          Provider.of<WardrobeProvider>(context, listen: false);
 
       if (authProvider.user != null) {
         // Load clothes to calculate statistics
@@ -151,29 +152,30 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             title: const Text('Select Days', style: TextStyle(fontSize: 14)),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(7, (index) {
-                    return CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(dayNames[index], style: const TextStyle(fontSize: 13)),
-                      value: tempSelectedDays.contains(index),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          if (value == true) {
-                            tempSelectedDays.add(index);
-                          } else {
-                            tempSelectedDays.remove(index);
-                          }
-                        });
-                      },
-                    );
-                  }),
-                ),
+            // No maxHeight: a 300px cap hid Saturday unless the user scrolled.
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(7, (index) {
+                  return CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      dayNames[index],
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    value: tempSelectedDays.contains(index),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        if (value == true) {
+                          tempSelectedDays.add(index);
+                        } else {
+                          tempSelectedDays.remove(index);
+                        }
+                      });
+                    },
+                  );
+                }),
               ),
             ),
             actions: [
@@ -211,7 +213,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final schedulerProvider = Provider.of<SchedulerProvider>(context, listen: false);
+      final schedulerProvider =
+          Provider.of<SchedulerProvider>(context, listen: false);
 
       if (authProvider.user == null) {
         throw Exception('User not logged in');
@@ -241,8 +244,10 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
       );
 
       final success = widget.schedule == null
-          ? await schedulerProvider.addSchedule(authProvider.user!.uid, schedule)
-          : await schedulerProvider.updateSchedule(authProvider.user!.uid, schedule);
+          ? await schedulerProvider.addSchedule(
+              authProvider.user!.uid, schedule)
+          : await schedulerProvider.updateSchedule(
+              authProvider.user!.uid, schedule);
 
       if (mounted) {
         if (success) {
@@ -286,19 +291,32 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(widget.schedule == null ? 'New Schedule' : 'Edit Schedule'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: _isLoadingData
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
+          : SafeArea(
+              top: false,
+              bottom: true,
+              minimum: EdgeInsets.zero,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    // Breathing room above safe area; extra scroll extent when keyboard is open
+                    24 + keyboardInset,
+                  ),
+                  children: [
                   // Title
                   TextFormField(
                     controller: _titleController,
@@ -335,11 +353,13 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   // Time
                   Card(
                     child: ListTile(
-                      leading: const Icon(Icons.access_time, color: Color(0xFF7C3AED)),
+                      leading: const Icon(Icons.access_time,
+                          color: Color(0xFF043915)),
                       title: const Text('Time', style: TextStyle(fontSize: 13)),
                       subtitle: Text(
                         _selectedTime.format(context),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _selectTime,
@@ -350,7 +370,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   // Days
                   Card(
                     child: ListTile(
-                      leading: const Icon(Icons.calendar_today, color: Color(0xFF7C3AED)),
+                      leading: const Icon(Icons.calendar_today,
+                          color: Color(0xFF043915)),
                       title: const Text('Days', style: TextStyle(fontSize: 13)),
                       subtitle: Text(
                         _getDaysText(),
@@ -365,9 +386,12 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   // Enabled toggle
                   Card(
                     child: SwitchListTile(
-                      secondary: const Icon(Icons.notifications_active, color: Color(0xFF7C3AED)),
-                      title: const Text('Enable Schedule', style: TextStyle(fontSize: 13)),
-                      subtitle: const Text('Turn on/off this schedule', style: TextStyle(fontSize: 11)),
+                      secondary: const Icon(Icons.notifications_active,
+                          color: Color(0xFF043915)),
+                      title: const Text('Enable Schedule',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: const Text('Turn on/off this schedule',
+                          style: TextStyle(fontSize: 11)),
                       value: _isEnabled,
                       onChanged: (value) {
                         setState(() {
@@ -484,7 +508,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _saveSchedule,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C3AED),
+                      backgroundColor: const Color(0xFF043915),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: _isLoading
@@ -493,7 +517,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                             width: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text(
@@ -506,6 +531,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                           ),
                   ),
                 ],
+                ),
               ),
             ),
     );
@@ -518,7 +544,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
     if (_selectedDays.length == 7) {
       return 'Daily';
     }
-    if (_selectedDays.length == 5 && _selectedDays.containsAll([1, 2, 3, 4, 5])) {
+    if (_selectedDays.length == 5 &&
+        _selectedDays.containsAll([1, 2, 3, 4, 5])) {
       return 'Weekdays';
     }
     if (_selectedDays.length == 2 && _selectedDays.containsAll([0, 6])) {
@@ -547,9 +574,11 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
             ..._wardrobes.map((wardrobe) {
               final isSelected = _selectedWardrobeId == wardrobe.id;
               return RadioListTile<String>(
-                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
+                title:
+                    Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
+                    ? Text(wardrobe.location,
+                        style: const TextStyle(fontSize: 11))
                     : null,
                 value: wardrobe.id,
                 groupValue: _selectedWardrobeId,
@@ -559,12 +588,13 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   });
                 },
                 secondary: isSelected
-                    ? const Icon(Icons.check_circle, color: Color(0xFF7C3AED))
+                    ? const Icon(Icons.check_circle, color: Color(0xFF043915))
                     : null,
               );
             }),
             RadioListTile<String?>(
-              title: const Text('All Wardrobes', style: TextStyle(fontSize: 13)),
+              title:
+                  const Text('All Wardrobes', style: TextStyle(fontSize: 13)),
               value: null,
               groupValue: _selectedWardrobeId,
               onChanged: (value) {
@@ -573,7 +603,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                 });
               },
               secondary: _selectedWardrobeId == null
-                  ? const Icon(Icons.check_circle, color: Color(0xFF7C3AED))
+                  ? const Icon(Icons.check_circle, color: Color(0xFF043915))
                   : null,
             ),
           ],
@@ -611,8 +641,8 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                   label: Text(option),
                   selected: isSelected,
                   onSelected: (value) => onToggle(option),
-                  selectedColor: const Color(0xFF7C3AED).withValues(alpha: 0.2),
-                  checkmarkColor: const Color(0xFF7C3AED),
+                  selectedColor: const Color(0xFF043915).withValues(alpha: 0.2),
+                  checkmarkColor: const Color(0xFF043915),
                 );
               }).toList(),
             ),
@@ -622,4 +652,3 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
     );
   }
 }
-

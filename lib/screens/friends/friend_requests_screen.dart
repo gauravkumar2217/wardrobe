@@ -90,17 +90,19 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request accepted')),
         );
-        
+
         // Reload friends list to ensure the new friend appears
         if (authProvider.user != null) {
           await friendProvider.loadFriends(authProvider.user!.uid);
         }
-        
+
         // Reload requests to update the list
         await _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to accept request')),
+          SnackBar(
+              content: Text(
+                  friendProvider.errorMessage ?? 'Failed to accept request')),
         );
       }
     }
@@ -120,7 +122,9 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to reject request')),
+          SnackBar(
+              content: Text(
+                  friendProvider.errorMessage ?? 'Failed to reject request')),
         );
       }
     }
@@ -141,7 +145,9 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendProvider.errorMessage ?? 'Failed to cancel request')),
+          SnackBar(
+              content: Text(
+                  friendProvider.errorMessage ?? 'Failed to cancel request')),
         );
       }
     }
@@ -162,7 +168,6 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final friendProvider = Provider.of<FriendProvider>(context);
@@ -170,7 +175,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Friend Requests'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -197,18 +202,21 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
           // Received requests
           friendProvider.isLoading && friendProvider.incomingRequests.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : friendProvider.errorMessage != null && friendProvider.incomingRequests.isEmpty
+              : friendProvider.errorMessage != null &&
+                      friendProvider.incomingRequests.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.red),
                           const SizedBox(height: 12),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Text(
                               friendProvider.errorMessage!,
-                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              style: const TextStyle(
+                                  fontSize: 13, color: Colors.grey),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -219,11 +227,13 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                               _loadFriendRequests();
                             },
                             icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text('Retry', style: TextStyle(fontSize: 13)),
+                            label: const Text('Retry',
+                                style: TextStyle(fontSize: 13)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7C3AED),
+                              backgroundColor: const Color(0xFF043915),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
                             ),
                           ),
                         ],
@@ -234,80 +244,101 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                              Icon(Icons.inbox_outlined,
+                                  size: 48, color: Colors.grey),
                               SizedBox(height: 12),
                               Text(
                                 'No incoming requests',
-                                style: TextStyle(fontSize: 13, color: Colors.grey),
+                                style:
+                                    TextStyle(fontSize: 13, color: Colors.grey),
                               ),
                               SizedBox(height: 6),
                               Text(
                                 'When someone sends you a friend request, it will appear here',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                style:
+                                    TextStyle(fontSize: 12, color: Colors.grey),
                                 textAlign: TextAlign.center,
                               ),
                             ],
                           ),
                         )
                       : RefreshIndicator(
-                      onRefresh: _loadFriendRequests,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(10),
-                        itemCount: friendProvider.incomingRequests.length,
-                        itemBuilder: (context, index) {
-                          final request = friendProvider.incomingRequests[index];
-                          final profile = _userProfiles[request.fromUserId];
+                          onRefresh: _loadFriendRequests,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(10),
+                            itemCount: friendProvider.incomingRequests.length,
+                            itemBuilder: (context, index) {
+                              final request =
+                                  friendProvider.incomingRequests[index];
+                              final profile = _userProfiles[request.fromUserId];
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              leading: CircleAvatar(
-                                radius: 20,
-                                backgroundColor: const Color(0xFF7C3AED),
-                                backgroundImage: profile?.photoUrl != null
-                                    ? NetworkImage(profile!.photoUrl!)
-                                    : null,
-                                child: profile?.photoUrl == null
-                                    ? Text(
-                                        profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                                      )
-                                    : null,
-                              ),
-                              title: Text(
-                                profile?.displayName ?? 'Unknown User',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                              subtitle: Text(
-                                'Sent ${_formatDate(request.createdAt)}',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TextButton(
-                                    onPressed: () => _rejectRequest(request),
-                                    child: const Text('Reject', style: TextStyle(color: Colors.red, fontSize: 12)),
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  leading: CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: const Color(0xFF043915),
+                                    backgroundImage: profile?.photoUrl != null
+                                        ? NetworkImage(profile!.photoUrl!)
+                                        : null,
+                                    child: profile?.photoUrl == null
+                                        ? Text(
+                                            profile?.displayName
+                                                    ?.substring(0, 1)
+                                                    .toUpperCase() ??
+                                                '?',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14),
+                                          )
+                                        : null,
                                   ),
-                                  const SizedBox(width: 4),
-                                  ElevatedButton(
-                                    onPressed: () => _acceptRequest(request),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF7C3AED),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    ),
-                                    child: const Text('Accept', style: TextStyle(fontSize: 12)),
+                                  title: Text(
+                                    profile?.displayName ?? 'Unknown User',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                                  subtitle: Text(
+                                    'Sent ${_formatDate(request.createdAt)}',
+                                    style: TextStyle(
+                                        color: Colors.grey[600], fontSize: 11),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            _rejectRequest(request),
+                                        child: const Text('Reject',
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 12)),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            _acceptRequest(request),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF043915),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                        ),
+                                        child: const Text('Accept',
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
           // Sent requests
           friendProvider.isLoading && friendProvider.outgoingRequests.isEmpty
               ? const Center(child: CircularProgressIndicator())
@@ -316,7 +347,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send_outlined, size: 48, color: Colors.grey),
+                          Icon(Icons.send_outlined,
+                              size: 48, color: Colors.grey),
                           SizedBox(height: 12),
                           Text(
                             'No outgoing requests',
@@ -337,38 +369,48 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                         padding: const EdgeInsets.all(10),
                         itemCount: friendProvider.outgoingRequests.length,
                         itemBuilder: (context, index) {
-                          final request = friendProvider.outgoingRequests[index];
+                          final request =
+                              friendProvider.outgoingRequests[index];
                           final profile = _userProfiles[request.toUserId];
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               leading: CircleAvatar(
                                 radius: 20,
-                                backgroundColor: const Color(0xFF7C3AED),
+                                backgroundColor: const Color(0xFF043915),
                                 backgroundImage: profile?.photoUrl != null
                                     ? NetworkImage(profile!.photoUrl!)
                                     : null,
                                 child: profile?.photoUrl == null
                                     ? Text(
-                                        profile?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                                        profile?.displayName
+                                                ?.substring(0, 1)
+                                                .toUpperCase() ??
+                                            '?',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 14),
                                       )
                                     : null,
                               ),
                               title: Text(
                                 profile?.displayName ?? 'Unknown User',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               subtitle: Text(
                                 'Sent ${_formatDate(request.createdAt)}',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 11),
                               ),
                               trailing: TextButton(
                                 onPressed: () => _cancelRequest(request),
-                                child: const Text('Cancel', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                child: const Text('Cancel',
+                                    style: TextStyle(
+                                        color: Colors.red, fontSize: 12)),
                               ),
                             ),
                           );
@@ -380,4 +422,3 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 }
-

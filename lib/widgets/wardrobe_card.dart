@@ -62,7 +62,7 @@ class _WardrobeCardState extends State<WardrobeCard>
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              const Color(0xFF7C3AED).withValues(alpha: 0.02),
+              const Color(0xFF043915).withValues(alpha: 0.02),
             ],
           ),
           boxShadow: [
@@ -104,14 +104,15 @@ class _WardrobeCardState extends State<WardrobeCard>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0xFF7C3AED),
+                              Color(0xFF043915),
                               Color(0xFF9F7AEA),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                              color: const Color(0xFF043915)
+                                  .withValues(alpha: 0.3),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -173,13 +174,14 @@ class _WardrobeCardState extends State<WardrobeCard>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                              const Color(0xFF043915).withValues(alpha: 0.15),
                               const Color(0xFF9F7AEA).withValues(alpha: 0.15),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                            color:
+                                const Color(0xFF043915).withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -189,7 +191,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                             const Icon(
                               Icons.checkroom,
                               size: 12,
-                              color: Color(0xFF7C3AED),
+                              color: Color(0xFF043915),
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -197,7 +199,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF7C3AED),
+                                color: Color(0xFF043915),
                               ),
                             ),
                           ],
@@ -228,7 +230,7 @@ class _WardrobeCardState extends State<WardrobeCard>
                           _ActionButton(
                             icon: Icons.edit_rounded,
                             label: 'Edit',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF043915),
                             onPressed: widget.onEdit!,
                           ),
                         if (widget.onEdit != null && widget.onDelete != null)
@@ -304,4 +306,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

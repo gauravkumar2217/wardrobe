@@ -39,13 +39,13 @@ class _SplashScreenState extends State<SplashScreen> {
         final hasAcceptedEula = await UserService.hasAcceptedEula(user.uid);
         final profile = authProvider.userProfile;
         final hasCompleteProfile = profile != null && profile.isComplete;
-        
+
         // Decision logic:
         // 1. Both done → go to main app
         // 2. EULA done, profile not → show profile setup
         // 3. EULA not, profile done → show EULA
         // 4. Neither → show EULA first
-        
+
         if (hasAcceptedEula && hasCompleteProfile) {
           // Both done - go directly to main app
           Navigator.pushReplacement(
@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+            colors: [const Color(0xFF043915), const Color(0xFF0B5D2B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -103,4 +103,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-

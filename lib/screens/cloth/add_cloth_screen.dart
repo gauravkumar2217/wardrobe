@@ -9,13 +9,19 @@ import '../../providers/auth_provider.dart' as app_auth;
 import '../../services/tag_list_service.dart';
 import '../../services/ai_detection_service.dart';
 
-/// Add cloth screen using dynamic tag lists from Firestore
+/// Add cloth screen using dynamic tag lists from Firestore.
+/// [itemKind]: 'cloth' | 'makeup' | 'footwear' | 'accessories'. Defaults to 'cloth'.
+/// [itemType]: preselected sub-category (e.g. cloth type, makeup type). When provided, shown at top and used as initial type.
 class AddClothScreen extends StatefulWidget {
   final String wardrobeId;
+  final String itemKind;
+  final String? itemType;
 
   const AddClothScreen({
     super.key,
     required this.wardrobeId,
+    this.itemKind = 'cloth',
+    this.itemType,
   });
 
   @override
@@ -58,19 +64,55 @@ class _AddClothScreenState extends State<AddClothScreen> {
     super.dispose();
   }
 
+  List<String> _getTypeListForItemKind() {
+    final tags = TagListService.getCachedTagLists();
+    switch (widget.itemKind) {
+      case 'makeup':
+        return tags.makeupTypes;
+      case 'footwear':
+        return tags.footwearTypes;
+      case 'accessories':
+        return tags.accessoryTypes;
+      default:
+        return tags.clothTypes;
+    }
+  }
+
+  String _getAppBarTitle() {
+    switch (widget.itemKind) {
+      case 'cloth':
+        return 'Add Clothing';
+      case 'makeup':
+        return 'Add Beauty';
+      case 'footwear':
+        return 'Add Footwear';
+      case 'accessories':
+        return 'Add Accessory';
+      default:
+        return 'Add Item';
+    }
+  }
+
   Future<void> _loadTagLists() async {
     try {
       await TagListService.fetchTagLists();
       if (mounted) {
+        final tags = TagListService.getCachedTagLists();
+        final typeList = _getTypeListForItemKind();
         setState(() {
           _isLoadingTags = false;
-          // Set defaults
-          final tags = TagListService.getCachedTagLists();
           if (tags.seasons.isNotEmpty) _selectedSeason = tags.seasons.first;
-          if (tags.placements.isNotEmpty) _selectedPlacement = tags.placements.first;
-          if (tags.clothTypes.isNotEmpty) _selectedClothType = tags.clothTypes.first;
-          if (tags.categories.isNotEmpty) _selectedCategory = tags.categories.first;
-          if (tags.occasions.isNotEmpty) _selectedOccasions = [tags.occasions.first];
+          if (tags.placements.isNotEmpty)
+            _selectedPlacement = tags.placements.first;
+          if (widget.itemType != null && widget.itemType!.isNotEmpty) {
+            _selectedClothType = widget.itemType;
+          } else if (typeList.isNotEmpty) {
+            _selectedClothType = typeList.first;
+          }
+          if (tags.categories.isNotEmpty)
+            _selectedCategory = tags.categories.first;
+          if (tags.occasions.isNotEmpty)
+            _selectedOccasions = [tags.occasions.first];
         });
       }
     } catch (e) {
@@ -106,56 +148,54 @@ class _AddClothScreenState extends State<AddClothScreen> {
     }
   }
 
-  /// Detect cloth details using AI
+  /// Detect cloth details using AI. For Clothing only: detect type; for all: colors and season.
   Future<void> _detectClothDetails(File imageFile) async {
     try {
       final tags = TagListService.getCachedTagLists();
       String? detectedTypeMessage;
       String? detectedColorMessage;
 
-      // Detect cloth type
-      final detectedType = await AiDetectionService.detectClothType(imageFile);
-      if (detectedType != null && detectedType.isNotEmpty && mounted) {
-        // Check if type exists in list
-        if (tags.clothTypes.contains(detectedType)) {
-          // Type exists - set it directly
-          setState(() {
-            _selectedClothType = detectedType;
-          });
-          detectedTypeMessage = 'Detected: $detectedType';
-        } else {
-          // Type doesn't exist - add to Firestore (syncs across all users)
-          await TagListService.addClothType(detectedType);
-          // Reload tags to get updated list
-          await TagListService.fetchTagLists(forceRefresh: true);
-          
-          // Now set it after the list is updated
-          final updatedTags = TagListService.getCachedTagLists();
-          if (updatedTags.clothTypes.contains(detectedType)) {
+      // Detect cloth type only for Clothing (itemKind == 'cloth'); do not overwrite user-selected type for Beauty/Footwear/Accessories
+      if (widget.itemKind == 'cloth') {
+        final detectedType =
+            await AiDetectionService.detectClothType(imageFile);
+        if (detectedType != null && detectedType.isNotEmpty && mounted) {
+          if (tags.clothTypes.contains(detectedType)) {
             setState(() {
               _selectedClothType = detectedType;
             });
-            detectedTypeMessage = 'Detected: $detectedType (synced)';
+            detectedTypeMessage = 'Detected: $detectedType';
           } else {
-            detectedTypeMessage = 'Detected: $detectedType (please select manually)';
+            await TagListService.addClothType(detectedType);
+            await TagListService.fetchTagLists(forceRefresh: true);
+            final updatedTags = TagListService.getCachedTagLists();
+            if (updatedTags.clothTypes.contains(detectedType)) {
+              setState(() {
+                _selectedClothType = detectedType;
+              });
+              detectedTypeMessage = 'Detected: $detectedType (synced)';
+            } else {
+              detectedTypeMessage =
+                  'Detected: $detectedType (please select manually)';
+            }
           }
         }
       }
 
-      // Detect colors
+      // Detect colors (all item kinds)
       final detectedColors = await AiDetectionService.detectColors(imageFile);
       if (detectedColors.isNotEmpty && mounted) {
         // Add new colors to Firestore (syncs across all users)
         await TagListService.addColors(detectedColors);
         // Reload tags to get updated list
         await TagListService.fetchTagLists(forceRefresh: true);
-        
+
         // Filter colors to only those that exist in the list
         final updatedTags = TagListService.getCachedTagLists();
-        final validColors = detectedColors.where((color) => 
-          updatedTags.commonColors.contains(color)
-        ).toList();
-        
+        final validColors = detectedColors
+            .where((color) => updatedTags.commonColors.contains(color))
+            .toList();
+
         if (validColors.isNotEmpty) {
           setState(() {
             _selectedPrimaryColor = validColors.first;
@@ -189,15 +229,15 @@ class _AddClothScreenState extends State<AddClothScreen> {
         setState(() {
           _isDetecting = false;
         });
-        
+
         // Show success message with details
         final messages = <String>[];
         if (detectedTypeMessage != null) messages.add(detectedTypeMessage);
         if (detectedColorMessage != null) messages.add(detectedColorMessage);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(messages.isNotEmpty 
+            content: Text(messages.isNotEmpty
                 ? messages.join('\n')
                 : 'AI detection completed!'),
             backgroundColor: Colors.green,
@@ -265,17 +305,19 @@ class _AddClothScreenState extends State<AddClothScreen> {
       return;
     }
 
-    if (_selectedSeason == null || _selectedPlacement == null ||
-        _selectedClothType == null || _selectedCategory == null) {
+    if (_selectedSeason == null ||
+        _selectedPlacement == null ||
+        _selectedClothType == null ||
+        _selectedCategory == null) {
       _showErrorSnackBar('Please fill all required fields');
       return;
     }
 
     // Validate placement details only if placement requires them
-    final requiresPlacementDetails = _selectedPlacement == 'Laundry' || 
-                                      _selectedPlacement == 'DryCleaning' || 
-                                      _selectedPlacement == 'Repairing';
-    
+    final requiresPlacementDetails = _selectedPlacement == 'Laundry' ||
+        _selectedPlacement == 'DryCleaning' ||
+        _selectedPlacement == 'Repairing';
+
     if (requiresPlacementDetails) {
       if (_shopNameController.text.trim().isEmpty) {
         _showErrorSnackBar('Please enter shop name');
@@ -295,7 +337,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
       }
     }
 
-    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final authProvider =
+        Provider.of<app_auth.AuthProvider>(context, listen: false);
     final user = authProvider.user;
     if (user == null) {
       _showErrorSnackBar('User not authenticated');
@@ -307,16 +350,21 @@ class _AddClothScreenState extends State<AddClothScreen> {
     });
 
     final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
 
     try {
       // Create color tags
       final colors = _selectedColors.isNotEmpty
           ? _selectedColors
-          : (_selectedPrimaryColor.isNotEmpty ? [_selectedPrimaryColor] : ['Unknown']);
-      
+          : (_selectedPrimaryColor.isNotEmpty
+              ? [_selectedPrimaryColor]
+              : ['Unknown']);
+
       final colorTags = ColorTags(
-        primary: _selectedPrimaryColor.isNotEmpty ? _selectedPrimaryColor : colors.first,
+        primary: _selectedPrimaryColor.isNotEmpty
+            ? _selectedPrimaryColor
+            : colors.first,
         secondary: _selectedSecondaryColor,
         colors: colors,
         isMultiColor: colors.length > 1,
@@ -350,6 +398,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
         category: _selectedCategory!,
         occasions: _selectedOccasions,
         visibility: _visibility,
+        itemKind: widget.itemKind,
       );
 
       if (mounted) {
@@ -363,7 +412,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
             userId: user.uid,
             wardrobeId: widget.wardrobeId,
           );
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -374,7 +423,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
           if (!mounted) return;
           Navigator.of(context).pop();
         } else {
-          _showErrorSnackBar(clothProvider.errorMessage ?? 'Failed to add cloth');
+          _showErrorSnackBar(
+              clothProvider.errorMessage ?? 'Failed to add cloth');
         }
       }
     } catch (e) {
@@ -407,19 +457,45 @@ class _AddClothScreenState extends State<AddClothScreen> {
 
     final tags = TagListService.getCachedTagLists();
 
+    final typeList = _getTypeListForItemKind();
+    final categoryLabel =
+        _getAppBarTitle().replaceFirst('Add ', ''); // e.g. Clothing, Beauty
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Cloth'),
-        backgroundColor: const Color(0xFF7C3AED),
+        title: Text(_getAppBarTitle()),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Category + type at top
+              Row(
+                children: [
+                  Chip(
+                    label: Text(categoryLabel,
+                        style: const TextStyle(fontSize: 12)),
+                    backgroundColor:
+                        const Color(0xFF043915).withValues(alpha: 0.15),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_selectedClothType != null &&
+                      _selectedClothType!.isNotEmpty)
+                    Chip(
+                      label: Text(_selectedClothType!,
+                          style: const TextStyle(fontSize: 12)),
+                      backgroundColor:
+                          const Color(0xFF043915).withValues(alpha: 0.1),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               // Image Picker
               GestureDetector(
                 onTap: _showImageSourceDialog,
@@ -474,28 +550,43 @@ class _AddClothScreenState extends State<AddClothScreen> {
                       : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
+                            Icon(Icons.add_photo_alternate,
+                                size: 48, color: Colors.grey),
                             SizedBox(height: 8),
-                            Text('Tap to add image', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            Text('Tap to add image',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 13)),
                           ],
                         ),
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Cloth Type
+              // Type (clothing / beauty / footwear / accessory type)
               DropdownButtonFormField<String>(
-                initialValue: _selectedClothType,
-                decoration: const InputDecoration(
-                  labelText: 'Cloth Type *',
-                  prefixIcon: Icon(Icons.checkroom),
-                  border: OutlineInputBorder(),
+                value: typeList.contains(_selectedClothType)
+                    ? _selectedClothType
+                    : (typeList.isNotEmpty ? typeList.first : null),
+                decoration: InputDecoration(
+                  labelText: 'Type *',
+                  prefixIcon: Icon(widget.itemKind == 'cloth'
+                      ? Icons.checkroom
+                      : (widget.itemKind == 'makeup'
+                          ? Icons.face_retouching_natural
+                          : (widget.itemKind == 'footwear'
+                              ? Icons.shopping_bag
+                              : Icons.watch))),
+                  border: const OutlineInputBorder(),
                 ),
-                items: tags.clothTypes.map((type) {
-                  return DropdownMenuItem(value: type, child: Text(type, style: const TextStyle(fontSize: 14)));
+                items: typeList.map((type) {
+                  return DropdownMenuItem(
+                      value: type,
+                      child: Text(type, style: const TextStyle(fontSize: 14)));
                 }).toList(),
-                onChanged: (value) => setState(() => _selectedClothType = value),
-                validator: (value) => value == null ? 'Please select cloth type' : null,
+                onChanged: (value) =>
+                    setState(() => _selectedClothType = value),
+                validator: (value) =>
+                    value == null ? 'Please select type' : null,
               ),
               const SizedBox(height: 12),
 
@@ -508,23 +599,30 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.categories.map((cat) {
-                  return DropdownMenuItem(value: cat, child: Text(cat, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value),
-                validator: (value) => value == null ? 'Please select category' : null,
+                validator: (value) =>
+                    value == null ? 'Please select category' : null,
               ),
               const SizedBox(height: 12),
 
               // Primary Color
               DropdownButtonFormField<String>(
-                initialValue: _selectedPrimaryColor.isEmpty ? null : _selectedPrimaryColor,
+                initialValue: _selectedPrimaryColor.isEmpty
+                    ? null
+                    : _selectedPrimaryColor,
                 decoration: const InputDecoration(
                   labelText: 'Primary Color',
                   prefixIcon: Icon(Icons.palette),
                   border: OutlineInputBorder(),
                 ),
                 items: tags.commonColors.map((color) {
-                  return DropdownMenuItem(value: color, child: Text(color, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: color,
+                      child: Text(color, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -548,10 +646,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.seasons.map((season) {
-                  return DropdownMenuItem(value: season, child: Text(season, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: season,
+                      child:
+                          Text(season, style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) => setState(() => _selectedSeason = value),
-                validator: (value) => value == null ? 'Please select season' : null,
+                validator: (value) =>
+                    value == null ? 'Please select season' : null,
               ),
               const SizedBox(height: 12),
 
@@ -564,33 +666,40 @@ class _AddClothScreenState extends State<AddClothScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: tags.placements.map((placement) {
-                  return DropdownMenuItem(value: placement, child: Text(placement, style: const TextStyle(fontSize: 14)));
+                  return DropdownMenuItem(
+                      value: placement,
+                      child: Text(placement,
+                          style: const TextStyle(fontSize: 14)));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
                     _selectedPlacement = value;
                     // Clear placement details if placement changes to something other than Laundry, DryCleaning, or Repairing
-                    if (value != 'Laundry' && value != 'DryCleaning' && value != 'Repairing') {
+                    if (value != 'Laundry' &&
+                        value != 'DryCleaning' &&
+                        value != 'Repairing') {
                       _shopNameController.clear();
                       _givenDate = null;
                       _returnDate = null;
                     }
                   });
                 },
-                validator: (value) => value == null ? 'Please select placement' : null,
+                validator: (value) =>
+                    value == null ? 'Please select placement' : null,
               ),
               const SizedBox(height: 12),
 
               // Placement Details (for Laundry, DryCleaning, Repairing only)
-              if (_selectedPlacement == 'Laundry' || 
-                  _selectedPlacement == 'DryCleaning' || 
+              if (_selectedPlacement == 'Laundry' ||
+                  _selectedPlacement == 'DryCleaning' ||
                   _selectedPlacement == 'Repairing')
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Placement Details *',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     // Shop Name
@@ -603,8 +712,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (_selectedPlacement == 'Laundry' || 
-                            _selectedPlacement == 'DryCleaning' || 
+                        if (_selectedPlacement == 'Laundry' ||
+                            _selectedPlacement == 'DryCleaning' ||
                             _selectedPlacement == 'Repairing') {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter shop name';
@@ -621,7 +730,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                           context: context,
                           initialDate: _givenDate ?? DateTime.now(),
                           firstDate: DateTime(2020),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null) {
                           setState(() => _givenDate = picked);
@@ -639,7 +749,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                               : 'Select given date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: _givenDate != null ? Colors.black : Colors.grey,
+                            color:
+                                _givenDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -650,9 +761,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: _returnDate ?? (_givenDate ?? DateTime.now()).add(const Duration(days: 7)),
+                          initialDate: _returnDate ??
+                              (_givenDate ?? DateTime.now())
+                                  .add(const Duration(days: 7)),
                           firstDate: _givenDate ?? DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null) {
                           setState(() => _returnDate = picked);
@@ -670,7 +784,9 @@ class _AddClothScreenState extends State<AddClothScreen> {
                               : 'Select return date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: _returnDate != null ? Colors.black : Colors.grey,
+                            color: _returnDate != null
+                                ? Colors.black
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -683,7 +799,9 @@ class _AddClothScreenState extends State<AddClothScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Occasions *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text('Occasions *',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
@@ -691,7 +809,8 @@ class _AddClothScreenState extends State<AddClothScreen> {
                     children: tags.occasions.map((occasion) {
                       final isSelected = _selectedOccasions.contains(occasion);
                       return FilterChip(
-                        label: Text(occasion, style: const TextStyle(fontSize: 12)),
+                        label: Text(occasion,
+                            style: const TextStyle(fontSize: 12)),
                         selected: isSelected,
                         onSelected: (selected) {
                           setState(() {
@@ -713,7 +832,7 @@ class _AddClothScreenState extends State<AddClothScreen> {
               ElevatedButton(
                 onPressed: _isUploading ? null : _saveCloth,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF043915),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -721,9 +840,12 @@ class _AddClothScreenState extends State<AddClothScreen> {
                     ? const SizedBox(
                         height: 18,
                         width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Save Cloth', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    : const Text('Save Cloth',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -732,4 +854,3 @@ class _AddClothScreenState extends State<AddClothScreen> {
     );
   }
 }
-

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../services/fcm_service.dart';
+import '../services/laravel_auth_service.dart';
 import '../models/user_profile.dart';
 
 /// Auth provider for managing authentication state
@@ -39,6 +40,7 @@ class AuthProvider with ChangeNotifier {
         } catch (e) {
           debugPrint('Failed to register FCM token on init: $e');
         }
+        _syncLaravelToken();
       }
 
       // Listen to auth state changes
@@ -52,8 +54,10 @@ class AuthProvider with ChangeNotifier {
           } catch (e) {
             debugPrint('Failed to register FCM token on auth change: $e');
           }
+          _syncLaravelToken();
         } else {
           _userProfile = null;
+          await LaravelAuthService.logout();
         }
         notifyListeners();
       });
@@ -75,6 +79,14 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to load user profile: $e');
     }
+  }
+
+  /// Exchange Firebase ID token for Laravel Sanctum token (non-blocking).
+  void _syncLaravelToken() {
+    LaravelAuthService.ensureToken().catchError((e) {
+      debugPrint('Laravel token sync failed: $e');
+      return '';
+    });
   }
 
   /// Sign in with phone (OTP)
@@ -506,6 +518,8 @@ class AuthProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
       
+      await LaravelAuthService.logout();
+
       // Then sign out from Firebase
       // This will trigger auth state change listener which will update _user to null
       await AuthService.signOut();

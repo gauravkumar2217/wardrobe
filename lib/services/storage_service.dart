@@ -42,6 +42,39 @@ class StorageService {
     }
   }
 
+  /// Upload body profile image
+  /// Path: users/{userId}/body_profile/{imageName}
+  static Future<String> uploadBodyProfileImage({
+    required String userId,
+    required File imageFile,
+  }) async {
+    try {
+      // Image is already processed (HEIC converted, resized, compressed)
+      // Generate unique filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'body_$timestamp.jpg';
+
+      // Upload to Storage
+      final ref = _storage.ref().child('users/$userId/body_profile/$fileName');
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'max-age=31536000',
+      );
+
+      await ref.putFile(imageFile, metadata);
+      final downloadURL = await ref.getDownloadURL();
+
+      if (kDebugMode) {
+        debugPrint('Body profile image uploaded: $downloadURL');
+      }
+
+      return downloadURL;
+    } catch (e) {
+      debugPrint('Error uploading body profile image: $e');
+      rethrow;
+    }
+  }
+
   /// Upload cloth image
   /// Path: users/{userId}/wardrobes/{wardrobeId}/clothes/{clothId}/{imageName}
   static Future<String> uploadClothImage({
@@ -182,6 +215,19 @@ class StorageService {
       debugPrint('Error getting download URL: $e');
       rethrow;
     }
+  }
+
+  /// Get storage reference (helper for avatar service)
+  static Reference getStorageRef() {
+    return _storage.ref();
+  }
+
+  /// Get metadata for uploads (helper for avatar service)
+  static SettableMetadata getMetadata({String? contentType, String? cacheControl}) {
+    return SettableMetadata(
+      contentType: contentType ?? 'image/jpeg',
+      cacheControl: cacheControl ?? 'max-age=31536000',
+    );
   }
 }
 

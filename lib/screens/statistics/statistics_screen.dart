@@ -6,6 +6,8 @@ import '../../providers/filter_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../models/wardrobe.dart';
+import '../../utils/cloth_tag_color.dart';
+import '../../utils/open_clothes_feed.dart';
 
 /// Statistics screen showing counts by type, occasion, season, and color
 class StatisticsScreen extends StatefulWidget {
@@ -41,9 +43,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     });
 
     try {
-      final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+      final wardrobeProvider =
+          Provider.of<WardrobeProvider>(context, listen: false);
       await wardrobeProvider.loadWardrobes(authProvider.user!.uid);
-      
+
       setState(() {
         _wardrobes = wardrobeProvider.wardrobes;
         _isLoadingWardrobes = false;
@@ -104,91 +107,123 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       season: season,
       color: color,
     );
-    
-    // Navigate to home screen
-    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
-    
+
+    // Home tab + Clothes swipe screen (filters applied there)
+    final navigationProvider =
+        Provider.of<NavigationProvider>(context, listen: false);
+    openClothesFeed(navigationProvider);
+
     // Pop statistics screen
     Navigator.pop(context);
   }
 
   void _navigateToHomeWithWardrobe(Wardrobe wardrobe) {
     // Set selected wardrobe in provider
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
     wardrobeProvider.setSelectedWardrobe(wardrobe);
-    
+
     // Clear any filters
     final filterProvider = Provider.of<FilterProvider>(context, listen: false);
     filterProvider.clearFilters();
-    
-    // Navigate to home screen
-    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-    navigationProvider.navigateToHome();
-    
+
+    // Home tab + Clothes swipe screen (wardrobe selection applies there)
+    final navigationProvider =
+        Provider.of<NavigationProvider>(context, listen: false);
+    openClothesFeed(navigationProvider);
+
     // Pop statistics screen
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Statistics'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final clothProvider = Provider.of<ClothProvider>(context, listen: false);
-          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-          if (authProvider.user != null) {
-            await clothProvider.loadClothes(userId: authProvider.user!.uid);
-            _calculateStatistics();
-            await _loadWardrobes();
-          }
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // My Wardrobes Section
-              _buildWardrobesSection(),
-              const SizedBox(height: 8),
-              // Type Statistics
-              _buildSection(
-                title: 'By Type',
-                icon: Icons.checkroom,
-                counts: _typeCounts,
-                onTap: (type) => _navigateToHomeWithFilter(type: type),
-              ),
-              const SizedBox(height: 8),
-              // Occasion Statistics
-              _buildSection(
-                title: 'By Occasion',
-                icon: Icons.event,
-                counts: _occasionCounts,
-                onTap: (occasion) => _navigateToHomeWithFilter(occasion: occasion),
-              ),
-              const SizedBox(height: 8),
-              // Season Statistics
-              _buildSection(
-                title: 'By Season',
-                icon: Icons.wb_sunny,
-                counts: _seasonCounts,
-                onTap: (season) => _navigateToHomeWithFilter(season: season),
-              ),
-              const SizedBox(height: 8),
-              // Color Statistics
-              _buildSection(
-                title: 'By Color',
-                icon: Icons.palette,
-                counts: _colorCounts,
-                onTap: (color) => _navigateToHomeWithFilter(color: color),
-              ),
-            ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: EdgeInsets.zero,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            final clothProvider =
+                Provider.of<ClothProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
+            if (authProvider.user != null) {
+              await clothProvider.loadClothes(userId: authProvider.user!.uid);
+              _calculateStatistics();
+              await _loadWardrobes();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(10, 10, 10, 16 + keyboardInset),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // My Wardrobes Section
+                _buildWardrobesSection(),
+                const SizedBox(height: 8),
+                // Type Statistics
+                _buildSection(
+                  title: 'By Type',
+                  icon: Icons.checkroom,
+                  counts: _typeCounts,
+                  onTap: (type) => _navigateToHomeWithFilter(type: type),
+                ),
+                const SizedBox(height: 8),
+                // Occasion Statistics
+                _buildSection(
+                  title: 'By Occasion',
+                  icon: Icons.event,
+                  counts: _occasionCounts,
+                  onTap: (occasion) =>
+                      _navigateToHomeWithFilter(occasion: occasion),
+                ),
+                const SizedBox(height: 8),
+                // Season Statistics
+                _buildSection(
+                  title: 'By Season',
+                  icon: Icons.wb_sunny,
+                  counts: _seasonCounts,
+                  onTap: (season) =>
+                      _navigateToHomeWithFilter(season: season),
+                ),
+                const SizedBox(height: 8),
+                // Color Statistics
+                _buildSection(
+                  title: 'By Color',
+                  icon: Icons.palette,
+                  counts: _colorCounts,
+                  onTap: (color) => _navigateToHomeWithFilter(color: color),
+                  rowLeading: _colorSwatch,
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _colorSwatch(String label) {
+    final c = colorForClothTag(label);
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: c,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: borderColorForSwatch(c)),
         ),
       ),
     );
@@ -199,6 +234,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required IconData icon,
     required Map<String, int> counts,
     required Function(String) onTap,
+    Widget? Function(String label)? rowLeading,
   }) {
     if (counts.isEmpty) {
       return Card(
@@ -230,7 +266,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF7C3AED), size: 16),
+                Icon(icon, color: const Color(0xFF043915), size: 16),
                 const SizedBox(width: 6),
                 Text(
                   title,
@@ -243,15 +279,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
             const SizedBox(height: 8),
             ...sortedEntries.map((entry) {
+              final leading = rowLeading?.call(entry.key);
               return ListTile(
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                leading: leading,
                 title: Text(entry.key, style: const TextStyle(fontSize: 13)),
                 trailing: Chip(
-                  label: Text('${entry.value}', style: const TextStyle(fontSize: 11)),
-                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                  label: Text('${entry.value}',
+                      style: const TextStyle(fontSize: 11)),
+                  backgroundColor:
+                      const Color(0xFF043915).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
-                    color: Color(0xFF7C3AED),
+                    color: Color(0xFF043915),
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -315,7 +356,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             const Row(
               children: [
-                Icon(Icons.inventory_2, color: Color(0xFF7C3AED), size: 16),
+                Icon(Icons.inventory_2, color: Color(0xFF043915), size: 16),
                 SizedBox(width: 6),
                 Text(
                   'My Wardrobes',
@@ -330,16 +371,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ...sortedWardrobes.map((wardrobe) {
               return ListTile(
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                title: Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                title:
+                    Text(wardrobe.name, style: const TextStyle(fontSize: 13)),
                 subtitle: wardrobe.location.isNotEmpty
-                    ? Text(wardrobe.location, style: const TextStyle(fontSize: 11))
+                    ? Text(wardrobe.location,
+                        style: const TextStyle(fontSize: 11))
                     : null,
                 trailing: Chip(
-                  label: Text('${wardrobe.totalItems}', style: const TextStyle(fontSize: 11)),
-                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                  label: Text('${wardrobe.totalItems}',
+                      style: const TextStyle(fontSize: 11)),
+                  backgroundColor:
+                      const Color(0xFF043915).withValues(alpha: 0.1),
                   labelStyle: const TextStyle(
-                    color: Color(0xFF7C3AED),
+                    color: Color(0xFF043915),
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -354,4 +400,3 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 }
-

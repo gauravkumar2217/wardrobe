@@ -117,15 +117,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Image Source', style: TextStyle(fontSize: 14)),
+        title:
+            const Text('Select Image Source', style: TextStyle(fontSize: 14)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               leading: const Icon(Icons.photo_library, size: 18),
-              title: const Text('Choose from Gallery', style: TextStyle(fontSize: 13)),
+              title: const Text('Choose from Gallery',
+                  style: TextStyle(fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
@@ -133,7 +136,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             ListTile(
               dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               leading: const Icon(Icons.camera_alt, size: 18),
               title: const Text('Take Photo', style: TextStyle(fontSize: 13)),
               onTap: () {
@@ -147,11 +151,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-
   Future<void> _selectDateOfBirth() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDateOfBirth ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
+      initialDate: _selectedDateOfBirth ??
+          DateTime.now().subtract(const Duration(days: 365 * 18)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -165,21 +169,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-
     setState(() {
       _isLoading = true;
     });
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
-    
+
     if (user == null) {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not found. Please sign in again.')),
+          const SnackBar(
+              content: Text('User not found. Please sign in again.')),
         );
       }
       return;
@@ -201,7 +205,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final phoneNumber = _phoneController.text.trim();
       final updatedProfile = UserProfile(
         displayName: _nameController.text.trim(),
-        username: currentProfile?.username ?? _usernameController.text.trim().toLowerCase(), // Keep original username
+        username: currentProfile?.username ??
+            _usernameController.text
+                .trim()
+                .toLowerCase(), // Keep original username
         email: user.email,
         phone: phoneNumber.isNotEmpty ? phoneNumber : null,
         gender: _selectedGender,
@@ -214,7 +221,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Update profile
       await authProvider.updateProfile(updatedProfile);
-      
+
       // Refresh profile to get latest data from Firestore
       await authProvider.refreshProfile();
 
@@ -241,7 +248,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -259,32 +266,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 45,
-                        backgroundColor: const Color(0xFF7C3AED),
+                        backgroundColor: const Color(0xFF043915),
                         backgroundImage: _selectedImage != null
                             ? FileImage(_selectedImage!)
                             : (_currentPhotoUrl != null
                                 ? NetworkImage(_currentPhotoUrl!)
                                 : null) as ImageProvider?,
-                        child: _selectedImage == null && _currentPhotoUrl == null
-                            ? Text(
-                                _nameController.text.isNotEmpty
-                                    ? _nameController.text.substring(0, 1).toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                ),
-                              )
-                            : null,
+                        child:
+                            _selectedImage == null && _currentPhotoUrl == null
+                                ? Text(
+                                    _nameController.text.isNotEmpty
+                                        ? _nameController.text
+                                            .substring(0, 1)
+                                            .toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 36,
+                                    ),
+                                  )
+                                : null,
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF043915),
                           child: IconButton(
-                            icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                            icon: const Icon(Icons.camera_alt,
+                                size: 16, color: Colors.white),
                             onPressed: _showImageSourceDialog,
                             padding: EdgeInsets.zero,
                           ),
@@ -349,19 +360,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   items: const [
                     DropdownMenuItem(
                       value: null,
-                      child: Text('Select gender (optional)', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                      child: Text('Select gender (optional)',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.black87)),
                     ),
                     DropdownMenuItem(
                       value: 'male',
-                      child: Text('Male', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                      child: Text('Male',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.black87)),
                     ),
                     DropdownMenuItem(
                       value: 'female',
-                      child: Text('Female', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                      child: Text('Female',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.black87)),
                     ),
                     DropdownMenuItem(
                       value: 'other',
-                      child: Text('Other', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                      child: Text('Other',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.black87)),
                     ),
                   ],
                   onChanged: (value) {
@@ -381,7 +400,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     child: Text(
                       _selectedDateOfBirth != null
-                          ? DateFormat('yyyy-MM-dd').format(_selectedDateOfBirth!)
+                          ? DateFormat('yyyy-MM-dd')
+                              .format(_selectedDateOfBirth!)
                           : 'Select date of birth (optional)',
                       style: TextStyle(
                         fontSize: 14,
@@ -396,7 +416,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF043915),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -409,7 +429,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Save Changes', style: TextStyle(fontSize: 14)),
+                      : const Text('Save Changes',
+                          style: TextStyle(fontSize: 14)),
                 ),
               ],
             ),
@@ -419,4 +440,3 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 }
-

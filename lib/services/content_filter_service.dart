@@ -1,24 +1,32 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Content filter service using Google Cloud Natural Language API
 /// Filters objectionable content before it's posted
 class ContentFilterService {
-  // Note: In production, this API key should be stored securely
-  // Consider using Firebase Functions to proxy these requests
-  static const String _apiKey = 'YOUR_GOOGLE_CLOUD_API_KEY'; // Replace with actual API key
   static const String _moderateUrl = 'https://language.googleapis.com/v1/documents:moderateText';
+
+  /// Get Google Cloud API key from environment variables
+  static String? get _apiKey => dotenv.env['GOOGLE_CLOUD_API_KEY'];
 
   /// Check if content is safe to post
   /// Returns true if content is safe, false if it should be blocked
   static Future<bool> isContentSafe(String text) async {
     if (text.trim().isEmpty) return true;
 
+    final apiKey = _apiKey;
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint('⚠️ Google Cloud API key not set. Content filtering disabled.');
+      // Fail open - allow content if API key not configured
+      return true;
+    }
+
     try {
       // Use moderateText API for toxicity detection
       final response = await http.post(
-        Uri.parse('$_moderateUrl?key=$_apiKey'),
+        Uri.parse('$_moderateUrl?key=$apiKey'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -67,9 +75,15 @@ class ContentFilterService {
   static Future<double> getToxicityScore(String text) async {
     if (text.trim().isEmpty) return 0.0;
 
+    final apiKey = _apiKey;
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint('⚠️ Google Cloud API key not set. Returning default score.');
+      return 0.0;
+    }
+
     try {
       final response = await http.post(
-        Uri.parse('$_moderateUrl?key=$_apiKey'),
+        Uri.parse('$_moderateUrl?key=$apiKey'),
         headers: {
           'Content-Type': 'application/json',
         },

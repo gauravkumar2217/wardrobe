@@ -320,6 +320,32 @@ service cloud.firestore {
                          request.resource.data.createdAt is timestamp);
         allow delete: if isOwner(userId);
       }
+
+      // Body profile subcollection: users/{userId}/bodyProfile/{docId}
+      // Stores the current body scan profile used for virtual try-on
+      match /bodyProfile/{docId} {
+        // Only the owner can read or write their body profile
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Avatar subcollection: users/{userId}/avatar/{docId}
+      // Stores the current avatar created from 6 images (3 face + 3 body)
+      match /avatar/{docId} {
+        // Only the owner can read or write their avatar
+        allow read, write: if isOwner(userId);
+      }
+
+      // Rendered outfits subcollection: users/{userId}/renderedOutfits/{outfitId}
+      // Stores cached rendered try-on outfits (24-hour cache)
+      match /renderedOutfits/{outfitId} {
+        // Only the owner can read or write their rendered outfits
+        allow read, write: if isOwner(userId);
+      }
+
+      // Schedules: users/{userId}/schedules/{scheduleId} — outfit reminder schedules
+      match /schedules/{scheduleId} {
+        allow read, create, update, delete: if isOwner(userId);
+      }
       
       // Notifications subcollection: users/{userId}/notifications/{notificationId}
       match /notifications/{notificationId} {

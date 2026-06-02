@@ -235,22 +235,31 @@ class ChatService {
 
             if (hasChanges) {
               debugPrint('   Updating sharedWith to: $sharedWithList');
-              
-              // Update sharedWith in both subcollection and top-level collection
+
               batch.update(clothRef, {
                 'sharedWith': sharedWithList,
                 'updatedAt': FieldValue.serverTimestamp(),
               });
 
-              // Also update top-level clothes collection
-              batch.update(
-                _firestore.collection('clothes').doc(clothId),
-                {
+              // Top-level mirror: update if present; otherwise create from subcollection
+              // so recipients can read via clothes/{clothId} (getCloth tries this first).
+              // batch.update on a missing doc fails the entire batch — that blocked sharedWith sync.
+              final topRef = _firestore.collection('clothes').doc(clothId);
+              final topLevelDoc = await topRef.get();
+              if (topLevelDoc.exists) {
+                batch.update(topRef, {
                   'sharedWith': sharedWithList,
                   'updatedAt': FieldValue.serverTimestamp(),
-                },
-              );
-              
+                });
+              } else {
+                // Mirror subcollection into top-level clothes/{id} so recipients can read it.
+                // Use Timestamp (not FieldValue) so create rule isValidCloth(updatedAt is timestamp) passes.
+                final payload = Map<String, dynamic>.from(clothData);
+                payload['sharedWith'] = sharedWithList;
+                payload['updatedAt'] = Timestamp.now();
+                batch.set(topRef, payload);
+              }
+
               debugPrint('✅ ChatService: Successfully queued sharedWith update');
             } else {
               debugPrint('ℹ️ ChatService: No changes to sharedWith (all participants already added)');

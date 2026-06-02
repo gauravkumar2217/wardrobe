@@ -61,6 +61,13 @@ setGlobalOptions({
   region: "us-central1", // Change to your preferred region
 });
 
+// ============================
+// 2D Avatar Generation API
+// ============================
+// Callable functions for 2D avatar generation and try-on
+export {generateAvatar} from "./avatarGenerator";
+export {createTryOn} from "./tryonService";
+
 /**
  * Helper function to get user notification settings
  */

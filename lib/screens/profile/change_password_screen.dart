@@ -50,11 +50,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       }
 
       final user = FirebaseAuth.instance.currentUser;
-      
+
       if (kDebugMode) {
         debugPrint('Current user: ${user?.uid ?? 'null'}');
         debugPrint('User email: ${user?.email ?? 'null'}');
-        debugPrint('User providers: ${user?.providerData.map((p) => p.providerId).toList() ?? []}');
+        debugPrint(
+            'User providers: ${user?.providerData.map((p) => p.providerId).toList() ?? []}');
       }
 
       if (user == null || user.email == null) {
@@ -66,21 +67,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       if (kDebugMode) {
         debugPrint('Step 2: Attempting to update password directly...');
-        debugPrint('New password length: ${_newPasswordController.text.length}');
+        debugPrint(
+            'New password length: ${_newPasswordController.text.length}');
       }
 
       // Try to update password directly first (might work if user was recently authenticated)
       try {
         await user.updatePassword(_newPasswordController.text);
         if (kDebugMode) {
-          debugPrint('SUCCESS: Password updated directly without re-authentication');
+          debugPrint(
+              'SUCCESS: Password updated directly without re-authentication');
         }
       } on FirebaseAuthException catch (updateError) {
         if (updateError.code == 'requires-recent-login') {
           if (kDebugMode) {
-            debugPrint('Password update requires recent login. Verifying current password...');
+            debugPrint(
+                'Password update requires recent login. Verifying current password...');
             debugPrint('Step 3: Creating credential with email: ${user.email}');
-            debugPrint('Current password length: ${_currentPasswordController.text.length}');
+            debugPrint(
+                'Current password length: ${_currentPasswordController.text.length}');
           }
 
           // Verify current password by re-authenticating
@@ -88,7 +93,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             email: user.email!,
             password: _currentPasswordController.text,
           );
-          
+
           if (kDebugMode) {
             debugPrint('Step 4: Re-authenticating user...');
           }
@@ -108,12 +113,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 debugPrint('Error message: ${reAuthError.message}');
               }
             }
-            
+
             // Check if it's the known type cast error
             final errorStr = reAuthError.toString();
-            if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
+            if (errorStr.contains('List<Object?>') ||
+                errorStr.contains('PigeonUserDetails')) {
               if (kDebugMode) {
-                debugPrint('DETECTED: Known Firebase Auth bug with multi-provider accounts');
+                debugPrint(
+                    'DETECTED: Known Firebase Auth bug with multi-provider accounts');
               }
               throw Exception(
                 'Authentication error detected. This happens with Google sign-in accounts. '
@@ -229,7 +236,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Change Password'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -348,7 +355,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF043915),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -371,4 +378,3 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 }
-

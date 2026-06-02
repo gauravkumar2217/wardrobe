@@ -34,6 +34,24 @@ service firebase.storage {
       // Allow delete if user owns the profile image
       allow delete: if isOwner(userId);
     }
+
+    // ============================================
+    // USER BODY PROFILE IMAGES (Body Scan)
+    // ============================================
+    // Path: users/{userId}/body_profile/{imageName}
+    match /users/{userId}/body_profile/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+
+      // Allow write if user owns the body profile image
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+
+      // Allow delete if user owns the body profile image
+      allow delete: if isOwner(userId);
+    }
     
     // ============================================
     // CLOTHING IMAGES
@@ -113,6 +131,45 @@ service firebase.storage {
       
       // Allow delete if user is authenticated
       allow delete: if isAuthenticated();
+    }
+    
+    // ============================================
+    // USER AVATAR IMAGES
+    // ============================================
+    // Path: users/{userId}/avatar/{imageType}/{imageName}
+    // imageType can be: face, body, or root (for generated avatar)
+    match /users/{userId}/avatar/{imageType}/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow write if user owns the avatar image
+      // Only allow image files (jpg, jpeg, png, webp)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user owns the avatar image
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // RENDERED OUTFIT IMAGES (AI Try-On Results)
+    // ============================================
+    // Path: users/{userId}/renderedOutfits/{outfitId}/{imageName}
+    // Stores AI-rendered try-on outfit images (24-hour cache)
+    match /users/{userId}/renderedOutfits/{outfitId}/{imageName} {
+      // Allow read if user is authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow write if user owns the rendered outfit image
+      // Only allow image files (jpg, jpeg, png, webp)
+      // Larger size limit for rendered images (10MB)
+      allow write: if isOwner(userId) &&
+                     request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user owns the rendered outfit image
+      allow delete: if isOwner(userId);
     }
     
     // ============================================

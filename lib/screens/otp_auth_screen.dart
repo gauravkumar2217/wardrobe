@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sms_autofill/sms_autofill.dart';
-import 'home/home_screen.dart';
+import 'main_navigation.dart';
 import '../services/fcm_token_service.dart';
 
 class OTPAuthScreen extends StatefulWidget {
@@ -145,7 +145,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         },
@@ -261,7 +261,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         }
@@ -292,8 +292,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
               if (mounted) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const HomeScreen()),
+                  MaterialPageRoute(builder: (context) => const MainNavigation()),
                 );
               }
             });
@@ -537,7 +536,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
             );
           }
         }
@@ -587,7 +586,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
             if (mounted) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                MaterialPageRoute(builder: (context) => const MainNavigation()),
               );
             }
           }
@@ -677,7 +676,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+            colors: [Color(0xFF043915), Color(0xFF0B5D2B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -942,7 +941,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                         : (_isOTPSent ? _verifyOTP : _sendOTP),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF7C3AED),
+                      foregroundColor: const Color(0xFF043915),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -956,7 +955,7 @@ class _OTPAuthScreenState extends State<OTPAuthScreen> with CodeAutoFill {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF7C3AED)),
+                                  Color(0xFF043915)),
                             ),
                           )
                         : Text(

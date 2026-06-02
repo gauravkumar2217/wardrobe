@@ -6,12 +6,16 @@ class Cloth {
   final String ownerId;
   final String wardrobeId;
   final String imageUrl;
+  final String? processedImageUrl; // Clean front picture without background
+  final bool hasProcessedImage; // Boolean flag
   final String season;
   final String placement;
   final PlacementDetails? placementDetails; // Details for Laundry, DryCleaning, Repairing
   final ColorTags colorTags;
   final String clothType;
   final String category;
+  /// Top category: 'cloth' | 'makeup' | 'footwear' | 'accessories'
+  final String itemKind;
   final List<String> occasions;
   final AiDetected? aiDetected;
   final DateTime createdAt;
@@ -27,12 +31,15 @@ class Cloth {
     required this.ownerId,
     required this.wardrobeId,
     required this.imageUrl,
+    this.processedImageUrl,
+    this.hasProcessedImage = false,
     required this.season,
     required this.placement,
     this.placementDetails,
     required this.colorTags,
     required this.clothType,
     required this.category,
+    this.itemKind = 'cloth',
     required this.occasions,
     this.aiDetected,
     required this.createdAt,
@@ -44,12 +51,24 @@ class Cloth {
     this.commentsCount = 0,
   });
 
+  /// Parse itemKind from Firestore; map legacy 'shoes' to 'footwear'.
+  static String _parseItemKind(String? value) {
+    if (value == null || value.isEmpty) return 'cloth';
+    if (value == 'shoes') return 'footwear';
+    if (value == 'cloth' || value == 'makeup' || value == 'footwear' || value == 'accessories') {
+      return value;
+    }
+    return 'cloth';
+  }
+
   factory Cloth.fromJson(Map<String, dynamic> json, String id) {
     return Cloth(
       id: id,
       ownerId: json['ownerId'] as String,
       wardrobeId: json['wardrobeId'] as String,
       imageUrl: json['imageUrl'] as String,
+      processedImageUrl: json['processedImageUrl'] as String?,
+      hasProcessedImage: json['hasProcessedImage'] as bool? ?? false,
       season: json['season'] as String,
       placement: json['placement'] as String,
       placementDetails: json['placementDetails'] != null
@@ -61,6 +80,7 @@ class Cloth {
       clothType:
           json['clothType'] as String? ?? json['type'] as String? ?? 'Other',
       category: json['category'] as String? ?? 'Casual',
+      itemKind: _parseItemKind(json['itemKind'] as String?),
       occasions: json['occasions'] != null
           ? List<String>.from(json['occasions'])
           : (json['occasion'] != null
@@ -90,12 +110,15 @@ class Cloth {
       'ownerId': ownerId,
       'wardrobeId': wardrobeId,
       'imageUrl': imageUrl,
+      if (processedImageUrl != null) 'processedImageUrl': processedImageUrl,
+      'hasProcessedImage': hasProcessedImage,
       'season': season,
       'placement': placement,
       if (placementDetails != null) 'placementDetails': placementDetails!.toJson(),
       'colorTags': colorTags.toJson(),
       'clothType': clothType,
       'category': category,
+      'itemKind': itemKind,
       'occasions': occasions,
       if (aiDetected != null) 'aiDetected': aiDetected!.toJson(),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -112,12 +135,15 @@ class Cloth {
     String? ownerId,
     String? wardrobeId,
     String? imageUrl,
+    String? processedImageUrl,
+    bool? hasProcessedImage,
     String? season,
     String? placement,
     PlacementDetails? placementDetails,
     ColorTags? colorTags,
     String? clothType,
     String? category,
+    String? itemKind,
     List<String>? occasions,
     AiDetected? aiDetected,
     DateTime? createdAt,
@@ -133,12 +159,15 @@ class Cloth {
       ownerId: ownerId ?? this.ownerId,
       wardrobeId: wardrobeId ?? this.wardrobeId,
       imageUrl: imageUrl ?? this.imageUrl,
+      processedImageUrl: processedImageUrl ?? this.processedImageUrl,
+      hasProcessedImage: hasProcessedImage ?? this.hasProcessedImage,
       season: season ?? this.season,
       placement: placement ?? this.placement,
       placementDetails: placementDetails ?? this.placementDetails,
       colorTags: colorTags ?? this.colorTags,
       clothType: clothType ?? this.clothType,
       category: category ?? this.category,
+      itemKind: itemKind ?? this.itemKind,
       occasions: occasions ?? this.occasions,
       aiDetected: aiDetected ?? this.aiDetected,
       createdAt: createdAt ?? this.createdAt,

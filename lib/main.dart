@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'screens/auth/splash_screen.dart';
 import 'providers/auth_provider.dart';
@@ -32,6 +32,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from .env file
+  try {
+    await dotenv.load(fileName: '.env');
+    debugPrint('✅ Environment variables loaded');
+  } catch (e) {
+    debugPrint('⚠️ Could not load .env file: $e');
+    debugPrint('   Background removal will use fallback mode');
+  }
 
   // Initialize Firebase first (critical)
   try {
@@ -106,7 +115,7 @@ class WardrobeApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF7C3AED),
+              seedColor: const Color(0xFF043915),
               brightness: Brightness.light,
             ),
             useMaterial3: true,

@@ -399,6 +399,8 @@ class ChatProvider with ChangeNotifier {
     required String userId,
     required String chatId,
     required String clothId,
+    required String clothOwnerId,
+    required String clothWardrobeId,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -409,6 +411,8 @@ class ChatProvider with ChangeNotifier {
         userId: userId,
         chatId: chatId,
         clothId: clothId,
+        clothOwnerId: clothOwnerId,
+        clothWardrobeId: clothWardrobeId,
       );
       _errorMessage = null;
       return true;
