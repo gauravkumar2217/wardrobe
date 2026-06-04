@@ -17,8 +17,14 @@ class ApiConfig {
     }
   }
 
-  // These endpoints are backed by Laravel Sanctum (Bearer token).
+  // Auth endpoints (Laravel Sanctum)
+  static String get authRegister => '$baseUrl/auth/register';
+  static String get authLogin => '$baseUrl/auth/login';
+  static String get authLogout => '$baseUrl/auth/logout';
+  static String get authUser => '$baseUrl/auth/user';
+  static String get authCheckUsername => '$baseUrl/auth/check-username';
   static String get authVerifyToken => '$baseUrl/auth/verify-token';
+  static String get usersMe => '$baseUrl/users/me';
 
   // API Endpoints
   static String get avatarGenerate => '$baseUrl/avatar/generate';

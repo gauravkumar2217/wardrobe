@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
+import 'laravel_auth_service.dart';
 import '../models/body_profile.dart';
 import '../models/avatar.dart';
 import '../models/eula_acceptance.dart';
@@ -358,8 +359,13 @@ class UserService {
     });
   }
 
-  /// Check if username is available (unique)
+  /// Check if username is available (Laravel API, Firestore fallback).
   static Future<bool> isUsernameAvailable(String username) async {
+    try {
+      return await LaravelAuthService.isUsernameAvailable(username);
+    } catch (e) {
+      debugPrint('Laravel username check failed, trying Firestore: $e');
+    }
     try {
       final normalizedUsername = username.toLowerCase().trim();
       final query = await _firestore
@@ -367,7 +373,6 @@ class UserService {
           .where('username', isEqualTo: normalizedUsername)
           .limit(1)
           .get();
-      
       return query.docs.isEmpty;
     } catch (e) {
       debugPrint('Failed to check username availability: $e');
@@ -375,49 +380,9 @@ class UserService {
     }
   }
 
-  /// Get user email by username (for login)
+  /// Deprecated: login uses Laravel username directly.
   static Future<String?> getEmailByUsername(String username) async {
-    try {
-      final normalizedUsername = username.toLowerCase().trim();
-      
-      if (normalizedUsername.isEmpty) {
-        debugPrint('Username is empty');
-        return null;
-      }
-      
-      debugPrint('Looking up username: $normalizedUsername');
-      
-      final query = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: normalizedUsername)
-          .limit(1)
-          .get();
-      
-      debugPrint('Query returned ${query.docs.length} documents');
-      
-      if (query.docs.isEmpty) {
-        debugPrint('No user found with username: $normalizedUsername');
-        // Try to find any users with username field for debugging
-        final allUsers = await _firestore
-            .collection('users')
-            .limit(5)
-            .get();
-        debugPrint('Sample users in database: ${allUsers.docs.map((doc) => doc.data()['username']).toList()}');
-        return null;
-      }
-      
-      final data = query.docs.first.data();
-      final email = data['email'] as String?;
-      debugPrint('Found email for username $normalizedUsername: $email');
-      return email;
-    } catch (e) {
-      debugPrint('Failed to get email by username: $e');
-      // Check if it's an index error
-      if (e.toString().contains('index') || e.toString().contains('Index')) {
-        debugPrint('ERROR: Firestore index required for username queries. Please create an index on users collection for username field.');
-      }
-      return null;
-    }
+    return null;
   }
 
   /// Record EULA acceptance

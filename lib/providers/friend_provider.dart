@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/friend_request.dart';
 import '../services/friend_service.dart';
 import '../services/user_service.dart';
+import '../services/laravel_auth_service.dart';
 
 /// Friend provider for managing friends and friend requests
 class FriendProvider with ChangeNotifier {
@@ -28,8 +28,8 @@ class FriendProvider with ChangeNotifier {
   Future<void> loadFriends(String userId) async {
     // Check authentication before loading
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
+      final currentUserId = await LaravelAuthService.getCurrentUserId();
+      if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear friends and return
         _friends = [];
         _errorMessage = null;
@@ -67,25 +67,16 @@ class FriendProvider with ChangeNotifier {
     // Cancel existing subscription
     _friendsSubscription?.cancel();
     
-    // Check authentication before setting up stream
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
-        // User is not authenticated, don't set up stream
-        _friends = [];
-        notifyListeners();
-        return;
-      }
-    } catch (e) {
-      // If auth check fails, don't set up stream
+    final currentUserId = LaravelAuthService.memoryUserId;
+    if (currentUserId == null || currentUserId != userId) {
+      _friends = [];
+      notifyListeners();
       return;
     }
-    
+
     _friendsSubscription = FriendService.watchFriends(userId).listen((friends) {
-      // Check authentication in stream callback
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null || currentUser.uid != userId) {
+        if (LaravelAuthService.memoryUserId != userId) {
           // User signed out, cancel subscription
           _friendsSubscription?.cancel();
           _friends = [];
@@ -111,8 +102,8 @@ class FriendProvider with ChangeNotifier {
   Future<void> loadFriendRequests(String userId) async {
     // Check authentication before loading
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
+      final currentUserId = await LaravelAuthService.getCurrentUserId();
+      if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear requests and return
         _incomingRequests = [];
         _outgoingRequests = [];
@@ -162,27 +153,18 @@ class FriendProvider with ChangeNotifier {
     _incomingRequestsSubscription?.cancel();
     _outgoingRequestsSubscription?.cancel();
     
-    // Check authentication before setting up streams
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
-        // User is not authenticated, don't set up streams
-        _incomingRequests = [];
-        _outgoingRequests = [];
-        notifyListeners();
-        return;
-      }
-    } catch (e) {
-      // If auth check fails, don't set up streams
+    final currentUserId = LaravelAuthService.memoryUserId;
+    if (currentUserId == null || currentUserId != userId) {
+      _incomingRequests = [];
+      _outgoingRequests = [];
+      notifyListeners();
       return;
     }
-    
+
     _incomingRequestsSubscription = FriendService.watchFriendRequests(userId: userId, type: 'incoming')
         .listen((requests) {
-      // Check authentication in stream callback
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null || currentUser.uid != userId) {
+        if (LaravelAuthService.memoryUserId != userId) {
           // User signed out, cancel subscription
           _incomingRequestsSubscription?.cancel();
           _incomingRequests = [];
@@ -203,10 +185,8 @@ class FriendProvider with ChangeNotifier {
 
     _outgoingRequestsSubscription = FriendService.watchFriendRequests(userId: userId, type: 'outgoing')
         .listen((requests) {
-      // Check authentication in stream callback
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null || currentUser.uid != userId) {
+        if (LaravelAuthService.memoryUserId != userId) {
           // User signed out, cancel subscription
           _outgoingRequestsSubscription?.cancel();
           _outgoingRequests = [];

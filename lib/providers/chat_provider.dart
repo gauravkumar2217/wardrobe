@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
 import '../services/chat_service.dart';
+import '../services/laravel_auth_service.dart';
 
 /// Chat provider for managing chats and messages
 class ChatProvider with ChangeNotifier {
@@ -36,8 +36,8 @@ class ChatProvider with ChangeNotifier {
   Future<void> loadChats(String userId) async {
     // Check authentication before loading
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
+      final currentUserId = await LaravelAuthService.getCurrentUserId();
+      if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear chats and return
         _chats = [];
         _errorMessage = null;
@@ -75,26 +75,17 @@ class ChatProvider with ChangeNotifier {
     // Cancel existing subscription
     _chatsSubscription?.cancel();
     
-    // Check authentication before setting up stream
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
-        // User is not authenticated, don't set up stream
-        _chats = [];
-        _unreadCounts = {};
-        notifyListeners();
-        return;
-      }
-    } catch (e) {
-      // If auth check fails, don't set up stream
+    final currentUserId = LaravelAuthService.memoryUserId;
+    if (currentUserId == null || currentUserId != userId) {
+      _chats = [];
+      _unreadCounts = {};
+      notifyListeners();
       return;
     }
-    
+
     _chatsSubscription = ChatService.watchUserChats(userId).listen((chats) {
-      // Check authentication in stream callback
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null || currentUser.uid != userId) {
+        if (LaravelAuthService.memoryUserId != userId) {
           // User signed out, cancel subscription
           _chatsSubscription?.cancel();
           _chats = [];
@@ -140,8 +131,8 @@ class ChatProvider with ChangeNotifier {
   Future<void> _refreshUnreadCounts(String userId) async {
     // Check authentication before making any queries
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
+      final currentUserId = await LaravelAuthService.getCurrentUserId();
+      if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear counts and return
         _unreadCounts = {};
         notifyListeners();
@@ -195,8 +186,8 @@ class ChatProvider with ChangeNotifier {
   Future<void> loadUnreadCounts(String userId) async {
     // Check authentication first
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
+      final currentUserId = await LaravelAuthService.getCurrentUserId();
+      if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear counts and return
         _unreadCounts = {};
         notifyListeners();
@@ -280,25 +271,16 @@ class ChatProvider with ChangeNotifier {
     // Cancel existing subscription
     _messagesSubscription?.cancel();
     
-    // Check authentication before setting up stream
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || currentUser.uid != userId) {
-        // User is not authenticated, don't set up stream
-        _messages = [];
-        notifyListeners();
-        return;
-      }
-    } catch (e) {
-      // If auth check fails, don't set up stream
+    final currentUserId = LaravelAuthService.memoryUserId;
+    if (currentUserId == null || currentUserId != userId) {
+      _messages = [];
+      notifyListeners();
       return;
     }
-    
+
     _messagesSubscription = ChatService.watchMessages(userId: userId, chatId: chatId).listen((messages) {
-      // Check authentication in stream callback
       try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null || currentUser.uid != userId) {
+        if (LaravelAuthService.memoryUserId != userId) {
           // User signed out, cancel subscription
           _messagesSubscription?.cancel();
           _messages = [];

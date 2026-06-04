@@ -1,26 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../config/api_config.dart';
 import '../models/banner.dart';
 
-/// Service for fetching banners from the API
+/// Service for fetching banners from the Laravel API
 class BannerService {
-  /// Get banner API base URL from environment variables
-  /// Falls back to default if not set
-  static String get baseUrl {
-    const fallback = 'https://www.wardrobe.chat/api';
-    try {
-      if (!dotenv.isInitialized) return fallback;
-      final v = dotenv.env['BANNER_API_BASE_URL'];
-      if (v == null || v.trim().isEmpty) return fallback;
-      return v.trim();
-    } catch (_) {
-      // In some situations (e.g. if .env asset failed to load), flutter_dotenv throws
-      // NotInitializedError when accessing dotenv.env. Banners are optional, so fall back.
-      return fallback;
-    }
-  }
+  static String get baseUrl => ApiConfig.baseUrl;
 
   /// Get banners for a specific location
   /// 

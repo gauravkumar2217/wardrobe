@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_service.dart';
@@ -20,8 +19,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
 
   String? _selectedGender;
@@ -29,8 +26,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _isCheckingUsername = false;
   bool _isUsernameAvailable = false;
   bool _isLoading = false;
-  bool _isAppleUser = false;
-  bool _isGoogleUser = false;
   bool _showOptionalFields = false;
 
   @override
@@ -42,38 +37,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void _initializeFromAuth() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
-    
-    if (user != null) {
-      // Check if user signed in with Apple or Google
-      _isAppleUser = user.providerData.any((info) => info.providerId == 'apple.com');
-      _isGoogleUser = user.providerData.any((info) => info.providerId == 'google.com');
-      
-      // Pre-populate name from Firebase Auth (Apple/Google Sign-In provides this)
-      if (user.displayName != null && user.displayName!.isNotEmpty) {
-        _nameController.text = user.displayName!;
-        
-        // Auto-generate username suggestion from name for Apple/Google users
-        if (_isAppleUser || _isGoogleUser) {
-          final nameParts = user.displayName!.toLowerCase().split(' ');
-          if (nameParts.isNotEmpty) {
-            // Generate username from first name + last initial, or just first name
-            String suggestedUsername = nameParts[0];
-            if (nameParts.length > 1 && nameParts[1].isNotEmpty) {
-              suggestedUsername = '${nameParts[0]}${nameParts[1][0]}';
-            }
-            // Remove any special characters and limit length
-            suggestedUsername = suggestedUsername.replaceAll(RegExp(r'[^a-z0-9_]'), '');
-            if (suggestedUsername.length > 20) {
-              suggestedUsername = suggestedUsername.substring(0, 20);
-            }
-            if (suggestedUsername.length >= 3) {
-              _usernameController.text = suggestedUsername;
-              // Check availability of suggested username
-              _checkUsernameAvailability();
-            }
-          }
-        }
-      }
+    final profile = authProvider.userProfile;
+
+    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
+      _nameController.text = user.displayName!;
+    } else if (profile?.displayName != null) {
+      _nameController.text = profile!.displayName!;
+    }
+    if (profile?.username != null && profile!.username!.isNotEmpty) {
+      _usernameController.text = profile.username!;
+      _checkUsernameAvailability();
     }
   }
 
@@ -81,8 +54,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -141,48 +112,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _saveProfile() async {
-    // For Apple/Google users, validate only username (name/email already provided)
-    final isSocialSignIn = _isAppleUser || _isGoogleUser;
-    if (!isSocialSignIn && !_formKey.currentState!.validate()) return;
-    
-    // For Apple/Google users, still validate username
-    if (isSocialSignIn) {
-      final username = _usernameController.text.trim().toLowerCase();
-      if (username.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a username')),
-        );
-        return;
-      }
-      if (username.length < 3) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Username must be at least 3 characters')),
-        );
-        return;
-      }
-      if (!RegExp(r'^[a-z0-9_]+$').hasMatch(username)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Username can only contain letters, numbers, and underscores')),
-        );
-        return;
-      }
-      if (!_isUsernameAvailable && username.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please choose an available username')),
-        );
-        return;
-      }
-    } else {
-      // For non-social sign-in users, validate form normally
-      if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-      // Check if username is available
-      if (!_isUsernameAvailable) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please choose an available username')),
-        );
-        return;
-      }
+    if (!_isUsernameAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose an available username')),
+      );
+      return;
     }
 
     setState(() {
@@ -204,41 +140,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
-    // Check if user is Google user (needs password)
-    final isGoogleUser = user.providerData.any((info) => info.providerId == 'google.com');
-    
-    // For Google users, link email/password credential if password is provided
-    if (isGoogleUser && _passwordController.text.isNotEmpty && user.email != null) {
-      try {
-        final credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: _passwordController.text,
-        );
-        await user.linkWithCredential(credential);
-      } catch (e) {
-        // If linking fails (e.g., email already linked), that's okay
-        // User can still continue
-        debugPrint('Failed to link password credential: $e');
-      }
-    }
-
     final phoneNumber = _phoneController.text.trim();
-    
-    // For Apple/Google users, use displayName from Firebase Auth if name field is empty
-    // (This handles cases where social sign-in provided the name but it wasn't shown in the field)
-    String displayName = _nameController.text.trim();
-    if (displayName.isEmpty && (_isAppleUser || _isGoogleUser) && user.displayName != null && user.displayName!.isNotEmpty) {
-      displayName = user.displayName!;
-    }
-    
+    final displayName = _nameController.text.trim();
+
     final profile = UserProfile(
       displayName: displayName.isNotEmpty ? displayName : null,
       username: _usernameController.text.trim().toLowerCase(),
-      email: user.email, // Email is already provided by Apple/Google Sign-In
+      email: user.email,
       phone: phoneNumber.isNotEmpty ? phoneNumber : null,
       gender: _selectedGender,
       dateOfBirth: _selectedDateOfBirth,
-      photoUrl: user.photoURL,
+      photoUrl: user.photoUrl,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -295,93 +207,30 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    final user = authProvider.user;
-                    final isAppleUser = user?.providerData.any((info) => info.providerId == 'apple.com') ?? false;
-                    
-                    final isGoogleUser = user?.providerData.any((info) => info.providerId == 'google.com') ?? false;
-                    final isSocialSignIn = isAppleUser || isGoogleUser;
-                    final socialProviderName = isAppleUser ? 'Apple Sign-In' : (isGoogleUser ? 'Google Sign-In' : '');
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Let\'s get started',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          isSocialSignIn 
-                              ? 'Choose a username to complete your profile'
-                              : 'Complete your profile to continue',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                        ),
-                        if (isSocialSignIn) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.green[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle_outline, size: 18, color: Colors.green[700]),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Your name and email from $socialProviderName are already set up. Just choose a username to continue.',
-                                    style: TextStyle(fontSize: 12, color: Colors.green[900]),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    );
-                  },
+                const Text(
+                  'Let\'s get started',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Complete your profile to continue',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 32),
-                // Name field - hidden for Apple/Google users (already provided), required for others
-                Builder(
-                  builder: (context) {
-                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    final user = authProvider.user;
-                    final isAppleUser = user?.providerData.any((info) => info.providerId == 'apple.com') ?? false;
-                    final isGoogleUser = user?.providerData.any((info) => info.providerId == 'google.com') ?? false;
-                    final isSocialSignIn = isAppleUser || isGoogleUser;
-                    
-                    // For Apple/Google users, don't show name field at all - it's already provided by social sign-in
-                    if (isSocialSignIn) {
-                      return const SizedBox.shrink();
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name *',
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
                     }
-                    
-                    // For non-social sign-in users, name is required
-                    return Column(
-                      children: [
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Full Name *',
-                            prefixIcon: Icon(Icons.person),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your name';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    );
+                    return null;
                   },
                 ),
+                const SizedBox(height: 16),
                 // Username field
                 TextFormField(
                   controller: _usernameController,
@@ -427,59 +276,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       return 'Username is already taken';
                     }
                     return null;
-                  },
-                ),
-                // Password fields (only for Google users)
-                Builder(
-                  builder: (context) {
-                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    final user = authProvider.user;
-                    final isGoogleUser = user?.providerData.any((info) => info.providerId == 'google.com') ?? false;
-                    
-                    if (isGoogleUser) {
-                      return Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Password *',
-                              prefixIcon: Icon(Icons.lock),
-                              helperText: 'At least 6 characters',
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter password';
-                              }
-                              if (value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _confirmPasswordController,
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Confirm Password *',
-                              prefixIcon: Icon(Icons.lock_outline),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please confirm password';
-                              }
-                              if (value != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      );
-                    }
-                    return const SizedBox.shrink();
                   },
                 ),
                 const SizedBox(height: 24),

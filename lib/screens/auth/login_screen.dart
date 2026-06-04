@@ -9,6 +9,7 @@ import '../../models/banner.dart' as models;
 import '../../widgets/banner_slider_widget.dart';
 import 'profile_setup_screen.dart';
 import 'eula_acceptance_screen.dart';
+import 'register_screen.dart';
 import '../main_navigation.dart';
 
 /// Login screen with Username/Password and Google options
@@ -373,10 +374,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text('Sign In'),
                     ),
                     const SizedBox(height: 8),
-                    // TextButton(
-                    //   onPressed: _registerWithEmail,
-                    //   child: const Text('Create Account'),
-                    // ),
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text('Create Account'),
+                    ),
                     const SizedBox(height: 24),
                     const Row(
                       children: [

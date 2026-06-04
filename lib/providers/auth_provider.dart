@@ -1,528 +1,195 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import '../services/auth_service.dart';
-import '../services/user_service.dart';
+import '../models/app_user.dart';
+import '../models/user_profile.dart';
 import '../services/fcm_service.dart';
 import '../services/laravel_auth_service.dart';
-import '../models/user_profile.dart';
+import '../services/user_service.dart';
 
-/// Auth provider for managing authentication state
+/// Auth provider backed by Laravel API (Sanctum token).
 class AuthProvider with ChangeNotifier {
-  User? _user;
+  AppUser? _user;
   UserProfile? _userProfile;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isInitialized = false;
 
-  User? get user => _user;
+  AppUser? get user => _user;
   UserProfile? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
   bool get isInitialized => _isInitialized;
 
-  /// Initialize auth provider
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     _isLoading = true;
-    // Defer notifyListeners to avoid calling during build phase
     Future.microtask(() => notifyListeners());
 
     try {
-      _user = AuthService.getCurrentUser();
-      
-      if (_user != null) {
-        await _loadUserProfile(_user!.uid);
-        // Register FCM token for already logged-in user
+      final restored = await LaravelAuthService.restoreSession();
+      if (restored != null) {
+        _user = restored;
+        await _loadUserProfile();
         try {
           await FCMService.registerDeviceToken(_user!.uid);
         } catch (e) {
           debugPrint('Failed to register FCM token on init: $e');
         }
-        _syncLaravelToken();
       }
-
-      // Listen to auth state changes
-      AuthService.authStateChanges.listen((user) async {
-        _user = user;
-        if (user != null) {
-          await _loadUserProfile(user.uid);
-          // Register FCM token when user logs in
-          try {
-            await FCMService.registerDeviceToken(user.uid);
-          } catch (e) {
-            debugPrint('Failed to register FCM token on auth change: $e');
-          }
-          _syncLaravelToken();
-        } else {
-          _userProfile = null;
-          await LaravelAuthService.logout();
-        }
-        notifyListeners();
-      });
     } catch (e) {
       _errorMessage = 'Failed to initialize auth: $e';
     } finally {
       _isLoading = false;
       _isInitialized = true;
-      // Defer notifyListeners to avoid calling during build phase
       Future.microtask(() => notifyListeners());
     }
   }
 
-  /// Load user profile
-  Future<void> _loadUserProfile(String userId) async {
+  Future<void> _loadUserProfile() async {
+    if (_user == null) return;
     try {
-      _userProfile = await UserService.getUserProfile(userId);
+      _userProfile = await LaravelAuthService.fetchUserProfile();
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to load user profile: $e');
+      debugPrint('Failed to load user profile from API: $e');
+      try {
+        _userProfile = await UserService.getUserProfile(_user!.uid);
+        notifyListeners();
+      } catch (firestoreError) {
+        debugPrint('Failed to load user profile from Firestore: $firestoreError');
+      }
     }
   }
 
-  /// Exchange Firebase ID token for Laravel Sanctum token (non-blocking).
-  void _syncLaravelToken() {
-    LaravelAuthService.ensureToken().catchError((e) {
-      debugPrint('Laravel token sync failed: $e');
-      return '';
-    });
+  Future<bool> signInWithUsername({
+    required String username,
+    required String password,
+  }) async {
+    return _signIn(
+      login: username.trim().toLowerCase(),
+      password: password,
+      invalidCredentialsMessage: 'Incorrect username or password.',
+    );
   }
 
-  /// Sign in with phone (OTP)
+  Future<bool> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return _signIn(
+      login: email.trim().toLowerCase(),
+      password: password,
+      invalidCredentialsMessage: 'Incorrect email or password.',
+    );
+  }
+
+  Future<bool> _signIn({
+    required String login,
+    required String password,
+    required String invalidCredentialsMessage,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final session = await LaravelAuthService.login(
+        login: login,
+        password: password,
+      );
+      _user = session.user;
+      await _loadUserProfile();
+      try {
+        await FCMService.registerDeviceToken(_user!.uid);
+      } catch (e) {
+        debugPrint('Failed to register FCM token after sign-in: $e');
+      }
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('401') ||
+          message.toLowerCase().contains('invalid credentials')) {
+        _errorMessage = invalidCredentialsMessage;
+      } else {
+        _errorMessage = message.replaceFirst('Exception: ', '');
+      }
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> registerWithEmail({
+    required String email,
+    required String password,
+    String? displayName,
+    String? username,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final session = await LaravelAuthService.register(
+        email: email,
+        password: password,
+        displayName: displayName,
+        username: username,
+      );
+      _user = session.user;
+      await _loadUserProfile();
+      try {
+        await FCMService.registerDeviceToken(_user!.uid);
+      } catch (e) {
+        debugPrint('Failed to register FCM token after registration: $e');
+      }
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Social / phone sign-in is no longer used; kept for API compatibility.
+  Future<bool> signInWithGoogle() async {
+    _errorMessage = 'Google sign-in is disabled. Please use email and password.';
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> signInWithApple() async {
+    _errorMessage = 'Apple sign-in is disabled. Please use email and password.';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> signInWithPhone({
     required String phoneNumber,
     required String verificationId,
     required String smsCode,
   }) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _errorMessage = 'Phone sign-in is disabled. Please use email and password.';
     notifyListeners();
-
-    try {
-      final userCredential = await AuthService.signInWithPhone(
-        phoneNumber: phoneNumber,
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
-
-      _user = userCredential.user;
-      if (_user != null) {
-        await _loadUserProfile(_user!.uid);
-        // Register FCM token after successful phone sign-in
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after phone sign-in: $e');
-        }
-      }
-
-      _errorMessage = null;
-      return true;
-    } catch (e) {
-      _errorMessage = 'Failed to sign in: $e';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    return false;
   }
 
-  /// Sign in with Google
-  Future<bool> signInWithGoogle() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final userCredential = await AuthService.signInWithGoogle();
-      _user = userCredential.user;
-      
-      if (_user != null) {
-        // First try to load profile for current user
-        await _loadUserProfile(_user!.uid);
-        
-        // If profile doesn't exist or is incomplete, check if profile exists by email
-        if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
-          debugPrint('🔍 Checking for existing profile with email: ${_user!.email}');
-          final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
-          
-          if (existingUserId != null && existingUserId != _user!.uid) {
-            // Profile exists with different userId - copy it to current user
-            debugPrint('✅ Found existing profile for email ${_user!.email} with userId $existingUserId');
-            try {
-              final existingProfile = await UserService.getUserProfile(existingUserId);
-              if (existingProfile != null && existingProfile.isComplete) {
-                debugPrint('📋 Copying profile from $existingUserId to ${_user!.uid}');
-                // Create a new profile with existing data but ensure email is set
-                final profileToSave = UserProfile(
-                  displayName: existingProfile.displayName,
-                  username: existingProfile.username,
-                  email: _user!.email, // Ensure email is set from current user
-                  phone: existingProfile.phone,
-                  gender: existingProfile.gender,
-                  dateOfBirth: existingProfile.dateOfBirth,
-                  photoUrl: existingProfile.photoUrl ?? _user!.photoURL,
-                  createdAt: existingProfile.createdAt,
-                  updatedAt: DateTime.now(),
-                  settings: existingProfile.settings,
-                );
-                // Copy existing profile to current user's UID
-                await UserService.createOrUpdateProfile(
-                  userId: _user!.uid,
-                  profile: profileToSave,
-                );
-                // Reload profile for current user
-                await _loadUserProfile(_user!.uid);
-                debugPrint('✅ Successfully copied profile from $existingUserId to ${_user!.uid}');
-              } else {
-                debugPrint('⚠️ Existing profile found but incomplete');
-              }
-            } catch (e) {
-              debugPrint('❌ Failed to copy existing profile: $e');
-              // Continue with new account if copying fails
-            }
-          } else {
-            debugPrint('ℹ️ No existing profile found for email: ${_user!.email}');
-          }
-        } else if (_userProfile != null && _userProfile!.isComplete) {
-          debugPrint('✅ Profile already exists and is complete for ${_user!.uid}');
-        }
-        
-        // Register FCM token after successful Google sign-in
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after Google sign-in: $e');
-        }
-      }
-
-      _errorMessage = null;
-      return true;
-    } catch (e) {
-      final errorStr = e.toString();
-      
-      // Check if this is a special success indicator (user authenticated but can't return credential)
-      if (errorStr.contains('GOOGLE_SIGNIN_SUCCESS_USER_AUTHENTICATED')) {
-        // User is already authenticated - check Firebase auth state
-        final currentUser = AuthService.getCurrentUser();
-        if (currentUser != null) {
-          _user = currentUser;
-          
-          // First try to load profile for current user
-          await _loadUserProfile(_user!.uid);
-          
-          // If profile doesn't exist or is incomplete, check if profile exists by email
-          if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
-            final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
-            if (existingUserId != null && existingUserId != _user!.uid) {
-              // Profile exists with different userId - copy it to current user
-              try {
-                final existingProfile = await UserService.getUserProfile(existingUserId);
-                if (existingProfile != null && existingProfile.isComplete) {
-                  await UserService.createOrUpdateProfile(
-                    userId: _user!.uid,
-                    profile: existingProfile,
-                  );
-                  await _loadUserProfile(_user!.uid);
-                }
-              } catch (e) {
-                debugPrint('Failed to copy existing profile: $e');
-              }
-            }
-          }
-          
-          // Register FCM token after successful Google sign-in (workaround case)
-          try {
-            await FCMService.registerDeviceToken(_user!.uid);
-          } catch (e) {
-            debugPrint('Failed to register FCM token after Google sign-in (workaround): $e');
-          }
-          _errorMessage = null;
-          _isLoading = false;
-          notifyListeners();
-          return true; // Success - user is authenticated
-        }
-      }
-      
-      _errorMessage = 'Failed to sign in with Google: $e';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Sign in with Apple
-  Future<bool> signInWithApple() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final userCredential = await AuthService.signInWithApple();
-      _user = userCredential.user;
-      
-      if (_user != null) {
-        // First try to load profile for current user
-        await _loadUserProfile(_user!.uid);
-        
-        // If profile doesn't exist or is incomplete, check if profile exists by email
-        if ((_userProfile == null || !_userProfile!.isComplete) && _user!.email != null) {
-          debugPrint('🔍 Checking for existing profile with email: ${_user!.email}');
-          final existingUserId = await UserService.findUserIdByEmail(_user!.email!);
-          
-          if (existingUserId != null && existingUserId != _user!.uid) {
-            // Profile exists with different userId - copy it to current user
-            debugPrint('✅ Found existing profile for email ${_user!.email} with userId $existingUserId');
-            try {
-              final existingProfile = await UserService.getUserProfile(existingUserId);
-              if (existingProfile != null && existingProfile.isComplete) {
-                debugPrint('📋 Copying profile from $existingUserId to ${_user!.uid}');
-                // Create a new profile with existing data but ensure email is set
-                final profileToSave = UserProfile(
-                  displayName: existingProfile.displayName,
-                  username: existingProfile.username,
-                  email: _user!.email, // Ensure email is set from current user
-                  phone: existingProfile.phone,
-                  gender: existingProfile.gender,
-                  dateOfBirth: existingProfile.dateOfBirth,
-                  photoUrl: existingProfile.photoUrl ?? _user!.photoURL,
-                  createdAt: existingProfile.createdAt,
-                  updatedAt: DateTime.now(),
-                  settings: existingProfile.settings,
-                );
-                // Copy existing profile to current user's UID
-                await UserService.createOrUpdateProfile(
-                  userId: _user!.uid,
-                  profile: profileToSave,
-                );
-                // Reload profile for current user
-                await _loadUserProfile(_user!.uid);
-                debugPrint('✅ Successfully copied profile from $existingUserId to ${_user!.uid}');
-              } else {
-                debugPrint('⚠️ Existing profile found but incomplete');
-              }
-            } catch (e) {
-              debugPrint('❌ Failed to copy existing profile: $e');
-              // Continue with new account if copying fails
-            }
-          } else {
-            debugPrint('ℹ️ No existing profile found for email: ${_user!.email}');
-          }
-        } else if (_userProfile != null && _userProfile!.isComplete) {
-          debugPrint('✅ Profile already exists and is complete for ${_user!.uid}');
-        }
-        
-        // Register FCM token after successful Apple sign-in
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after Apple sign-in: $e');
-        }
-      }
-
-      _errorMessage = null;
-      return true;
-    } catch (e) {
-      _errorMessage = 'Failed to sign in with Apple: $e';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Sign in with username and password
-  Future<bool> signInWithUsername({
-    required String username,
-    required String password,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      // Look up email from username
-      debugPrint('Attempting to sign in with username: $username');
-      final email = await UserService.getEmailByUsername(username);
-      
-      if (email == null) {
-        _errorMessage = 'Username not found. Please check your username or create an account.';
-        debugPrint('Username lookup failed for: $username');
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      debugPrint('Found email for username, attempting sign in: $email');
-
-      // Sign in with email and password
-      UserCredential? userCredential;
-      try {
-        userCredential = await AuthService.signInWithEmail(
-          email: email,
-          password: password,
-        );
-      } catch (e) {
-        final errorStr = e.toString();
-        debugPrint('Sign in error: $errorStr');
-        
-        // Handle type casting error - check if user is actually authenticated
-        if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
-          // Wait a moment for Firebase to update auth state
-          await Future.delayed(const Duration(milliseconds: 300));
-          final currentUser = AuthService.getCurrentUser();
-          if (currentUser != null && currentUser.email == email) {
-            // User is authenticated despite the error - proceed with sign-in
-            debugPrint('User authenticated despite error, proceeding with sign-in');
-            _user = currentUser;
-            await _loadUserProfile(_user!.uid);
-            // Register FCM token after successful email sign-in (recovered from error)
-            try {
-              await FCMService.registerDeviceToken(_user!.uid);
-            } catch (e) {
-              debugPrint('Failed to register FCM token after email sign-in (recovered): $e');
-            }
-            _errorMessage = null;
-            debugPrint('Sign in successful (recovered from error)');
-            return true;
-          }
-        }
-        
-        // Re-throw if it's not a recoverable error
-        rethrow;
-      }
-
-      _user = userCredential.user;
-      if (_user != null) {
-        await _loadUserProfile(_user!.uid);
-        // Register FCM token after successful email sign-in
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after email sign-in: $e');
-        }
-      }
-
-      _errorMessage = null;
-      debugPrint('Sign in successful');
-      return true;
-    } catch (e) {
-      final errorStr = e.toString();
-      debugPrint('Sign in error: $errorStr');
-      
-      // Provide more specific error messages
-      if (errorStr.contains('wrong-password') || errorStr.contains('invalid-credential')) {
-        _errorMessage = 'Incorrect password. Please try again.';
-      } else if (errorStr.contains('user-not-found')) {
-        _errorMessage = 'User not found. Please check your username.';
-      } else if (errorStr.contains('index') || errorStr.contains('Index')) {
-        _errorMessage = 'Database configuration error. Please contact support.';
-      } else if (errorStr.contains('List<Object?>') || errorStr.contains('PigeonUserDetails')) {
-        _errorMessage = 'Sign-in encountered a compatibility issue. Please try again.';
-      } else {
-        _errorMessage = 'Failed to sign in: $e';
-      }
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Sign in with email and password
-  Future<bool> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final userCredential = await AuthService.signInWithEmail(
-        email: email,
-        password: password,
-      );
-
-      _user = userCredential.user;
-      if (_user != null) {
-        await _loadUserProfile(_user!.uid);
-        // Register FCM token after successful email sign-in
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after email sign-in: $e');
-        }
-      }
-
-      _errorMessage = null;
-      return true;
-    } catch (e) {
-      _errorMessage = 'Failed to sign in: $e';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Register with email and password
-  Future<bool> registerWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final userCredential = await AuthService.registerWithEmail(
-        email: email,
-        password: password,
-      );
-
-      _user = userCredential.user;
-      if (_user != null) {
-        await _loadUserProfile(_user!.uid);
-        // Register FCM token after successful email registration
-        try {
-          await FCMService.registerDeviceToken(_user!.uid);
-        } catch (e) {
-          debugPrint('Failed to register FCM token after email registration: $e');
-        }
-      }
-
-      _errorMessage = null;
-      return true;
-    } catch (e) {
-      _errorMessage = 'Failed to register: $e';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Sign out
-  /// Note: This will trigger auth state change which should clean up providers
   Future<void> signOut() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Clear user data first to prevent queries during sign out
       _user = null;
       _userProfile = null;
       _errorMessage = null;
       notifyListeners();
-      
       await LaravelAuthService.logout();
-
-      // Then sign out from Firebase
-      // This will trigger auth state change listener which will update _user to null
-      await AuthService.signOut();
     } catch (e) {
       _errorMessage = 'Failed to sign out: $e';
     } finally {
@@ -531,7 +198,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Update user profile
   Future<void> updateProfile(UserProfile profile) async {
     if (_user == null) return;
 
@@ -540,31 +206,37 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      _userProfile = await LaravelAuthService.updateUserProfile(profile: profile);
       await UserService.createOrUpdateProfile(
         userId: _user!.uid,
-        profile: profile,
+        profile: _userProfile!,
       );
-      _userProfile = profile;
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Failed to update profile: $e';
+      try {
+        await UserService.createOrUpdateProfile(
+          userId: _user!.uid,
+          profile: profile,
+        );
+        _userProfile = profile;
+        _errorMessage = null;
+      } catch (firestoreError) {
+        _errorMessage = 'Failed to update profile: $e';
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Refresh user profile
   Future<void> refreshProfile() async {
     if (_user != null) {
-      await _loadUserProfile(_user!.uid);
+      await _loadUserProfile();
     }
   }
 
-  /// Clear error
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 }
-
