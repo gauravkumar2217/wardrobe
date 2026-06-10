@@ -1,23 +1,23 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 
-/// FCM Service for managing device tokens
-/// Stores tokens in users/{userId}/devices/{deviceId}
+import '../config/api_config.dart';
+import 'laravel_api_client.dart';
+
+/// FCM Service — registers tokens via Laravel API (MySQL).
 class FCMService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static String? _currentToken;
+  static String? _registeredDeviceId;
+  static String? _registeredFcmRecordId;
   static bool _isInitialized = false;
 
-  /// Initialize FCM service
   static Future<void> initialize() async {
     if (_isInitialized) return;
 
     try {
-      // Request notification permissions
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -29,88 +29,50 @@ class FCMService {
         debugPrint('FCM Permission status: ${settings.authorizationStatus}');
       }
 
-      // On iOS, get APNS token first before getting FCM token
       if (Platform.isIOS) {
         try {
-          final apnsToken = await _messaging.getAPNSToken();
-          if (kDebugMode) {
-            if (apnsToken != null) {
-              debugPrint('APNS Token obtained: $apnsToken');
-            } else {
-              debugPrint('APNS Token is null (may be normal in simulator)');
-            }
-          }
+          await _messaging.getAPNSToken();
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('Failed to get APNS token (may be normal in simulator): $e');
+            debugPrint('APNS token check (may be normal in simulator): $e');
           }
-          // Continue anyway - APNS token may not be available in simulator
         }
       }
 
-      // Get initial FCM token
       _currentToken = await _messaging.getToken();
       if (kDebugMode && _currentToken != null) {
-        debugPrint('Initial FCM Token: $_currentToken');
+        debugPrint('Initial FCM Token obtained');
       }
 
-      // Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
-        if (kDebugMode) {
-          debugPrint('FCM Token refreshed: $newToken');
-        }
+        if (kDebugMode) debugPrint('FCM Token refreshed');
         _currentToken = newToken;
-        // Update token in Firestore if user is logged in
-        final userId = _getCurrentUserId();
-        if (userId != null) {
-          registerDeviceToken(userId);
-        }
+        _registeredDeviceId = null;
+        _registeredFcmRecordId = null;
       });
 
       _isInitialized = true;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('FCM Service initialization failed: $e');
-      }
+      if (kDebugMode) debugPrint('FCM Service initialization failed: $e');
     }
   }
 
-  /// Register device token for current user
   static Future<void> registerDeviceToken(String userId) async {
     if (_currentToken == null) {
       try {
-        // On iOS, ensure APNS token is available first
         if (Platform.isIOS) {
           try {
-            final apnsToken = await _messaging.getAPNSToken();
-            if (kDebugMode && apnsToken != null) {
-              debugPrint('APNS Token obtained before FCM token: $apnsToken');
-            }
-          } catch (e) {
-            if (kDebugMode) {
-              debugPrint('APNS token check failed (may be normal): $e');
-            }
-            // Continue anyway - will retry if needed
-          }
+            await _messaging.getAPNSToken();
+          } catch (_) {}
         }
-        
         _currentToken = await _messaging.getToken();
       } catch (e) {
         debugPrint('Failed to get FCM token: $e');
-        
-        // On iOS, if APNS token error, try to get APNS token first and retry
         if (Platform.isIOS && e.toString().contains('apns-token-not-set')) {
           try {
-            if (kDebugMode) {
-              debugPrint('Retrying after getting APNS token...');
-            }
             await _messaging.getAPNSToken();
-            // Wait a moment for APNS token to be set
             await Future.delayed(const Duration(milliseconds: 500));
             _currentToken = await _messaging.getToken();
-            if (kDebugMode && _currentToken != null) {
-              debugPrint('FCM Token obtained after APNS token: $_currentToken');
-            }
           } catch (retryError) {
             debugPrint('Failed to get FCM token after retry: $retryError');
             return;
@@ -124,9 +86,8 @@ class FCMService {
     if (_currentToken == null) return;
 
     try {
-      // Get device info
       final deviceInfo = DeviceInfoPlugin();
-      String platform = 'unknown';
+      String platform = 'web';
       String? deviceName;
 
       if (Platform.isAndroid) {
@@ -137,221 +98,85 @@ class FCMService {
         platform = 'ios';
         final iosInfo = await deviceInfo.iosInfo;
         deviceName = iosInfo.name;
-      } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        platform = 'web';
       }
 
-      // Use token as device ID (unique per device)
-      final deviceId = _currentToken!;
+      final deviceBody = await LaravelApiClient.postJson(
+        ApiConfig.devices,
+        {
+          'fcm_token': _currentToken!,
+          'platform': platform,
+          'device_name': deviceName ?? 'Unknown Device',
+        },
+      );
+      final deviceData = LaravelApiClient.extractData(deviceBody);
+      if (deviceData is Map<String, dynamic>) {
+        _registeredDeviceId = deviceData['id']?.toString();
+      }
 
-      final deviceData = {
-        'fcmToken': _currentToken!,
-        'platform': platform,
-        'deviceName': deviceName ?? 'Unknown Device',
-        'isActive': true,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      // Store in user's devices subcollection (existing structure)
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
-          .doc(deviceId)
-          .set(deviceData, SetOptions(merge: true));
-
-      // Also store in new FCM tokens collection for easier querying
-      // Structure: fcmTokens/{tokenId} -> { userId, token, platform, deviceName, isActive, lastActiveAt, createdAt }
-      final fcmTokenData = {
-        'userId': userId,
-        'fcmToken': _currentToken!,
-        'platform': platform,
-        'deviceName': deviceName ?? 'Unknown Device',
-        'isActive': true,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await _firestore
-          .collection('fcmTokens')
-          .doc(deviceId)
-          .set(fcmTokenData, SetOptions(merge: true));
+      final tokenBody = await LaravelApiClient.postJson(
+        ApiConfig.fcmTokens,
+        {'token': _currentToken!},
+      );
+      final tokenData = LaravelApiClient.extractData(tokenBody);
+      if (tokenData is Map<String, dynamic>) {
+        _registeredFcmRecordId = tokenData['id']?.toString();
+      }
 
       if (kDebugMode) {
-        debugPrint('FCM token registered for user: $userId');
+        debugPrint('FCM token registered via Laravel for user: $userId');
       }
     } catch (e) {
       debugPrint('Failed to register FCM token: $e');
     }
   }
 
-  /// Update last active timestamp
   static Future<void> updateLastActive(String userId) async {
-    if (_currentToken == null) return;
-
-    try {
-      // Use set with merge instead of update for better compatibility with sentinel values
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
-          .doc(_currentToken!)
-          .set({
-        'lastActiveAt': FieldValue.serverTimestamp(),
-        'isActive': true,
-      }, SetOptions(merge: true));
-
-      // Also update in FCM tokens collection
-      // Include userId in the update so the rule can verify ownership
-      await _firestore
-          .collection('fcmTokens')
-          .doc(_currentToken!)
-          .set({
-        'userId': userId, // Include userId so rule can verify ownership
-        'lastActiveAt': FieldValue.serverTimestamp(),
-        'isActive': true,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Failed to update last active: $e');
-    }
+    await _setActive(userId, isActive: true);
   }
 
-  /// Update app state (foreground/background)
   static Future<void> updateAppState(String userId, bool isInForeground) async {
+    await _setActive(userId, isActive: isInForeground);
+  }
+
+  static Future<void> _setActive(String userId, {required bool isActive}) async {
     if (_currentToken == null) return;
-
     try {
-      // Use set with merge instead of update for better compatibility with sentinel values
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
-          .doc(_currentToken!)
-          .set({
-        'isActive': isInForeground,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // Also update in FCM tokens collection
-      // Include userId in the update so the rule can verify ownership
-      await _firestore
-          .collection('fcmTokens')
-          .doc(_currentToken!)
-          .set({
-        'userId': userId, // Include userId so rule can verify ownership
-        'isActive': isInForeground,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      if (_registeredDeviceId != null) {
+        await LaravelApiClient.putJson(
+          ApiConfig.deviceActive(_registeredDeviceId!),
+          {'is_active': isActive},
+        );
+      }
+      if (_registeredFcmRecordId != null) {
+        await LaravelApiClient.putJson(
+          ApiConfig.fcmTokenActive(_registeredFcmRecordId!),
+          {'is_active': isActive},
+        );
+      }
     } catch (e) {
-      debugPrint('Failed to update app state: $e');
+      debugPrint('Failed to update device active state: $e');
     }
   }
 
-  /// Deactivate device token (on logout)
   static Future<void> deactivateDeviceToken(String userId) async {
     if (_currentToken == null) return;
-
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
-          .doc(_currentToken!)
-          .update({
-        'isActive': false,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-      });
-
-      // Also update in FCM tokens collection
-      await _firestore
-          .collection('fcmTokens')
-          .doc(_currentToken!)
-          .update({
-        'isActive': false,
-        'lastActiveAt': FieldValue.serverTimestamp(),
-      });
-
+      await _setActive(userId, isActive: false);
       if (kDebugMode) {
-        debugPrint('FCM token deactivated for user: $userId');
+        debugPrint('FCM token deactivated via Laravel for user: $userId');
       }
     } catch (e) {
       debugPrint('Failed to deactivate FCM token: $e');
     }
   }
 
-  /// Get current FCM token
-  static String? getCurrentToken() {
-    return _currentToken;
-  }
+  static String? getCurrentToken() => _currentToken;
 
-  /// Get current user ID (helper)
-  static String? _getCurrentUserId() {
-    // This should be called from context where user is authenticated
-    // For now, return null - will be set by caller
-    return null;
-  }
+  /// Legacy helpers — push delivery is server-side via Laravel `fcm_tokens` table.
+  static Future<List<String>> getActiveTokens(String userId) async => [];
 
-  /// Get all active tokens for a user (for server-side use)
-  /// Uses the new fcmTokens collection for easier querying
-  static Future<List<String>> getActiveTokens(String userId) async {
-    try {
-      // Query the new fcmTokens collection by userId
-      final snapshot = await _firestore
-          .collection('fcmTokens')
-          .where('userId', isEqualTo: userId)
-          .where('isActive', isEqualTo: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => doc.data()['fcmToken'] as String)
-          .where((token) => token.isNotEmpty)
-          .toList();
-    } catch (e) {
-      debugPrint('Failed to get active tokens: $e');
-      // Fallback to old method
-      try {
-        final snapshot = await _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('devices')
-            .where('isActive', isEqualTo: true)
-            .get();
-
-        return snapshot.docs
-            .map((doc) => doc.data()['fcmToken'] as String)
-            .where((token) => token.isNotEmpty)
-            .toList();
-      } catch (e2) {
-        debugPrint('Failed to get active tokens (fallback): $e2');
-        return [];
-      }
-    }
-  }
-
-  /// Get all active tokens for a user from fcmTokens collection (for Cloud Functions)
-  /// This is the preferred method as it's faster and easier to query
-  static Future<List<Map<String, dynamic>>> getActiveTokenDetails(String userId) async {
-    try {
-      final snapshot = await _firestore
-          .collection('fcmTokens')
-          .where('userId', isEqualTo: userId)
-          .where('isActive', isEqualTo: true)
-          .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'tokenId': doc.id,
-          'fcmToken': data['fcmToken'] as String,
-          'platform': data['platform'] as String? ?? 'unknown',
-          'deviceName': data['deviceName'] as String? ?? 'Unknown Device',
-          'lastActiveAt': data['lastActiveAt'],
-        };
-      }).toList();
-    } catch (e) {
-      debugPrint('Failed to get active token details: $e');
-      return [];
-    }
-  }
+  static Future<List<Map<String, dynamic>>> getActiveTokenDetails(
+    String userId,
+  ) async =>
+      [];
 }

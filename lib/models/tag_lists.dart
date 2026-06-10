@@ -32,20 +32,37 @@ class TagLists {
         accessoryTypes = accessoryTypes ?? [];
 
   factory TagLists.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+      return null;
+    }
+
     return TagLists(
       seasons: List<String>.from(json['seasons'] ?? []),
       placements: List<String>.from(json['placements'] ?? []),
-      clothTypes: List<String>.from(json['clothTypes'] ?? []),
+      clothTypes: List<String>.from(
+        json['cloth_types'] ?? json['clothTypes'] ?? [],
+      ),
       occasions: List<String>.from(json['occasions'] ?? []),
       categories: List<String>.from(json['categories'] ?? []),
-      commonColors: List<String>.from(json['commonColors'] ?? []),
-      makeupTypes: List<String>.from(json['makeupTypes'] ?? []),
-      footwearTypes: List<String>.from(json['footwearTypes'] ?? []),
-      accessoryTypes: List<String>.from(json['accessoryTypes'] ?? []),
-      lastUpdated: json['lastUpdated'] != null
-          ? (json['lastUpdated'] as Timestamp).toDate()
-          : null,
-      version: json['version'] as int? ?? 1,
+      commonColors: List<String>.from(
+        json['common_colors'] ?? json['commonColors'] ?? [],
+      ),
+      makeupTypes: List<String>.from(
+        json['makeup_types'] ?? json['makeupTypes'] ?? [],
+      ),
+      footwearTypes: List<String>.from(
+        json['footwear_types'] ?? json['footwearTypes'] ?? [],
+      ),
+      accessoryTypes: List<String>.from(
+        json['accessory_types'] ?? json['accessoryTypes'] ?? [],
+      ),
+      lastUpdated: parseDate(json['last_updated'] ?? json['lastUpdated']),
+      version: json['version'] is int
+          ? json['version'] as int
+          : int.tryParse(json['version']?.toString() ?? '') ?? 1,
     );
   }
 

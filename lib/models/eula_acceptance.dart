@@ -17,12 +17,27 @@ class EulaAcceptance {
   });
 
   factory EulaAcceptance.fromJson(Map<String, dynamic> json, String id) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) {
+        return DateTime.parse(value);
+      }
+      return DateTime.now();
+    }
+
     return EulaAcceptance(
       id: id,
-      userId: json['userId'] as String,
+      userId: json['user_id'] as String? ?? json['userId'] as String? ?? '',
       version: json['version'] as String,
-      acceptedAt: (json['acceptedAt'] as Timestamp).toDate(),
-      ipAddress: json['ipAddress'] as String?,
+      acceptedAt: parseDate(json['accepted_at'] ?? json['acceptedAt']),
+      ipAddress: json['ip_address'] as String? ?? json['ipAddress'] as String?,
+    );
+  }
+
+  factory EulaAcceptance.fromApiJson(Map<String, dynamic> json) {
+    return EulaAcceptance.fromJson(
+      json,
+      json['id']?.toString() ?? '',
     );
   }
 

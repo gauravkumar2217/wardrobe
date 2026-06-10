@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../models/tag_lists.dart';
+import 'laravel_api_client.dart';
 
-/// Service to fetch and cache tag lists from Firestore config/tagLists
+/// Service to fetch and cache tag lists from Laravel API.
 class TagListService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static TagLists? _cachedTagLists;
   static DateTime? _lastFetchTime;
   static const Duration _cacheDuration = Duration(hours: 24);
@@ -21,14 +21,14 @@ class TagListService {
     }
 
     try {
-      final doc = await _firestore.collection('config').doc('tagLists').get();
-
-      if (!doc.exists) {
-        debugPrint('⚠️ Tag lists document not found. Using default values.');
+      final body = await LaravelApiClient.getPublicJson(ApiConfig.configTagLists);
+      final data = LaravelApiClient.extractData(body);
+      if (data is! Map<String, dynamic>) {
+        debugPrint('⚠️ Tag lists response invalid. Using default values.');
         return _getDefaultTagLists();
       }
 
-      _cachedTagLists = TagLists.fromJson(doc.data()!);
+      _cachedTagLists = TagLists.fromJson(data);
       _lastFetchTime = DateTime.now();
 
       if (kDebugMode) {
@@ -67,20 +67,13 @@ class TagListService {
     _lastFetchTime = null;
   }
 
-  /// Listen to tag lists changes (optional - for real-time updates)
-  static Stream<TagLists> watchTagLists() {
-    return _firestore
-        .collection('config')
-        .doc('tagLists')
-        .snapshots()
-        .map((snapshot) {
-      if (!snapshot.exists) {
-        return _getDefaultTagLists();
-      }
-      _cachedTagLists = TagLists.fromJson(snapshot.data()!);
-      _lastFetchTime = DateTime.now();
-      return _cachedTagLists!;
-    });
+  /// Poll tag lists periodically (replaces Firestore real-time stream).
+  static Stream<TagLists> watchTagLists() async* {
+    yield await fetchTagLists();
+    while (true) {
+      await Future.delayed(const Duration(hours: 1));
+      yield await fetchTagLists(forceRefresh: true);
+    }
   }
 
   /// Default tag lists (fallback if Firestore document doesn't exist)
@@ -293,66 +286,24 @@ class TagListService {
   static List<String> get footwearTypes => getCachedTagLists().footwearTypes;
   static List<String> get accessoryTypes => getCachedTagLists().accessoryTypes;
 
-  /// Add a new cloth type to Firestore (syncs across all users)
-  /// Authenticated users can add new types discovered by AI detection
+  /// Add a new cloth type to local cache (server config managed via Laravel admin).
   static Future<void> addClothType(String clothType) async {
-    try {
-      final tags = getCachedTagLists();
-      if (tags.clothTypes.contains(clothType)) {
-        return; // Already exists
-      }
-
-      // Update local cache first
-      final updatedTypes = List<String>.from(tags.clothTypes)..add(clothType);
-      _cachedTagLists = tags.copyWith(clothTypes: updatedTypes);
-
-      // Update Firestore using arrayUnion (adds only if not exists)
-      await _firestore.collection('config').doc('tagLists').update({
-        'clothTypes': FieldValue.arrayUnion([clothType]),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('✅ Added new cloth type: $clothType');
-    } catch (e) {
-      debugPrint('❌ Error adding cloth type: $e');
-      // Revert local cache on error
-      _cachedTagLists = getCachedTagLists();
-    }
+    final tags = getCachedTagLists();
+    if (tags.clothTypes.contains(clothType)) return;
+    final updatedTypes = List<String>.from(tags.clothTypes)..add(clothType);
+    _cachedTagLists = tags.copyWith(clothTypes: updatedTypes);
+    debugPrint('Added cloth type to local cache: $clothType');
   }
 
-  /// Add new colors to Firestore (syncs across all users)
-  /// Authenticated users can add new colors discovered by AI detection
+  /// Add new colors to local cache (server config managed via Laravel admin).
   static Future<void> addColors(List<String> colors) async {
-    try {
-      final tags = getCachedTagLists();
-      final newColors = <String>[];
-
-      for (final color in colors) {
-        if (!tags.commonColors.contains(color)) {
-          newColors.add(color);
-        }
-      }
-
-      if (newColors.isEmpty) {
-        return; // All colors already exist
-      }
-
-      // Update local cache first
-      final updatedColors = List<String>.from(tags.commonColors)..addAll(newColors);
-      _cachedTagLists = tags.copyWith(commonColors: updatedColors);
-
-      // Update Firestore using arrayUnion (adds only if not exists)
-      await _firestore.collection('config').doc('tagLists').update({
-        'commonColors': FieldValue.arrayUnion(newColors),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('✅ Added new colors: $newColors');
-    } catch (e) {
-      debugPrint('❌ Error adding colors: $e');
-      // Revert local cache on error
-      _cachedTagLists = getCachedTagLists();
-    }
+    final tags = getCachedTagLists();
+    final newColors =
+        colors.where((c) => !tags.commonColors.contains(c)).toList();
+    if (newColors.isEmpty) return;
+    final updatedColors = List<String>.from(tags.commonColors)..addAll(newColors);
+    _cachedTagLists = tags.copyWith(commonColors: updatedColors);
+    debugPrint('Added colors to local cache: $newColors');
   }
 }
 

@@ -1,14 +1,38 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../models/chat.dart';
+import 'content_filter_service.dart';
+import 'laravel_api_client.dart';
 import 'laravel_auth_service.dart';
 import 'push_notification_service.dart';
 import 'user_service.dart';
-import 'content_filter_service.dart';
 
-/// Chat service for managing chats and messages
+/// Chat service backed by Laravel API.
 class ChatService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static Chat _parseChat(Map<String, dynamic> json) => Chat.fromApiJson(json);
+
+  static ChatMessage _parseMessage(Map<String, dynamic> json) =>
+      ChatMessage.fromApiJson(json);
+
+  static List<Chat> _parseChatList(dynamic data) {
+    if (data is! List) return [];
+    return data.whereType<Map<String, dynamic>>().map(_parseChat).toList();
+  }
+
+  static List<ChatMessage> _parseMessageList(dynamic data) {
+    Iterable<dynamic> items;
+    if (data is Map<String, dynamic> && data['data'] is List) {
+      items = data['data'] as List;
+    } else if (data is List) {
+      items = data;
+    } else {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(_parseMessage)
+        .toList();
+  }
 
   /// Create or get existing chat between two users
   static Future<String> getOrCreateChat({
@@ -16,64 +40,18 @@ class ChatService {
     required String userId2,
   }) async {
     try {
-      // Check if chat already exists
-      final existingChats = await _firestore
-          .collection('users')
-          .doc(userId1)
-          .collection('chats')
-          .where('participants', arrayContains: userId2)
-          .where('isGroup', isEqualTo: false)
-          .limit(1)
-          .get();
-
-      if (existingChats.docs.isNotEmpty) {
-        return existingChats.docs.first.id;
+      final body = await LaravelApiClient.postJson(
+        ApiConfig.chats,
+        {
+          'participants': [userId1, userId2],
+          'is_group': false,
+        },
+      );
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return data['id']?.toString() ?? '';
       }
-
-      // Create new chat
-      final participants = [userId1, userId2];
-      final now = DateTime.now();
-
-      final chatData = {
-        'participants': participants,
-        'isGroup': false,
-        'createdAt': Timestamp.fromDate(now),
-      };
-
-      // Create chat in both users' chats subcollections
-      final chatId = _firestore.collection('chats').doc().id;
-
-      final batch = _firestore.batch();
-
-      // Create in userId1's chats
-      batch.set(
-        _firestore
-            .collection('users')
-            .doc(userId1)
-            .collection('chats')
-            .doc(chatId),
-        chatData,
-      );
-
-      // Create in userId2's chats
-      batch.set(
-        _firestore
-            .collection('users')
-            .doc(userId2)
-            .collection('chats')
-            .doc(chatId),
-        chatData,
-      );
-
-      // Also create in top-level chats collection for queries
-      batch.set(
-        _firestore.collection('chats').doc(chatId),
-        chatData,
-      );
-
-      await batch.commit();
-
-      return chatId;
+      throw Exception('Invalid chat response');
     } catch (e) {
       debugPrint('Failed to create/get chat: $e');
       rethrow;
@@ -86,16 +64,10 @@ class ChatService {
     required String chatId,
   }) async {
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .get();
-
-      if (!doc.exists) return null;
-
-      return Chat.fromJson(doc.data()!, chatId);
+      final body = await LaravelApiClient.getJson(ApiConfig.chat(chatId));
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) return _parseChat(data);
+      return null;
     } catch (e) {
       debugPrint('Failed to get chat: $e');
       return null;
@@ -105,16 +77,8 @@ class ChatService {
   /// Get all chats for a user
   static Future<List<Chat>> getUserChats(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .orderBy('lastMessageAt', descending: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Chat.fromJson(doc.data(), doc.id))
-          .toList();
+      final body = await LaravelApiClient.getJson(ApiConfig.chats);
+      return _parseChatList(LaravelApiClient.extractData(body));
     } catch (e) {
       debugPrint('Failed to get user chats: $e');
       return [];
@@ -136,205 +100,82 @@ class ChatService {
         throw Exception('Message must have text, image, or cloth');
       }
 
-      // Filter text content before posting
       if (text != null && text.isNotEmpty) {
         final isSafe = await ContentFilterService.isContentSafe(text);
-        
         if (!isSafe) {
-          throw Exception('Your message contains inappropriate content and cannot be sent. Please revise your message.');
+          throw Exception(
+            'Your message contains inappropriate content and cannot be sent.',
+          );
         }
       }
 
-      final messageId = _firestore.collection('chats').doc().id;
-      final now = DateTime.now();
-
-      final messageData = {
-        'senderId': userId,
-        if (text != null) 'text': text,
-        if (imageUrl != null) 'imageUrl': imageUrl,
-        if (clothId != null) 'clothId': clothId,
-        if (clothOwnerId != null) 'clothOwnerId': clothOwnerId,
-        if (clothWardrobeId != null) 'clothWardrobeId': clothWardrobeId,
-        'createdAt': Timestamp.fromDate(now),
-        'seenBy': [userId],
-      };
-
-      // Get chat to find all participants
       final chat = await getChat(userId: userId, chatId: chatId);
-      if (chat == null) {
-        throw Exception('Chat not found');
+      if (chat == null) throw Exception('Chat not found');
+
+      final payload = <String, dynamic>{};
+      if (text != null) payload['text'] = text;
+      if (imageUrl != null) payload['image_url'] = imageUrl;
+      if (clothId != null) {
+        payload['cloth_id'] = clothId;
+        if (clothOwnerId != null) payload['cloth_owner_id'] = clothOwnerId;
+        if (clothWardrobeId != null) {
+          payload['cloth_wardrobe_id'] = clothWardrobeId;
+        }
       }
 
-      // Create message in ALL participants' message subcollections
-      // This ensures all participants can see all messages
-      final batch = _firestore.batch();
-      final previewText = text ?? (imageUrl != null ? '📷 Image' : '👕 Cloth');
-
-      for (var participantId in chat.participants) {
-        // Create message in each participant's messages subcollection
-        batch.set(
-          _firestore
-              .collection('users')
-              .doc(participantId)
-              .collection('chats')
-              .doc(chatId)
-              .collection('messages')
-              .doc(messageId),
-          messageData,
-        );
-
-        // Update chat's lastMessage and lastMessageAt for each participant
-        batch.update(
-          _firestore
-              .collection('users')
-              .doc(participantId)
-              .collection('chats')
-              .doc(chatId),
-          {
-            'lastMessage': previewText,
-            'lastMessageAt': Timestamp.fromDate(now),
-          },
-        );
+      final body = await LaravelApiClient.postJson(
+        ApiConfig.chatMessages(chatId),
+        payload,
+      );
+      final data = LaravelApiClient.extractData(body);
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid message response');
       }
+      final messageId = data['id']?.toString() ?? '';
 
-      // If sharing a cloth, add recipients to cloth's sharedWith array
-      if (clothId != null && clothOwnerId != null && clothWardrobeId != null) {
+      final previewText =
+          text ?? (imageUrl != null ? '📷 Image' : '👕 Cloth');
+
+      if (clothId != null && clothOwnerId != null) {
         try {
-          debugPrint('👕 ChatService: Updating sharedWith for cloth $clothId');
-          debugPrint('   ownerId: $clothOwnerId');
-          debugPrint('   participants: ${chat.participants}');
-          
-          // Get the cloth document to update sharedWith
-          final clothRef = _firestore
-              .collection('users')
-              .doc(clothOwnerId)
-              .collection('wardrobes')
-              .doc(clothWardrobeId)
-              .collection('clothes')
-              .doc(clothId);
-
-          // Get current sharedWith array
-          final clothDoc = await clothRef.get();
-          if (clothDoc.exists) {
-            final clothData = clothDoc.data()!;
-            final currentSharedWith = clothData['sharedWith'] as List<dynamic>? ?? [];
-            final sharedWithList = List<String>.from(currentSharedWith.map((e) => e.toString()));
-            
-            debugPrint('   current sharedWith: $sharedWithList');
-
-            // Add all participants (except the sender) to sharedWith
-            bool hasChanges = false;
-            for (var participantId in chat.participants) {
-              if (participantId != userId && !sharedWithList.contains(participantId)) {
-                sharedWithList.add(participantId);
-                hasChanges = true;
-                debugPrint('   Adding $participantId to sharedWith');
-              }
-            }
-
-            if (hasChanges) {
-              debugPrint('   Updating sharedWith to: $sharedWithList');
-
-              batch.update(clothRef, {
-                'sharedWith': sharedWithList,
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-
-              // Top-level mirror: update if present; otherwise create from subcollection
-              // so recipients can read via clothes/{clothId} (getCloth tries this first).
-              // batch.update on a missing doc fails the entire batch — that blocked sharedWith sync.
-              final topRef = _firestore.collection('clothes').doc(clothId);
-              final topLevelDoc = await topRef.get();
-              if (topLevelDoc.exists) {
-                batch.update(topRef, {
-                  'sharedWith': sharedWithList,
-                  'updatedAt': FieldValue.serverTimestamp(),
-                });
-              } else {
-                // Mirror subcollection into top-level clothes/{id} so recipients can read it.
-                // Use Timestamp (not FieldValue) so create rule isValidCloth(updatedAt is timestamp) passes.
-                final payload = Map<String, dynamic>.from(clothData);
-                payload['sharedWith'] = sharedWithList;
-                payload['updatedAt'] = Timestamp.now();
-                batch.set(topRef, payload);
-              }
-
-              debugPrint('✅ ChatService: Successfully queued sharedWith update');
-            } else {
-              debugPrint('ℹ️ ChatService: No changes to sharedWith (all participants already added)');
-            }
-          } else {
-            debugPrint('⚠️ ChatService: Cloth document not found, cannot update sharedWith');
+          final recipientIds = chat.participants
+              .where((id) => id != userId)
+              .toList();
+          if (recipientIds.isNotEmpty) {
+            await LaravelApiClient.putJson(
+              ApiConfig.clothShare(clothId),
+              {'user_ids': recipientIds},
+            );
           }
-        } catch (e, stackTrace) {
-          debugPrint('❌ ChatService: Failed to update cloth sharedWith: $e');
-          debugPrint('   StackTrace: $stackTrace');
-          // Don't fail the message send if this fails, but log the error
-          // The user will still see the message, but might not be able to view the cloth
-          // if permissions don't allow it
+        } catch (e) {
+          debugPrint('Cloth share via API failed (message still sent): $e');
         }
       }
 
-      // Commit all writes atomically
-      try {
-        await batch.commit();
-        debugPrint('✅ ChatService: Batch commit successful');
-        
-        // Verify sharedWith was updated if we tried to update it
-        if (clothId != null && clothOwnerId != null && clothWardrobeId != null) {
-          try {
-            final verifyDoc = await _firestore
-                .collection('clothes')
-                .doc(clothId)
-                .get();
-            if (verifyDoc.exists) {
-              final verifyData = verifyDoc.data();
-              debugPrint('🔍 ChatService: Verifying sharedWith update');
-              debugPrint('   sharedWith after commit: ${verifyData?['sharedWith']}');
-            }
-          } catch (e) {
-            debugPrint('⚠️ ChatService: Could not verify sharedWith update: $e');
-          }
-        }
-      } catch (e, stackTrace) {
-        debugPrint('❌ ChatService: Batch commit failed: $e');
-        debugPrint('   StackTrace: $stackTrace');
-        rethrow;
-      }
-
-      // Send push notifications to other participants if their app is in background
-      // Skip the sender
-      for (var participantId in chat.participants) {
-        if (participantId != userId) {
-          // Check if recipient's app is likely in foreground
-          // If not, send push notification
+      for (final participantId in chat.participants) {
+        if (participantId == userId) continue;
+        try {
           final isInForeground =
               await PushNotificationService.isUserAppInForeground(
-                  participantId);
-
+            participantId,
+          );
           if (!isInForeground) {
-            // Get sender's profile for notification
             final senderProfile = await UserService.getUserProfile(userId);
             final senderName = senderProfile?.displayName ??
                 (senderProfile?.username != null
                     ? '@${senderProfile!.username}'
                     : 'Someone');
-
-            // Send push notification
-            try {
-              await PushNotificationService.sendChatMessageNotification(
-                recipientUserId: participantId,
-                senderUserId: userId,
-                chatId: chatId,
-                messageId: messageId,
-                messageText: previewText,
-                senderName: senderName,
-              );
-            } catch (e) {
-              debugPrint('Failed to send push notification: $e');
-              // Don't fail the message send if notification fails
-            }
+            await PushNotificationService.sendChatMessageNotification(
+              recipientUserId: participantId,
+              senderUserId: userId,
+              chatId: chatId,
+              messageId: messageId,
+              messageText: previewText,
+              senderName: senderName,
+            );
           }
+        } catch (e) {
+          debugPrint('Push notification failed: $e');
         }
       }
 
@@ -352,21 +193,11 @@ class ChatService {
     int limit = 50,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => ChatMessage.fromJson(doc.data(), doc.id))
-          .toList()
-          .reversed
-          .toList(); // Reverse to show oldest first
+      final uri = Uri.parse(ApiConfig.chatMessages(chatId)).replace(
+        queryParameters: {'per_page': limit.toString()},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      return _parseMessageList(LaravelApiClient.extractData(body));
     } catch (e) {
       debugPrint('Failed to get messages: $e');
       return [];
@@ -379,26 +210,12 @@ class ChatService {
     required String chatId,
     required List<String> messageIds,
   }) async {
-    try {
-      final batch = _firestore.batch();
-
-      for (var messageId in messageIds) {
-        final messageRef = _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('chats')
-            .doc(chatId)
-            .collection('messages')
-            .doc(messageId);
-
-        batch.update(messageRef, {
-          'seenBy': FieldValue.arrayUnion([userId]),
-        });
+    for (final messageId in messageIds) {
+      try {
+        await LaravelApiClient.putJson(ApiConfig.messageSeen(messageId), {});
+      } catch (e) {
+        debugPrint('Failed to mark message $messageId as seen: $e');
       }
-
-      await batch.commit();
-    } catch (e) {
-      debugPrint('Failed to mark messages as seen: $e');
     }
   }
 
@@ -409,71 +226,33 @@ class ChatService {
     required String messageId,
   }) async {
     try {
-      final messageDoc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(messageId)
-          .get();
-
-      if (!messageDoc.exists) return;
-
-      final message = ChatMessage.fromJson(messageDoc.data()!, messageId);
-
-      // Only sender can delete
-      if (message.senderId != userId) {
-        throw Exception('Only message sender can delete');
-      }
-
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(messageId)
-          .delete();
+      await LaravelApiClient.deleteJson(ApiConfig.messageDelete(messageId));
     } catch (e) {
       debugPrint('Failed to delete message: $e');
       rethrow;
     }
   }
 
-  /// Stream messages for real-time updates
+  /// Poll messages periodically (replaces Firestore stream).
   static Stream<List<ChatMessage>> watchMessages({
     required String userId,
     required String chatId,
     int limit = 50,
-  }) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ChatMessage.fromJson(doc.data(), doc.id))
-            .toList()
-            .reversed
-            .toList());
+  }) async* {
+    yield await getMessages(userId: userId, chatId: chatId, limit: limit);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 5));
+      yield await getMessages(userId: userId, chatId: chatId, limit: limit);
+    }
   }
 
-  /// Stream chats for real-time updates
-  static Stream<List<Chat>> watchUserChats(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('chats')
-        .orderBy('lastMessageAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Chat.fromJson(doc.data(), doc.id))
-            .toList());
+  /// Poll chats periodically (replaces Firestore stream).
+  static Stream<List<Chat>> watchUserChats(String userId) async* {
+    yield await getUserChats(userId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 10));
+      yield await getUserChats(userId);
+    }
   }
 
   /// Get unread message count for a specific chat
@@ -481,42 +260,15 @@ class ChatService {
     required String userId,
     required String chatId,
   }) async {
-    // Check if user is authenticated before making query
     try {
       final currentUserId = await LaravelAuthService.getCurrentUserId();
-      if (currentUserId == null || currentUserId != userId) {
-        return 0;
-      }
-    } catch (e) {
-      return 0;
-    }
+      if (currentUserId == null || currentUserId != userId) return 0;
 
-    try {
-      // Get all messages and filter client-side
-      // Note: Firestore doesn't support isNotEqualTo, so we get all and filter
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .get();
-
-      int unreadCount = 0;
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final senderId = data['senderId'] as String?;
-        final seenBy = data['seenBy'] as List<dynamic>? ?? [];
-
-        // Count only messages from others that haven't been seen by this user
-        if (senderId != null &&
-            senderId != userId &&
-            !seenBy.contains(userId)) {
-          unreadCount++;
-        }
-      }
-
-      return unreadCount;
+      final messages =
+          await getMessages(userId: userId, chatId: chatId, limit: 200);
+      return messages
+          .where((m) => m.senderId != userId && !m.isSeenBy(userId))
+          .length;
     } catch (e) {
       debugPrint('Failed to get unread count: $e');
       return 0;
@@ -525,34 +277,18 @@ class ChatService {
 
   /// Get unread message counts for all chats
   static Future<Map<String, int>> getAllUnreadCounts(String userId) async {
-    // Check if user is authenticated before making query
     try {
       final currentUserId = await LaravelAuthService.getCurrentUserId();
-      if (currentUserId == null || currentUserId != userId) {
-        return {};
+      if (currentUserId == null || currentUserId != userId) return {};
+
+      final chats = await getUserChats(userId);
+      final counts = <String, int>{};
+      for (final chat in chats) {
+        final count =
+            await getUnreadCount(userId: userId, chatId: chat.id);
+        if (count > 0) counts[chat.id] = count;
       }
-    } catch (e) {
-      return {};
-    }
-
-    try {
-      final chatsSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chats')
-          .get();
-
-      final Map<String, int> unreadCounts = {};
-
-      for (var chatDoc in chatsSnapshot.docs) {
-        final chatId = chatDoc.id;
-        final count = await getUnreadCount(userId: userId, chatId: chatId);
-        if (count > 0) {
-          unreadCounts[chatId] = count;
-        }
-      }
-
-      return unreadCounts;
+      return counts;
     } catch (e) {
       debugPrint('Failed to get all unread counts: $e');
       return {};

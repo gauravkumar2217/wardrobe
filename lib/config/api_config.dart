@@ -28,7 +28,46 @@ class ApiConfig {
   static String get authCheckUsername => '$baseUrl/auth/check-username';
   static String get authVerifyToken => '$baseUrl/auth/verify-token';
   static String get usersMe => '$baseUrl/users/me';
+  static String userById(String userId) => '$baseUrl/users/$userId';
   static String get profileUpdate => '$baseUrl/profile/update';
+
+  // EULA
+  static String get eulaVersion => '$baseUrl/eula/version';
+  static String get eulaStatus => '$baseUrl/eula/status';
+  static String get eulaAccept => '$baseUrl/eula/accept';
+
+  // Devices & FCM
+  static String get devices => '$baseUrl/devices';
+  static String deviceActive(String deviceId) =>
+      '$baseUrl/devices/$deviceId/active';
+  static String get fcmTokens => '$baseUrl/fcm-tokens';
+  static String fcmTokenActive(String tokenId) =>
+      '$baseUrl/fcm-tokens/$tokenId/active';
+
+  // Config
+  static String get configTagLists => '$baseUrl/config/tag-lists';
+
+  // Wardrobes
+  static String get wardrobes => '$baseUrl/wardrobes';
+  static String wardrobe(String id) => '$baseUrl/wardrobes/$id';
+  static String userWardrobes(String userId) => '$baseUrl/users/$userId/wardrobes';
+  static String wardrobeClothes(String wardrobeId) =>
+      '$baseUrl/wardrobes/$wardrobeId/clothes';
+
+  // Clothes
+  static String get clothes => '$baseUrl/clothes';
+  static String cloth(String clothId) => '$baseUrl/clothes/$clothId';
+  static String get avatarDelete => '$baseUrl/avatar/me';
+
+  // Chats & messages
+  static String get chats => '$baseUrl/chats';
+  static String chat(String chatId) => '$baseUrl/chats/$chatId';
+  static String chatMessages(String chatId) => '$baseUrl/chats/$chatId/messages';
+  static String messageSeen(String messageId) =>
+      '$baseUrl/messages/$messageId/seen';
+  static String messageDelete(String messageId) =>
+      '$baseUrl/messages/$messageId';
+  static String clothShare(String clothId) => '$baseUrl/clothes/$clothId/share';
 
   // API Endpoints
   static String get avatarGenerate => '$baseUrl/avatar/generate';

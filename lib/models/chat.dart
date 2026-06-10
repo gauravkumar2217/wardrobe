@@ -19,16 +19,27 @@ class Chat {
   });
 
   factory Chat.fromJson(Map<String, dynamic> json, String id) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+      return null;
+    }
+
     return Chat(
       id: id,
-      participants: List<String>.from(json['participants']),
-      lastMessage: json['lastMessage'] as String?,
-      lastMessageAt: json['lastMessageAt'] != null
-          ? (json['lastMessageAt'] as Timestamp).toDate()
-          : null,
-      isGroup: json['isGroup'] as bool? ?? false,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      participants: List<String>.from(json['participants'] ?? []),
+      lastMessage:
+          json['last_message'] as String? ?? json['lastMessage'] as String?,
+      lastMessageAt: parseDate(json['last_message_at'] ?? json['lastMessageAt']),
+      isGroup: json['is_group'] as bool? ?? json['isGroup'] as bool? ?? false,
+      createdAt: parseDate(json['created_at'] ?? json['createdAt']) ??
+          DateTime.now(),
     );
+  }
+
+  factory Chat.fromApiJson(Map<String, dynamic> json) {
+    return Chat.fromJson(json, json['id']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {
@@ -93,19 +104,36 @@ class ChatMessage {
   }) : seenBy = seenBy ?? [];
 
   factory ChatMessage.fromJson(Map<String, dynamic> json, String id) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) {
+        return DateTime.tryParse(value) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return ChatMessage(
       id: id,
-      senderId: json['senderId'] as String,
+      senderId:
+          json['sender_id'] as String? ?? json['senderId'] as String? ?? '',
       text: json['text'] as String?,
-      imageUrl: json['imageUrl'] as String?,
-      clothId: json['clothId'] as String?,
-      clothOwnerId: json['clothOwnerId'] as String?,
-      clothWardrobeId: json['clothWardrobeId'] as String?,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      seenBy: json['seenBy'] != null
-          ? List<String>.from(json['seenBy'])
-          : [],
+      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      clothId: json['cloth_id'] as String? ?? json['clothId'] as String?,
+      clothOwnerId: json['cloth_owner_id'] as String? ??
+          json['clothOwnerId'] as String?,
+      clothWardrobeId: json['cloth_wardrobe_id'] as String? ??
+          json['clothWardrobeId'] as String?,
+      createdAt: parseDate(json['created_at'] ?? json['createdAt']),
+      seenBy: json['seen_by'] != null
+          ? List<String>.from(json['seen_by'])
+          : json['seenBy'] != null
+              ? List<String>.from(json['seenBy'])
+              : [],
     );
+  }
+
+  factory ChatMessage.fromApiJson(Map<String, dynamic> json) {
+    return ChatMessage.fromJson(json, json['id']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {

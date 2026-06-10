@@ -61,48 +61,80 @@ class Cloth {
     return 'cloth';
   }
 
+  static DateTime _parseDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is String && value.isNotEmpty) return DateTime.parse(value);
+    return DateTime.now();
+  }
+
+  static DateTime? _parseOptionalDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is String && value.isNotEmpty) return DateTime.parse(value);
+    return null;
+  }
+
   factory Cloth.fromJson(Map<String, dynamic> json, String id) {
+    final placementDetailsJson =
+        json['placement_details'] ?? json['placementDetails'];
+    final colorTagsJson = json['color_tags'] ?? json['colorTags'];
+    final aiDetectedJson = json['ai_detected'] ?? json['aiDetected'];
+
     return Cloth(
       id: id,
-      ownerId: json['ownerId'] as String,
-      wardrobeId: json['wardrobeId'] as String,
-      imageUrl: json['imageUrl'] as String,
-      processedImageUrl: json['processedImageUrl'] as String?,
-      hasProcessedImage: json['hasProcessedImage'] as bool? ?? false,
-      season: json['season'] as String,
-      placement: json['placement'] as String,
-      placementDetails: json['placementDetails'] != null
-          ? PlacementDetails.fromJson(json['placementDetails'] as Map<String, dynamic>)
+      ownerId: json['owner_id'] as String? ?? json['ownerId'] as String? ?? '',
+      wardrobeId:
+          json['wardrobe_id'] as String? ?? json['wardrobeId'] as String? ?? '',
+      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String? ?? '',
+      processedImageUrl: json['processed_image_url'] as String? ??
+          json['processedImageUrl'] as String?,
+      hasProcessedImage: json['has_processed_image'] as bool? ??
+          json['hasProcessedImage'] as bool? ??
+          false,
+      season: json['season'] as String? ?? 'all',
+      placement: json['placement'] as String? ?? 'Wardrobe',
+      placementDetails: placementDetailsJson is Map<String, dynamic>
+          ? PlacementDetails.fromJson(placementDetailsJson)
           : null,
-      colorTags: json['colorTags'] != null
-          ? ColorTags.fromJson(json['colorTags'] as Map<String, dynamic>)
+      colorTags: colorTagsJson is Map<String, dynamic>
+          ? ColorTags.fromJson(colorTagsJson)
           : ColorTags(primary: json['color'] as String? ?? 'Unknown'),
-      clothType:
-          json['clothType'] as String? ?? json['type'] as String? ?? 'Other',
+      clothType: json['cloth_type'] as String? ??
+          json['clothType'] as String? ??
+          json['type'] as String? ??
+          'Other',
       category: json['category'] as String? ?? 'Casual',
-      itemKind: _parseItemKind(json['itemKind'] as String?),
+      itemKind: _parseItemKind(
+        json['item_kind'] as String? ?? json['itemKind'] as String?,
+      ),
       occasions: json['occasions'] != null
           ? List<String>.from(json['occasions'])
           : (json['occasion'] != null
               ? [json['occasion'] as String]
               : ['Other']),
-      aiDetected: json['aiDetected'] != null
-          ? AiDetected.fromJson(json['aiDetected'] as Map<String, dynamic>)
+      aiDetected: aiDetectedJson is Map<String, dynamic>
+          ? AiDetected.fromJson(aiDetectedJson)
           : null,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      wornAt: json['wornAt'] != null
-          ? (json['wornAt'] as Timestamp).toDate()
-          : (json['lastWornAt'] != null
-              ? (json['lastWornAt'] as Timestamp).toDate()
-              : null), // Support legacy lastWornAt field
+      createdAt: _parseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: _parseDate(json['updated_at'] ?? json['updatedAt']),
+      wornAt: _parseOptionalDate(json['worn_at'] ?? json['wornAt']) ??
+          _parseOptionalDate(json['lastWornAt']),
       visibility: json['visibility'] as String? ?? 'private',
-      sharedWith: json['sharedWith'] != null
-          ? List<String>.from(json['sharedWith'])
-          : null,
-      likesCount: json['likesCount'] as int? ?? 0,
-      commentsCount: json['commentsCount'] as int? ?? 0,
+      sharedWith: json['shared_with'] != null
+          ? List<String>.from(json['shared_with'])
+          : json['sharedWith'] != null
+              ? List<String>.from(json['sharedWith'])
+              : null,
+      likesCount:
+          json['likes_count'] as int? ?? json['likesCount'] as int? ?? 0,
+      commentsCount: json['comments_count'] as int? ??
+          json['commentsCount'] as int? ??
+          0,
     );
+  }
+
+  factory Cloth.fromApiJson(Map<String, dynamic> json) {
+    return Cloth.fromJson(json, json['id']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {
@@ -194,10 +226,16 @@ class PlacementDetails {
   });
 
   factory PlacementDetails.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return PlacementDetails(
-      shopName: json['shopName'] as String,
-      givenDate: (json['givenDate'] as Timestamp).toDate(),
-      returnDate: (json['returnDate'] as Timestamp).toDate(),
+      shopName: json['shop_name'] as String? ?? json['shopName'] as String? ?? '',
+      givenDate: parseDate(json['given_date'] ?? json['givenDate']),
+      returnDate: parseDate(json['return_date'] ?? json['returnDate']),
     );
   }
 
@@ -258,11 +296,17 @@ class AiDetected {
   });
 
   factory AiDetected.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return AiDetected(
-      clothType: json['clothType'] as String?,
+      clothType: json['cloth_type'] as String? ?? json['clothType'] as String?,
       colors: List<String>.from(json['colors'] ?? []),
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
-      detectedAt: (json['detectedAt'] as Timestamp).toDate(),
+      detectedAt: parseDate(json['detected_at'] ?? json['detectedAt']),
     );
   }
 

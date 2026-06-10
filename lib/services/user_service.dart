@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../models/user_profile.dart';
+import 'laravel_api_client.dart';
 import 'laravel_auth_service.dart';
 import '../models/body_profile.dart';
 import '../models/avatar.dart';
@@ -12,6 +14,22 @@ class UserService {
 
   /// Get user profile
   static Future<UserProfile?> getUserProfile(String userId) async {
+    try {
+      final currentId = await LaravelAuthService.getCurrentUserId();
+      if (currentId == userId) {
+        final profile = await LaravelAuthService.fetchUserProfile();
+        if (profile != null) return profile;
+      } else {
+        final body = await LaravelApiClient.getJson(ApiConfig.userById(userId));
+        final data = LaravelApiClient.extractData(body);
+        if (data is Map<String, dynamic>) {
+          return _profileFromApi(data);
+        }
+      }
+    } catch (e) {
+      debugPrint('Laravel profile fetch failed for $userId: $e');
+    }
+
     try {
       debugPrint('🔍 UserService: Fetching profile for userId: $userId');
       final doc = await _firestore.collection('users').doc(userId).get();
@@ -385,86 +403,99 @@ class UserService {
     return null;
   }
 
-  /// Record EULA acceptance
+  /// Record EULA acceptance via Laravel API.
   static Future<void> recordEulaAcceptance({
     required String userId,
     required String version,
     String? ipAddress,
   }) async {
     try {
-      final acceptanceId = _firestore.collection('eulaAcceptances').doc().id;
-      final acceptance = EulaAcceptance(
-        id: acceptanceId,
-        userId: userId,
-        version: version,
-        acceptedAt: DateTime.now(),
-        ipAddress: ipAddress,
+      final body = await LaravelApiClient.postJson(
+        ApiConfig.eulaAccept,
+        {
+          'version': version,
+          if (ipAddress != null) 'ip_address': ipAddress,
+        },
       );
-
-      // Store in user's subcollection
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('eulaAcceptances')
-          .doc(acceptanceId)
-          .set(acceptance.toJson());
-
-      // Also store in top-level collection for easy querying
-      await _firestore
-          .collection('eulaAcceptances')
-          .doc(acceptanceId)
-          .set(acceptance.toJson());
+      LaravelApiClient.extractData(body);
     } catch (e) {
       debugPrint('Failed to record EULA acceptance: $e');
       rethrow;
     }
   }
 
-  /// Check if user has accepted EULA
+  /// Check if user has accepted the current EULA version.
   static Future<bool> hasAcceptedEula(String userId) async {
     try {
-      final query = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('eulaAcceptances')
-          .orderBy('acceptedAt', descending: true)
-          .limit(1)
-          .get();
-
-      return query.docs.isNotEmpty;
+      final body = await LaravelApiClient.getJson(ApiConfig.eulaStatus);
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return data['accepted'] == true;
+      }
+      return false;
     } catch (e) {
       debugPrint('Failed to check EULA acceptance: $e');
       return false;
     }
   }
 
-  /// Get latest EULA acceptance
+  /// Get latest EULA acceptance from Laravel API.
   static Future<EulaAcceptance?> getLatestEulaAcceptance(String userId) async {
     try {
-      final query = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('eulaAcceptances')
-          .orderBy('acceptedAt', descending: true)
-          .limit(1)
-          .get();
-
-      if (query.docs.isEmpty) {
-        return null;
+      final body = await LaravelApiClient.getJson(ApiConfig.eulaStatus);
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        final latest = data['latest'];
+        if (latest is Map<String, dynamic>) {
+          return EulaAcceptance.fromApiJson(latest);
+        }
       }
-
-      final doc = query.docs.first;
-      return EulaAcceptance.fromJson(doc.data(), doc.id);
+      return null;
     } catch (e) {
       debugPrint('Failed to get latest EULA acceptance: $e');
       return null;
     }
   }
 
-  /// Get current EULA version
-  static String getCurrentEulaVersion() {
-    // Update this when Terms & Conditions change
+  /// Get current EULA version from Laravel API.
+  static Future<String> getCurrentEulaVersion() async {
+    try {
+      final body = await LaravelApiClient.getPublicJson(ApiConfig.eulaVersion);
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return data['version']?.toString() ?? '1.0';
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch EULA version: $e');
+    }
     return '1.0';
+  }
+
+  static UserProfile _profileFromApi(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+      return null;
+    }
+
+    UserSettings? settings;
+    final settingsRaw = json['settings'];
+    if (settingsRaw is Map<String, dynamic>) {
+      settings = UserSettings.fromJson(settingsRaw);
+    }
+
+    return UserProfile(
+      displayName: json['display_name'] as String? ?? json['displayName'] as String?,
+      username: json['username'] as String?,
+      photoUrl: json['photo_url'] as String? ?? json['photoUrl'] as String?,
+      email: json['email'] as String?,
+      phone: json['phone'] as String? ?? json['phone_number'] as String?,
+      gender: json['gender'] as String?,
+      dateOfBirth: parseDate(json['date_of_birth'] ?? json['dateOfBirth']),
+      createdAt: parseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: parseDate(json['updated_at'] ?? json['updatedAt']),
+      settings: settings,
+    );
   }
 
   /// Get body profile for user
@@ -525,59 +556,41 @@ class UserService {
   /// Get avatar for user
   static Future<Avatar?> getAvatar(String userId) async {
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('avatar')
-          .doc('current')
-          .get();
-
-      if (!doc.exists || doc.data() == null) {
+      final currentId = await LaravelAuthService.getCurrentUserId();
+      if (currentId != userId) {
         return null;
       }
 
-      return Avatar.fromJson(doc.data()!, userId);
+      final body = await LaravelApiClient.getJson(ApiConfig.avatarMe);
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return Avatar.fromApiJson(data, userId);
+      }
+      return null;
     } catch (e) {
+      final message = e.toString().toLowerCase();
+      if (message.contains('404') || message.contains('not found')) {
+        return null;
+      }
       debugPrint('Failed to get avatar: $e');
       return null;
     }
   }
 
-  /// Save or update avatar
+  /// Avatar is persisted by Laravel during generation; kept for API compatibility.
   static Future<void> saveAvatar(Avatar avatar) async {
-    try {
-      final avatarData = avatar.toJson();
-      avatarData['updatedAt'] = FieldValue.serverTimestamp();
-      
-      if (!avatarData.containsKey('createdAt')) {
-        avatarData['createdAt'] = FieldValue.serverTimestamp();
-      }
-
-      await _firestore
-          .collection('users')
-          .doc(avatar.userId)
-          .collection('avatar')
-          .doc('current')
-          .set(avatarData);
-
-      debugPrint('Avatar saved successfully for user ${avatar.userId}');
-    } catch (e) {
-      debugPrint('Failed to save avatar: $e');
-      rethrow;
+    if (kDebugMode) {
+      debugPrint('Avatar stored in Laravel for user ${avatar.userId}');
     }
   }
 
   /// Delete avatar
   static Future<void> deleteAvatar(String userId) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('avatar')
-          .doc('current')
-          .delete();
-
-      debugPrint('Avatar deleted successfully for user $userId');
+      await LaravelApiClient.deleteJson(ApiConfig.avatarDelete);
+      if (kDebugMode) {
+        debugPrint('Avatar deleted successfully for user $userId');
+      }
     } catch (e) {
       debugPrint('Failed to delete avatar: $e');
       rethrow;

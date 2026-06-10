@@ -40,27 +40,49 @@ class Avatar {
     this.updatedAt,
   });
 
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is String && value.isNotEmpty) return DateTime.parse(value);
+    return null;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String && value.isNotEmpty) return double.tryParse(value);
+    return null;
+  }
+
   factory Avatar.fromJson(Map<String, dynamic> json, String userId) {
     return Avatar(
       userId: userId,
-      bodyImageUrl: json['bodyImageUrl'] as String?,
-      avatarImageUrl: json['avatarImageUrl'] as String?,
-      avatarPreviewUrl: json['avatarPreviewUrl'] as String?,
-      poseLandmarks: json['poseLandmarks'] as Map<String, dynamic>?,
-      generationStatus: json['generationStatus'] as String?,
-      generationJobId: json['generationJobId'] as String?,
-      userHeightCm: (json['userHeightCm'] as num?)?.toDouble(),
+      bodyImageUrl:
+          json['body_image_url'] as String? ?? json['bodyImageUrl'] as String?,
+      avatarImageUrl: json['avatar_image_url'] as String? ??
+          json['avatarImageUrl'] as String?,
+      avatarPreviewUrl: json['avatar_preview_url'] as String? ??
+          json['avatarPreviewUrl'] as String?,
+      poseLandmarks: json['pose_landmarks'] as Map<String, dynamic>? ??
+          json['poseLandmarks'] as Map<String, dynamic>?,
+      generationStatus: json['generation_status'] as String? ??
+          json['generationStatus'] as String?,
+      generationJobId: json['generation_job_id']?.toString() ??
+          json['generationJobId']?.toString() ??
+          json['id']?.toString(),
+      userHeightCm: _parseDouble(json['user_height_cm']) ??
+          _parseDouble(json['userHeightCm']),
       measurements: json['measurements'] != null
           ? BodyMeasurements.fromJson(
               json['measurements'] as Map<String, dynamic>)
           : null,
-      createdAt: json['createdAt'] != null
-          ? (json['createdAt'] as Timestamp).toDate()
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? (json['updatedAt'] as Timestamp).toDate()
-          : null,
+      createdAt: _parseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: _parseDate(json['updated_at'] ?? json['updatedAt']),
     );
+  }
+
+  factory Avatar.fromApiJson(Map<String, dynamic> json, String userId) {
+    return Avatar.fromJson(json, userId);
   }
 
   Map<String, dynamic> toJson() {
@@ -135,12 +157,23 @@ class BodyMeasurements {
     this.cmPerPixel,
   });
 
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String && value.isNotEmpty) return double.tryParse(value);
+    return null;
+  }
+
   factory BodyMeasurements.fromJson(Map<String, dynamic> json) {
     return BodyMeasurements(
-      shoulderWidthCm: (json['shoulderWidthCm'] as num?)?.toDouble(),
-      hipWidthCm: (json['hipWidthCm'] as num?)?.toDouble(),
-      heightCm: (json['heightCm'] as num?)?.toDouble(),
-      cmPerPixel: (json['cmPerPixel'] as num?)?.toDouble(),
+      shoulderWidthCm: _parseDouble(json['shoulder_width_cm']) ??
+          _parseDouble(json['shoulderWidthCm']),
+      hipWidthCm: _parseDouble(json['hip_width_cm']) ??
+          _parseDouble(json['hipWidthCm']),
+      heightCm: _parseDouble(json['height_cm']) ??
+          _parseDouble(json['heightCm']),
+      cmPerPixel: _parseDouble(json['cm_per_pixel']) ??
+          _parseDouble(json['cmPerPixel']),
     );
   }
 

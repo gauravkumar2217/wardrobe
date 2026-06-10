@@ -80,9 +80,19 @@ Adds: `first_name`, `last_name`, `provider`, `provider_id`, `email_verified_at`,
 4. Test Google/Apple sign-in on device
 5. Verify auto-login after app restart
 
-## Remaining Firestore usage (intentional)
+## Migrated to Laravel (Phase 2)
 
-- Clothes, wardrobes, chat messages, notifications data
-- EULA acceptance (migrate separately)
+| Feature | Flutter service | Laravel endpoint |
+|---------|----------------|------------------|
+| FCM / devices | `fcm_service.dart` | `POST /devices`, `POST /fcm-tokens` |
+| EULA | `user_service.dart` | `GET/POST /eula/*` |
+| Tag lists | `tag_list_service.dart` | `GET /config/tag-lists` |
+| Wardrobes | `wardrobe_service.dart` | `/wardrobes` CRUD |
+
+Run Laravel migration: `php artisan migrate`
+
+## Remaining Firestore usage
+
+- Clothes, friends, chat, notifications, schedules, reports
+- Body profile / avatar subdocs (partial — avatar generation uses Laravel)
 - Firebase Storage for images
-- FCM push notifications

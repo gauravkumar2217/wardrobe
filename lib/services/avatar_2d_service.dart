@@ -17,6 +17,28 @@ class Avatar2DService {
     throw Exception(decoded['message']?.toString() ?? 'Avatar request failed');
   }
 
+  static Future<String> _pollUntilCompleted(String avatarId) async {
+    if (kDebugMode) {
+      debugPrint('⏳ Polling avatar status for $avatarId...');
+    }
+
+    Map<String, dynamic> status = {};
+    var attempts = 0;
+    while (attempts < ApiConfig.maxPollingAttempts) {
+      await Future.delayed(ApiConfig.pollingInterval);
+      status = await _getAvatarStatus(avatarId);
+      final s = status['generation_status']?.toString();
+      if (s == 'completed') return avatarId;
+      if (s == 'failed') {
+        throw Exception(
+          status['error_message']?.toString() ?? 'Avatar generation failed',
+        );
+      }
+      attempts++;
+    }
+    throw Exception('Avatar generation timed out');
+  }
+
   static Future<Map<String, dynamic>> _getAvatarStatus(String avatarId) async {
     final token = await LaravelAuthService.ensureToken();
     final res = await http.get(
@@ -54,7 +76,7 @@ class Avatar2DService {
   /// Process:
   /// 1. Send body image to Laravel `/avatar/generate` (multipart)
   /// 2. Poll `/avatar/status/{avatarId}` until completed
-  /// 3. Fetch `/avatar/me` and save avatar data to Firestore
+  /// 3. Fetch `/avatar/me` and return avatar data from Laravel
   static Future<Avatar> generateAvatar({
     required String userId,
     required File bodyImageFile,
@@ -97,80 +119,39 @@ class Avatar2DService {
       if (decoded is! Map<String, dynamic>) {
         throw Exception('Invalid response: $responseBody');
       }
-      final data = _extractData(decoded);
-      final avatarId = data['avatar_id']?.toString();
-      if (avatarId == null || avatarId.isEmpty) {
-        throw Exception('Avatar generation started but avatar_id missing');
-      }
 
-      if (kDebugMode) {
-        debugPrint('✅ Avatar generation started: $avatarId');
+      String avatarId;
+      if (streamed.statusCode == 202 && decoded['success'] == true) {
+        final data = decoded['data'] as Map<String, dynamic>;
+        avatarId = data['avatar_id']?.toString() ?? '';
+        if (avatarId.isEmpty) {
+          throw Exception('Avatar generation started but avatar_id missing');
+        }
+        if (data['resumed'] == true && kDebugMode) {
+          debugPrint('♻️ Resuming in-progress avatar generation: $avatarId');
+        } else if (kDebugMode) {
+          debugPrint('✅ Avatar generation started: $avatarId');
+        }
+      } else {
+        throw Exception(
+          decoded['message']?.toString() ??
+              'Avatar request failed (${streamed.statusCode})',
+        );
       }
 
       // Step 2: Poll status until completed
-      if (kDebugMode) {
-        debugPrint('⏳ Polling avatar status...');
-      }
-
-      Map<String, dynamic> status = {};
-      var attempts = 0;
-      while (attempts < ApiConfig.maxPollingAttempts) {
-        await Future.delayed(ApiConfig.pollingInterval);
-        status = await _getAvatarStatus(avatarId);
-        final s = status['generation_status']?.toString();
-        if (s == 'completed') break;
-        if (s == 'failed') {
-          throw Exception(status['error_message']?.toString() ?? 'Avatar generation failed');
-        }
-        attempts++;
-      }
-      if (status['generation_status']?.toString() != 'completed') {
-        throw Exception('Avatar generation timed out');
-      }
+      await _pollUntilCompleted(avatarId);
 
       // Step 3: Fetch full avatar info
       final me = await _getAvatarMe();
-      final avatarUrl = me['avatar_image_url']?.toString();
-      final bodyImageUrl = me['body_image_url']?.toString();
-      final previewUrl = me['avatar_preview_url']?.toString();
-      final poseLandmarks = me['pose_landmarks'] as Map<String, dynamic>?;
-      final measurements = me['measurements'] as Map<String, dynamic>?;
-
-      if (kDebugMode) {
-        debugPrint('✅ Avatar generated: $avatarUrl');
-      }
-
-      final bodyMeasurements = measurements != null
-          ? BodyMeasurements(
-              shoulderWidthCm:
-                  (measurements['shoulder_width_cm'] as num?)?.toDouble() ??
-                      (measurements['shoulderWidthCm'] as num?)?.toDouble(),
-              hipWidthCm: (measurements['hip_width_cm'] as num?)?.toDouble() ??
-                  (measurements['hipWidthCm'] as num?)?.toDouble(),
-              heightCm: (measurements['height_cm'] as num?)?.toDouble() ??
-                  (measurements['heightCm'] as num?)?.toDouble(),
-            )
-          : null;
-
-      final avatar = Avatar(
-        userId: userId,
-        bodyImageUrl: bodyImageUrl,
-        avatarImageUrl: avatarUrl,
-        avatarPreviewUrl: previewUrl,
-        poseLandmarks: poseLandmarks,
-        userHeightCm: userHeightCm ?? bodyMeasurements?.heightCm,
-        measurements: bodyMeasurements,
+      final avatar = Avatar.fromApiJson(me, userId).copyWith(
         generationStatus: 'completed',
         generationJobId: avatarId,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        userHeightCm: userHeightCm,
       );
 
-      // Step 4: Save to Firestore (app uses this for Changing Room)
-      await UserService.saveAvatar(avatar);
-
       if (kDebugMode) {
-        debugPrint('✅ Avatar saved to Firestore');
+        debugPrint('✅ Avatar generated: ${avatar.avatarImageUrl}');
       }
 
       return avatar;

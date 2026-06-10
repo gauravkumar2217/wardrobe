@@ -53,7 +53,7 @@ class _EulaAcceptanceScreenState extends State<EulaAcceptanceScreen> {
       }
 
       // Record EULA acceptance
-      final version = UserService.getCurrentEulaVersion();
+      final version = await UserService.getCurrentEulaVersion();
       await UserService.recordEulaAcceptance(
         userId: user.uid,
         version: version,

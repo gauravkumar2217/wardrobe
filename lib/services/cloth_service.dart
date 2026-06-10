@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../models/cloth.dart';
+import 'laravel_api_client.dart';
 import 'storage_service.dart';
 import 'push_notification_service.dart';
 import 'content_filter_service.dart';
@@ -258,19 +260,29 @@ class ClothService {
     }
   }
 
+  static List<Cloth> _parseClothList(dynamic data) {
+    Iterable<dynamic> items;
+    if (data is Map<String, dynamic> && data['data'] is List) {
+      items = data['data'] as List;
+    } else if (data is List) {
+      items = data;
+    } else {
+      return [];
+    }
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(Cloth.fromApiJson)
+        .toList();
+  }
+
   /// Get all clothes for a user (across all wardrobes)
   static Future<List<Cloth>> getAllUserClothes(String userId) async {
     try {
-      // Query top-level clothes collection filtered by ownerId
-      final snapshot = await _firestore
-          .collection('clothes')
-          .where('ownerId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
-          .toList();
+      final uri = Uri.parse(ApiConfig.clothes).replace(
+        queryParameters: const {'scope': 'mine', 'per_page': '500'},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      return _parseClothList(LaravelApiClient.extractData(body));
     } catch (e) {
       debugPrint('Failed to get all user clothes: $e');
       return [];

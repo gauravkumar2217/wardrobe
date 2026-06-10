@@ -21,15 +21,25 @@ class Wardrobe {
   });
 
   factory Wardrobe.fromJson(Map<String, dynamic> json, String id) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return Wardrobe(
       id: id,
-      ownerId: json['ownerId'] as String,
+      ownerId: json['owner_id'] as String? ?? json['ownerId'] as String? ?? '',
       name: json['name'] as String,
       location: json['location'] as String,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      totalItems: json['totalItems'] as int? ?? 0,
+      createdAt: parseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: parseDate(json['updated_at'] ?? json['updatedAt']),
+      totalItems: json['total_items'] as int? ?? json['totalItems'] as int? ?? 0,
     );
+  }
+
+  factory Wardrobe.fromApiJson(Map<String, dynamic> json) {
+    return Wardrobe.fromJson(json, json['id']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {
