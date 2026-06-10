@@ -161,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
             phone: existingProfile.phone,
             gender: existingProfile.gender,
             dateOfBirth: existingProfile.dateOfBirth,
-            photoUrl: existingProfile.photoUrl ?? user.photoURL,
+            photoUrl: existingProfile.photoUrl ?? '',
             createdAt: existingProfile.createdAt,
             updatedAt: DateTime.now(),
             settings: existingProfile.settings,

@@ -33,6 +33,7 @@ dependencies:
   # Device Info & Storage
   device_info_plus: ^9.1.1
   shared_preferences: ^2.2.2
+  flutter_secure_storage: ^9.2.4
   sms_autofill: ^2.3.0
   
   # Image handling

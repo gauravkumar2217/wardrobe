@@ -316,21 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         chatProvider.cleanup();
         friendProvider.cleanup();
 
-        // Delete user profile from Firestore
-        await UserService.deleteAccount(user.uid);
-
-        // Delete Firebase Auth account (this automatically signs out the user)
-        await user.delete();
-
-        // Sign out from AuthProvider to clear local state
-        // Note: user.delete() already signs out from Firebase, but we need to clear AuthProvider state
-        try {
-          await authProvider.signOut();
-        } catch (e) {
-          // If signOut fails (e.g., user already deleted), that's okay
-          // Just ensure AuthProvider state is cleared
-          debugPrint('Sign out after account deletion: $e');
-        }
+        await authProvider.deleteAccount();
 
         // Navigate to login screen and clear navigation stack
         if (mounted) {

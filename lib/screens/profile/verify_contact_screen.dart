@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 
@@ -40,14 +39,11 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     final profile = authProvider.userProfile;
 
     if (user != null) {
-      // Email is verified if user has email and it's verified, or if account was created with email
-      _emailVerified = user.email != null &&
-          (user.emailVerified ||
-              user.providerData.any((info) => info.providerId == 'password'));
+      _emailVerified = user.email != null && user.email!.isNotEmpty;
 
-      // Phone is verified if user has phoneNumber in Firebase Auth
-      _phoneVerified = user.phoneNumber != null;
       _phoneNumber = user.phoneNumber ?? profile?.phone;
+      _phoneVerified =
+          _phoneNumber != null && _phoneNumber!.trim().isNotEmpty;
     }
   }
 
@@ -83,15 +79,15 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
         throw Exception('Email not found');
       }
 
-      await user.sendEmailVerification();
-
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Verification email sent. Please check your inbox.'),
+            content: Text(
+              'Your email is already verified for Laravel sign-in accounts.',
+            ),
           ),
         );
       }
@@ -180,32 +176,22 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     });
 
     try {
-      await user.reload();
-      final updatedUser = FirebaseAuth.instance.currentUser;
       await authProvider.refreshProfile();
       _checkVerificationStatus();
 
-      if (updatedUser?.emailVerified == true) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email verified successfully')),
-          );
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Email not verified yet. Please check your inbox and click the verification link.'),
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _emailVerified
+                  ? 'Email verified successfully'
+                  : 'No email is linked to this account.',
             ),
-          );
-        }
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -241,12 +227,10 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
         throw Exception('User not found');
       }
 
-      final credential = PhoneAuthProvider.credential(
+      await AuthService.verifyPhoneOtp(
         verificationId: _verificationId!,
         smsCode: _otpController.text.trim(),
       );
-
-      await user.linkWithCredential(credential);
 
       // Update profile with verified phone
       final profile = authProvider.userProfile;
@@ -257,8 +241,6 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
         await authProvider.updateProfile(updatedProfile);
       }
 
-      // Refresh user to get updated phone number
-      await user.reload();
       await authProvider.refreshProfile();
       _checkVerificationStatus();
 

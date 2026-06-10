@@ -31,7 +31,7 @@ class WardrobeTopHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final auth = context.watch<AuthProvider>();
-    final photoUrl = auth.userProfile?.photoUrl ?? auth.user?.photoURL;
+    final photoUrl = auth.userProfile?.photoUrl ?? auth.user?.photoUrl;
     // Logo sits on the gold bottom line: 60% in header, 40% out.
     const logoBelowLine = logoSize * logoOutFraction;
 

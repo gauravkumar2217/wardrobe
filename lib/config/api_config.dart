@@ -22,9 +22,13 @@ class ApiConfig {
   static String get authLogin => '$baseUrl/auth/login';
   static String get authLogout => '$baseUrl/auth/logout';
   static String get authUser => '$baseUrl/auth/user';
+  static String get authMe => '$baseUrl/auth/me';
+  static String get authSocialLogin => '$baseUrl/auth/social-login';
+  static String get authDeleteAccount => '$baseUrl/auth/delete-account';
   static String get authCheckUsername => '$baseUrl/auth/check-username';
   static String get authVerifyToken => '$baseUrl/auth/verify-token';
   static String get usersMe => '$baseUrl/users/me';
+  static String get profileUpdate => '$baseUrl/profile/update';
 
   // API Endpoints
   static String get avatarGenerate => '$baseUrl/avatar/generate';

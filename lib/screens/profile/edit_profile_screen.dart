@@ -52,7 +52,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() {
         _nameController.text = user.displayName ?? '';
         _phoneController.text = user.phoneNumber ?? '';
-        _currentPhotoUrl = user.photoURL;
+        _currentPhotoUrl = user.photoUrl;
       });
     }
   }

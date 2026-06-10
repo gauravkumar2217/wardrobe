@@ -1,32 +1,24 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import '../models/app_user.dart';
 import '../models/user_profile.dart';
+import 'secure_token_storage.dart';
 
-/// Laravel Sanctum authentication (register, login, token, user profile).
+/// Laravel Sanctum authentication (register, login, social, token, user profile).
 class LaravelAuthService {
-  static const _tokenKey = 'laravel_sanctum_token';
-  static const _userKey = 'laravel_auth_user';
   static String? _memoryUserId;
 
   static String? get memoryUserId => _memoryUserId;
 
-  static Future<String?> getCachedToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final t = prefs.getString(_tokenKey);
-    return (t == null || t.trim().isEmpty) ? null : t.trim();
-  }
+  static Future<String?> getCachedToken() => SecureTokenStorage.readToken();
 
   static Future<AppUser?> getCachedUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_userKey);
-    if (raw == null || raw.trim().isEmpty) return null;
+    final json = await SecureTokenStorage.readUserJson();
+    if (json == null) return null;
     try {
-      final json = jsonDecode(raw) as Map<String, dynamic>;
       final user = AppUser.fromJson(json);
       return user.id.isNotEmpty ? user : null;
     } catch (_) {
@@ -39,16 +31,15 @@ class LaravelAuthService {
     required AppUser user,
   }) async {
     _memoryUserId = user.id;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token.trim());
-    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    await SecureTokenStorage.writeSession(
+      token: token,
+      userJson: user.toJson(),
+    );
   }
 
   static Future<void> clearToken() async {
     _memoryUserId = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
+    await SecureTokenStorage.clear();
   }
 
   static Future<String?> getCurrentUserId() async {
@@ -56,7 +47,6 @@ class LaravelAuthService {
     return user?.id;
   }
 
-  /// Returns cached Sanctum token when present.
   static Future<String> ensureToken({bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await getCachedToken();
@@ -153,6 +143,44 @@ class LaravelAuthService {
     return _parseAuthResponse(body);
   }
 
+  /// Social login (Google / Apple) via Laravel API.
+  static Future<({String token, AppUser user})> socialLogin({
+    required String provider,
+    required String providerId,
+    String? idToken,
+    String? email,
+    String? firstName,
+    String? lastName,
+    String? avatar,
+    String? displayName,
+  }) async {
+    final payload = <String, dynamic>{
+      'provider': provider,
+      'provider_id': providerId,
+      if (idToken != null && idToken.isNotEmpty) 'id_token': idToken,
+      if (email != null && email.isNotEmpty) 'email': email.trim().toLowerCase(),
+      if (firstName != null && firstName.isNotEmpty) 'first_name': firstName,
+      if (lastName != null && lastName.isNotEmpty) 'last_name': lastName,
+      if (avatar != null && avatar.isNotEmpty) 'avatar': avatar,
+      if (displayName != null && displayName.isNotEmpty)
+        'display_name': displayName,
+    };
+
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.authSocialLogin),
+          headers: _publicHeaders,
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.requestTimeout);
+
+    final body = _decodeResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwApiError(body, response.statusCode);
+    }
+    return _parseAuthResponse(body);
+  }
+
   static Future<({String token, AppUser user})> _parseAuthResponse(
     Map<String, dynamic> body,
   ) async {
@@ -203,7 +231,7 @@ class LaravelAuthService {
     final authToken = token ?? await ensureToken();
     final response = await http
         .get(
-          Uri.parse(ApiConfig.authUser),
+          Uri.parse(ApiConfig.authMe),
           headers: _authHeaders(authToken),
         )
         .timeout(ApiConfig.requestTimeout);
@@ -238,6 +266,10 @@ class LaravelAuthService {
         .timeout(ApiConfig.requestTimeout);
 
     final body = _decodeResponse(response);
+    if (response.statusCode == 401) {
+      await clearToken();
+      throw Exception('Session expired. Please sign in again.');
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _throwApiError(body, response.statusCode);
     }
@@ -273,7 +305,7 @@ class LaravelAuthService {
 
     final response = await http
         .put(
-          Uri.parse(ApiConfig.usersMe),
+          Uri.parse(ApiConfig.profileUpdate),
           headers: _authHeaders(authToken),
           body: jsonEncode(payload),
         )
@@ -310,6 +342,22 @@ class LaravelAuthService {
       return data['available'] == true;
     }
     return false;
+  }
+
+  static Future<void> deleteAccount() async {
+    final token = await ensureToken();
+    final response = await http
+        .delete(
+          Uri.parse(ApiConfig.authDeleteAccount),
+          headers: _authHeaders(token),
+        )
+        .timeout(ApiConfig.requestTimeout);
+
+    final body = _decodeResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwApiError(body, response.statusCode);
+    }
+    await clearToken();
   }
 
   static UserProfile _userProfileFromApi(Map<String, dynamic> json) {

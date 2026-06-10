@@ -170,6 +170,22 @@ class AuthService {
     }
   }
 
+  /// Validates a phone OTP without linking it to the Laravel session.
+  static Future<void> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    try {
+      await _auth.signInWithCredential(credential);
+    } finally {
+      await _auth.signOut();
+    }
+  }
+
   /// Sign in with Google
   /// 
   /// Handles known type casting error: 'List<Object?>' is not a subtype of 'PigeonUserDetails?'

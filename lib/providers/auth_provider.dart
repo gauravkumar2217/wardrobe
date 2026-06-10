@@ -3,7 +3,7 @@ import '../models/app_user.dart';
 import '../models/user_profile.dart';
 import '../services/fcm_service.dart';
 import '../services/laravel_auth_service.dart';
-import '../services/user_service.dart';
+import '../services/social_auth_bridge.dart';
 
 /// Auth provider backed by Laravel API (Sanctum token).
 class AuthProvider with ChangeNotifier {
@@ -53,12 +53,6 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load user profile from API: $e');
-      try {
-        _userProfile = await UserService.getUserProfile(_user!.uid);
-        notifyListeners();
-      } catch (firestoreError) {
-        debugPrint('Failed to load user profile from Firestore: $firestoreError');
-      }
     }
   }
 
@@ -157,17 +151,39 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Social / phone sign-in is no longer used; kept for API compatibility.
   Future<bool> signInWithGoogle() async {
-    _errorMessage = 'Google sign-in is disabled. Please use email and password.';
-    notifyListeners();
-    return false;
+    return _socialSignIn(SocialAuthBridge.signInWithGoogle);
   }
 
   Future<bool> signInWithApple() async {
-    _errorMessage = 'Apple sign-in is disabled. Please use email and password.';
+    return _socialSignIn(SocialAuthBridge.signInWithApple);
+  }
+
+  Future<bool> _socialSignIn(
+    Future<({String token, AppUser user})> Function() signIn,
+  ) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-    return false;
+
+    try {
+      final session = await signIn();
+      _user = session.user;
+      await _loadUserProfile();
+      try {
+        await FCMService.registerDeviceToken(_user!.uid);
+      } catch (e) {
+        debugPrint('Failed to register FCM token after social sign-in: $e');
+      }
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> signInWithPhone({
@@ -207,22 +223,29 @@ class AuthProvider with ChangeNotifier {
 
     try {
       _userProfile = await LaravelAuthService.updateUserProfile(profile: profile);
-      await UserService.createOrUpdateProfile(
-        userId: _user!.uid,
-        profile: _userProfile!,
-      );
       _errorMessage = null;
     } catch (e) {
-      try {
-        await UserService.createOrUpdateProfile(
-          userId: _user!.uid,
-          profile: profile,
-        );
-        _userProfile = profile;
-        _errorMessage = null;
-      } catch (firestoreError) {
-        _errorMessage = 'Failed to update profile: $e';
-      }
+      _errorMessage = 'Failed to update profile: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    if (_user == null) return;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await LaravelAuthService.deleteAccount();
+      _user = null;
+      _userProfile = null;
+    } catch (e) {
+      _errorMessage = 'Failed to delete account: $e';
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

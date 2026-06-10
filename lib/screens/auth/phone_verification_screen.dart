@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_profile.dart';
@@ -182,19 +181,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         return;
       }
 
-      // Create phone credential
-      final credential = PhoneAuthProvider.credential(
+      await AuthService.verifyPhoneOtp(
         verificationId: _verificationId!,
         smsCode: _otpController.text.trim(),
       );
-
-      // Link phone credential to existing account
-      try {
-        await user.linkWithCredential(credential);
-      } catch (e) {
-        // If phone is already linked, that's okay - continue
-        debugPrint('Phone linking note: $e');
-      }
 
       // Update profile with verified phone number
       final updatedProfile = UserProfile(
