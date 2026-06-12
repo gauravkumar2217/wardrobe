@@ -56,7 +56,15 @@ class ApiConfig {
 
   // Clothes
   static String get clothes => '$baseUrl/clothes';
+  static String get clothesDetect => '$baseUrl/clothes/detect';
+  static String get clothesExtract => '$baseUrl/clothes/extract';
+  static String get clothesUpload => '$baseUrl/clothes/upload';
   static String cloth(String clothId) => '$baseUrl/clothes/$clothId';
+  static String clothLikes(String clothId) => '$baseUrl/clothes/$clothId/likes';
+  static String clothWearHistory(String clothId) =>
+      '$baseUrl/clothes/$clothId/wear-history';
+  static String wearHistoryEntry(String entryId) =>
+      '$baseUrl/wear-history/$entryId';
   static String get avatarDelete => '$baseUrl/avatar/me';
 
   // Chats & messages

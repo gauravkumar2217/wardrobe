@@ -60,6 +60,12 @@ abstract final class WardrobeTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
+        toolbarHeight: 48,
+        titleSpacing: 0,
+        titleTextStyle: textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.2,
+        ),
       ),
       cardTheme: CardThemeData(
         color: WardrobeTokens.emeraldCard,

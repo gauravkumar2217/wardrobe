@@ -335,12 +335,22 @@ class WearHistoryEntry {
   });
 
   factory WearHistoryEntry.fromJson(Map<String, dynamic> json, String id) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String && value.isNotEmpty) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return WearHistoryEntry(
-      id: id,
-      userId: json['userId'] as String,
-      wornAt: (json['wornAt'] as Timestamp).toDate(),
-      source: json['source'] as String,
+      id: id.isNotEmpty ? id : json['id']?.toString() ?? '',
+      userId: json['user_id'] as String? ?? json['userId'] as String? ?? '',
+      wornAt: parseDate(json['worn_at'] ?? json['wornAt']),
+      source: json['source'] as String? ?? 'manual',
     );
+  }
+
+  factory WearHistoryEntry.fromApiJson(Map<String, dynamic> json) {
+    return WearHistoryEntry.fromJson(json, json['id']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {

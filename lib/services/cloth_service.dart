@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../models/cloth.dart';
 import 'laravel_api_client.dart';
+import 'cloth_detection_service.dart';
 import 'storage_service.dart';
 import 'push_notification_service.dart';
 import 'content_filter_service.dart';
@@ -18,7 +19,37 @@ class ClothService {
     return 'users/$userId/wardrobes/$wardrobeId/clothes';
   }
 
-  /// Add cloth to wardrobe
+  static String _normalizeSeason(String season) {
+    final s = season.trim().toLowerCase();
+    const map = {
+      'spring': 'spring',
+      'summer': 'summer',
+      'fall': 'fall',
+      'autumn': 'fall',
+      'winter': 'winter',
+      'all': 'all',
+      'all season': 'all',
+    };
+    return map[s] ?? 'all';
+  }
+
+  static Map<String, dynamic> _colorTagsPayload(ColorTags colorTags) => {
+        'primary': colorTags.primary,
+        if (colorTags.secondary != null) 'secondary': colorTags.secondary,
+        'colors': colorTags.colors,
+        'is_multi_color': colorTags.isMultiColor,
+      };
+
+  static Map<String, dynamic>? _placementPayload(PlacementDetails? details) {
+    if (details == null) return null;
+    return {
+      'shop_name': details.shopName,
+      'given_date': details.givenDate.toIso8601String(),
+      'return_date': details.returnDate.toIso8601String(),
+    };
+  }
+
+  /// Add cloth to wardrobe via Laravel API.
   static Future<String> addCloth({
     required String userId,
     required String wardrobeId,
@@ -33,84 +64,68 @@ class ClothService {
     String visibility = 'private',
     String itemKind = 'cloth',
     AiDetected? aiDetected,
+    String? imageUrl,
+    String? processedImageUrl,
+    bool hasProcessedImage = false,
   }) async {
     try {
-      // Validate occasions
       if (occasions.isEmpty) {
         throw Exception('At least one occasion must be selected');
       }
 
-      final clothId = _firestore.collection('clothes').doc().id;
-      final now = DateTime.now();
+      final resolvedImageUrl = imageUrl ??
+          await ClothDetectionService.uploadClothImage(imageFile);
 
-      // Upload original image
-      final imageUrl = await StorageService.uploadClothImage(
-        userId: userId,
-        wardrobeId: wardrobeId,
-        clothId: clothId,
-        imageFile: imageFile,
-      );
+      String? resolvedProcessed = processedImageUrl;
+      var resolvedHasProcessed = hasProcessedImage;
 
-      // Process background removal (in background, non-blocking)
-      String? processedImageUrl;
-      bool hasProcessedImage = false;
-      
-      try {
-        // Remove background (processes in isolate for performance)
-        final processedImage = await BackgroundRemovalService.removeBackgroundAuto(imageFile);
-        if (processedImage != null) {
-          // Upload processed image
-          processedImageUrl = await StorageService.uploadClothImage(
-            userId: userId,
-            wardrobeId: wardrobeId,
-            clothId: clothId,
-            imageFile: processedImage,
-          );
-          hasProcessedImage = true;
-          debugPrint('Background removed and processed image uploaded');
+      if (!resolvedHasProcessed) {
+        try {
+          final processedImage =
+              await BackgroundRemovalService.removeBackgroundAuto(imageFile);
+          if (processedImage != null) {
+            resolvedProcessed =
+                await ClothDetectionService.uploadClothImage(processedImage);
+            resolvedHasProcessed = true;
+          }
+        } catch (e) {
+          debugPrint('Background removal failed (non-critical): $e');
         }
-      } catch (e) {
-        // Background removal is optional - continue even if it fails
-        debugPrint('Background removal failed (non-critical): $e');
       }
 
-      // Create cloth document
-      final clothData = {
-        'ownerId': userId,
-        'wardrobeId': wardrobeId,
-        'imageUrl': imageUrl,
-        if (processedImageUrl != null) 'processedImageUrl': processedImageUrl,
-        'hasProcessedImage': hasProcessedImage,
-        'season': season,
+      final payload = <String, dynamic>{
+        'wardrobe_id': wardrobeId,
+        'image_url': resolvedImageUrl,
+        if (resolvedProcessed != null) 'processed_image_url': resolvedProcessed,
+        'has_processed_image': resolvedHasProcessed,
+        'season': _normalizeSeason(season),
         'placement': placement,
-        if (placementDetails != null)
-          'placementDetails': placementDetails.toJson(),
-        'colorTags': colorTags.toJson(),
-        'clothType': clothType,
+        if (_placementPayload(placementDetails) != null)
+          'placement_details': _placementPayload(placementDetails),
+        'color_tags': _colorTagsPayload(colorTags),
+        'cloth_type': clothType,
         'category': category,
-        'itemKind': itemKind,
         'occasions': occasions,
         'visibility': visibility,
-        'likesCount': 0,
-        'commentsCount': 0,
-        'createdAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-        if (aiDetected != null) 'aiDetected': aiDetected.toJson(),
+        if (aiDetected != null)
+          'ai_detected': {
+            'cloth_type': aiDetected.clothType,
+            'colors': aiDetected.colors,
+            'confidence': aiDetected.confidence,
+            'detected_at': aiDetected.detectedAt.toIso8601String(),
+            'item_kind': itemKind,
+          },
       };
 
-      // Save to subcollection path
-      await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .set(clothData);
-
-      // Also save to top-level collection for queries
-      await _firestore.collection('clothes').doc(clothId).set(clothData);
-
-      if (kDebugMode) {
-        debugPrint('Cloth added successfully: $clothId');
+      final body = await LaravelApiClient.postJson(ApiConfig.clothes, payload);
+      final data = LaravelApiClient.extractData(body);
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid cloth create response');
       }
+      final clothId = data['id']?.toString() ?? '';
+      if (clothId.isEmpty) throw Exception('Cloth created but id missing');
 
+      if (kDebugMode) debugPrint('Cloth added via Laravel: $clothId');
       return clothId;
     } catch (e) {
       debugPrint('Failed to add cloth: $e');
@@ -118,124 +133,66 @@ class ClothService {
     }
   }
 
-  /// Get cloth by ID
+  /// Create cloth when image URLs are already uploaded (batch AI flow).
+  static Future<String> createClothFromUrls({
+    required String wardrobeId,
+    required String imageUrl,
+    String? processedImageUrl,
+    bool hasProcessedImage = false,
+    required String season,
+    required String placement,
+    required ColorTags colorTags,
+    required String clothType,
+    required String category,
+    required List<String> occasions,
+    String visibility = 'private',
+    String itemKind = 'cloth',
+    Map<String, dynamic>? aiDetected,
+  }) async {
+    final payload = <String, dynamic>{
+      'wardrobe_id': wardrobeId,
+      'image_url': imageUrl,
+      if (processedImageUrl != null) 'processed_image_url': processedImageUrl,
+      'has_processed_image': hasProcessedImage,
+      'season': _normalizeSeason(season),
+      'placement': placement,
+      'color_tags': _colorTagsPayload(colorTags),
+      'cloth_type': clothType,
+      'category': category,
+      'occasions': occasions,
+      'visibility': visibility,
+      if (aiDetected != null) 'ai_detected': aiDetected,
+    };
+
+    final body = await LaravelApiClient.postJson(ApiConfig.clothes, payload);
+    final data = LaravelApiClient.extractData(body);
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid cloth create response');
+    }
+    final clothId = data['id']?.toString() ?? '';
+    if (clothId.isEmpty) throw Exception('Cloth created but id missing');
+    return clothId;
+  }
+
+  /// Get cloth by ID via Laravel API.
   static Future<Cloth?> getCloth({
     required String userId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      debugPrint('🔍 ClothService.getCloth: Starting');
-      debugPrint('   userId: $userId');
-      debugPrint('   wardrobeId: $wardrobeId');
-      debugPrint('   clothId: $clothId');
-
-      // Try top-level clothes collection first (has better rules for shared clothes)
-      // This collection allows authenticated users to read, and GET rule checks canReadCloth
-      try {
-        debugPrint('📂 Trying top-level clothes collection...');
-        final topLevelDoc =
-            await _firestore.collection('clothes').doc(clothId).get();
-
-        debugPrint('   exists: ${topLevelDoc.exists}');
-
-        if (topLevelDoc.exists) {
-          final data = topLevelDoc.data();
-          if (data != null) {
-            debugPrint('✅ Found cloth in top-level collection');
-            debugPrint('   ownerId: ${data['ownerId']}');
-            debugPrint('   visibility: ${data['visibility']}');
-            debugPrint('   sharedWith: ${data['sharedWith']}');
-            // For shared clothes, we don't need to verify userId/wardrobeId match
-            // The Firestore rules already check canReadCloth which handles permissions
-            // Just return the cloth if it exists
-            try {
-              final cloth = Cloth.fromJson(data, clothId);
-              debugPrint('✅ Successfully parsed cloth from top-level');
-              debugPrint('   clothType: ${cloth.clothType}');
-              debugPrint(
-                  '   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
-              return cloth;
-            } catch (e, stackTrace) {
-              debugPrint('❌ Error parsing cloth from top-level: $e');
-              debugPrint('   StackTrace: $stackTrace');
-            }
-          } else {
-            debugPrint('❌ Top-level document exists but data is null');
-          }
-        } else {
-          debugPrint('❌ Cloth not found in top-level collection');
-        }
-      } catch (e, stackTrace) {
-        debugPrint('❌ Failed to get cloth from top-level collection: $e');
-        debugPrint('   Error type: ${e.runtimeType}');
-        debugPrint('   StackTrace: $stackTrace');
-        // Fall through to try subcollection
+      final body = await LaravelApiClient.getJson(ApiConfig.cloth(clothId));
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return Cloth.fromApiJson(data);
       }
-
-      // Fall back to subcollection (for owner's own clothes)
-      // Note: This might fail for non-owners due to permissions, but we try anyway
-      debugPrint('📂 Trying subcollection path...');
-      debugPrint('   path: ${_clothesPath(userId, wardrobeId)}');
-
-      try {
-        final doc = await _firestore
-            .collection(_clothesPath(userId, wardrobeId))
-            .doc(clothId)
-            .get();
-
-        debugPrint('   exists: ${doc.exists}');
-
-        if (!doc.exists) {
-          debugPrint('❌ Cloth not found in subcollection');
-          debugPrint(
-              '💡 This might be a permission issue or the cloth doesn\'t exist');
-          return null;
-        }
-
-        final data = doc.data();
-        if (data == null) {
-          debugPrint('❌ Document exists but data is null');
-          return null;
-        }
-
-        debugPrint('✅ Found cloth in subcollection');
-        debugPrint('   ownerId: ${data['ownerId']}');
-        debugPrint('   visibility: ${data['visibility']}');
-        debugPrint('   sharedWith: ${data['sharedWith']}');
-        try {
-          final cloth = Cloth.fromJson(data, clothId);
-          debugPrint('✅ Successfully parsed cloth from subcollection');
-          debugPrint('   clothType: ${cloth.clothType}');
-          debugPrint(
-              '   imageUrl: ${cloth.imageUrl.isNotEmpty ? "Has image" : "No image"}');
-          return cloth;
-        } catch (e, stackTrace) {
-          debugPrint('❌ Error parsing cloth from subcollection: $e');
-          debugPrint('   StackTrace: $stackTrace');
-          return null;
-        }
-      } catch (e, stackTrace) {
-        debugPrint('❌ Failed to get cloth from subcollection: $e');
-        debugPrint('   Error type: ${e.runtimeType}');
-        debugPrint('   Error message: ${e.toString()}');
-        if (e.toString().contains('permission-denied')) {
-          debugPrint(
-              '🔒 PERMISSION DENIED: User may not have access to this cloth');
-          debugPrint('   This could mean:');
-          debugPrint(
-              '   1. Cloth visibility is "private" and user is not in sharedWith');
-          debugPrint(
-              '   2. Cloth visibility is "friends" but users are not friends');
-          debugPrint('   3. Cloth was not properly shared via DM');
-        }
-        debugPrint('   StackTrace: $stackTrace');
+      return null;
+    } catch (e) {
+      final message = e.toString().toLowerCase();
+      if (message.contains('404') || message.contains('not found')) {
         return null;
       }
-    } catch (e, stackTrace) {
-      debugPrint('❌ ClothService.getCloth: Unexpected error');
-      debugPrint('   Error: $e');
-      debugPrint('   StackTrace: $stackTrace');
+      debugPrint('Failed to get cloth: $e');
       return null;
     }
   }
@@ -246,14 +203,11 @@ class ClothService {
     required String wardrobeId,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Cloth.fromJson(doc.data(), doc.id))
-          .toList();
+      final uri = Uri.parse(ApiConfig.wardrobeClothes(wardrobeId)).replace(
+        queryParameters: const {'per_page': '500'},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      return _parseClothList(LaravelApiClient.extractData(body));
     } catch (e) {
       debugPrint('Failed to get clothes: $e');
       return [];
@@ -403,88 +357,35 @@ class ClothService {
     }
   }
 
-  /// Delete cloth
+  /// Delete cloth via Laravel API.
   static Future<void> deleteCloth({
     required String userId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      // Get cloth to delete image
-      final cloth = await getCloth(
-        userId: userId,
-        wardrobeId: wardrobeId,
-        clothId: clothId,
-      );
-
-      if (cloth != null) {
-        // Delete image from Storage
-        if (cloth.imageUrl.isNotEmpty) {
-          try {
-            await StorageService.deleteClothImage(
-              userId: userId,
-              wardrobeId: wardrobeId,
-              clothId: clothId,
-              imageUrl: cloth.imageUrl,
-            );
-          } catch (e) {
-            debugPrint('Failed to delete cloth image: $e');
-          }
-        }
-
-        // Delete from subcollection
-        await _firestore
-            .collection(_clothesPath(userId, wardrobeId))
-            .doc(clothId)
-            .delete();
-
-        // Delete from top-level collection
-        await _firestore.collection('clothes').doc(clothId).delete();
-      }
+      await LaravelApiClient.deleteJson(ApiConfig.cloth(clothId));
+      if (kDebugMode) debugPrint('Cloth deleted via Laravel: $clothId');
     } catch (e) {
       debugPrint('Failed to delete cloth: $e');
       rethrow;
     }
   }
 
-  /// Mark cloth as worn today
+  /// Mark cloth as worn today via Laravel API.
   static Future<void> markAsWornToday({
     required String userId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final now = DateTime.now();
-
-      // Create wear history entry
-      await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .collection('wearHistory')
-          .add({
-        'userId': userId,
-        'wornAt': Timestamp.fromDate(now),
-        'source': 'manual',
-      });
-
-      // Update cloth's wornAt (when worn), placement (OutWardrobe), and updatedAt (last update time)
-      await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .update({
-        'wornAt': Timestamp.fromDate(now),
-        'placement':
-            'OutWardrobe', // Automatically mark as out of wardrobe when worn
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Also update top-level collection
-      await _firestore.collection('clothes').doc(clothId).update({
-        'wornAt': Timestamp.fromDate(now),
-        'placement':
-            'OutWardrobe', // Automatically mark as out of wardrobe when worn
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await LaravelApiClient.postJson(
+        ApiConfig.clothWearHistory(clothId),
+        {
+          'worn_at': DateTime.now().toIso8601String(),
+          'source': 'manual',
+        },
+      );
     } catch (e) {
       debugPrint('Failed to mark as worn: $e');
       rethrow;
@@ -593,7 +494,7 @@ class ClothService {
     await _firestore.collection('clothes').doc(clothId).update(updates);
   }
 
-  /// Like cloth
+  /// Like cloth via Laravel API.
   static Future<void> likeCloth({
     required String userId,
     required String ownerId,
@@ -601,66 +502,8 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final likeRef = _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('likes')
-          .doc(userId);
+      await LaravelApiClient.postJson(ApiConfig.clothLikes(clothId), {});
 
-      // Check if like already exists
-      final likeDoc = await likeRef.get();
-      if (likeDoc.exists) {
-        // Like already exists, no need to do anything
-        return;
-      }
-
-      final now = DateTime.now();
-
-      // Create like document
-      await likeRef.set({
-        'userId': userId,
-        'createdAt': Timestamp.fromDate(now),
-      });
-
-      // Update likesCount on subcollection cloth document
-      final clothRef =
-          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
-
-      // Check if cloth exists before updating
-      final clothDoc = await clothRef.get();
-      if (!clothDoc.exists) {
-        // Cloth doesn't exist, delete the like we just created
-        await likeRef.delete();
-        throw Exception('Cloth not found');
-      }
-
-      // Update likesCount on subcollection cloth document
-      // Wrap in try-catch to handle permission errors gracefully
-      // The like document is already created, so this is just for count sync
-      try {
-        await clothRef.update({
-          'likesCount': FieldValue.increment(1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint(
-            'Failed to update likesCount in subcollection (non-critical): $e');
-        // Continue - like document is already created
-      }
-
-      // Update likesCount on top-level cloth document
-      try {
-        await _firestore.collection('clothes').doc(clothId).update({
-          'likesCount': FieldValue.increment(1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint(
-            'Failed to update likesCount in top-level collection (non-critical): $e');
-        // Continue - like document is already created
-      }
-
-      // Send notification to cloth owner (non-blocking)
       if (ownerId != userId) {
         PushNotificationService.sendClothLikeNotification(
           recipientUserId: ownerId,
@@ -673,12 +516,15 @@ class ClothService {
         });
       }
     } catch (e) {
+      if (e.toString().contains('409') || e.toString().contains('already liked')) {
+        return;
+      }
       debugPrint('Failed to like cloth: $e');
       rethrow;
     }
   }
 
-  /// Unlike cloth
+  /// Unlike cloth via Laravel API.
   static Future<void> unlikeCloth({
     required String userId,
     required String ownerId,
@@ -686,63 +532,17 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final likeRef = _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('likes')
-          .doc(userId);
-
-      // Check if like exists before deleting
-      final likeDoc = await likeRef.get();
-      if (!likeDoc.exists) {
-        // Like doesn't exist, no need to do anything
+      await LaravelApiClient.deleteJson(ApiConfig.clothLikes(clothId));
+    } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('not found')) {
         return;
       }
-
-      // Delete like document
-      await likeRef.delete();
-
-      // Update likesCount on subcollection cloth document
-      final clothRef =
-          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
-
-      // Check if cloth exists before updating
-      final clothDoc = await clothRef.get();
-      if (clothDoc.exists) {
-        // Update likesCount on subcollection cloth document
-        // Wrap in try-catch to handle permission errors gracefully
-        // The like document is already deleted, so this is just for count sync
-        try {
-          await clothRef.update({
-            'likesCount': FieldValue.increment(-1),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        } catch (e) {
-          debugPrint(
-              'Failed to update likesCount in subcollection (non-critical): $e');
-          // Continue - like document is already deleted
-        }
-
-        // Update likesCount on top-level cloth document
-        try {
-          await _firestore.collection('clothes').doc(clothId).update({
-            'likesCount': FieldValue.increment(-1),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        } catch (e) {
-          debugPrint(
-              'Failed to update likesCount in top-level collection (non-critical): $e');
-          // Continue - like document is already deleted
-        }
-      }
-      // If cloth doesn't exist, that's okay - the like is already deleted
-    } catch (e) {
       debugPrint('Failed to unlike cloth: $e');
       rethrow;
     }
   }
 
-  /// Check if user has liked cloth
+  /// Check if user has liked cloth via Laravel API.
   static Future<bool> hasLiked({
     required String userId,
     required String ownerId,
@@ -750,34 +550,40 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      final doc = await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('likes')
-          .doc(userId)
-          .get();
-
-      return doc.exists;
+      final body = await LaravelApiClient.getJson(ApiConfig.clothLikes(clothId));
+      final data = LaravelApiClient.extractData(body);
+      if (data is List) {
+        return data.any((like) {
+          if (like is! Map<String, dynamic>) return false;
+          return like['user_id']?.toString() == userId ||
+              like['userId']?.toString() == userId;
+        });
+      }
+      return false;
     } catch (e) {
       debugPrint('Failed to check like status: $e');
       return false;
     }
   }
 
-  /// Get actual like count from Firestore (counts like documents)
+  /// Get like count via Laravel API (from cloth or likes list).
   static Future<int> getLikeCount({
     required String ownerId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('likes')
-          .get();
+      final cloth = await getCloth(
+        userId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+      if (cloth != null) return cloth.likesCount;
 
-      return snapshot.docs.length;
+      final body = await LaravelApiClient.getJson(ApiConfig.clothLikes(clothId));
+      final data = LaravelApiClient.extractData(body);
+      if (data is List) return data.length;
+      return 0;
     } catch (e) {
       debugPrint('Failed to get like count: $e');
       return 0;
@@ -1011,22 +817,31 @@ class ClothService {
             .toList());
   }
 
-  /// Get wear history for cloth
+  /// Get wear history for cloth via Laravel API.
   static Future<List<WearHistoryEntry>> getWearHistory({
     required String userId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .collection('wearHistory')
-          .orderBy('wornAt', descending: true)
-          .get();
+      final uri = Uri.parse(ApiConfig.clothWearHistory(clothId)).replace(
+        queryParameters: const {'per_page': '100'},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      final data = LaravelApiClient.extractData(body);
 
-      return snapshot.docs
-          .map((doc) => WearHistoryEntry.fromJson(doc.data(), doc.id))
+      Iterable<dynamic> items;
+      if (data is Map<String, dynamic> && data['data'] is List) {
+        items = data['data'] as List;
+      } else if (data is List) {
+        items = data;
+      } else {
+        return [];
+      }
+
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(WearHistoryEntry.fromApiJson)
           .toList();
     } catch (e) {
       debugPrint('Failed to get wear history: $e');

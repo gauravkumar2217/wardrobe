@@ -14,6 +14,7 @@ import '../../widgets/full_screen_ad_slider_widget.dart';
 import '../../services/banner_service.dart';
 import '../wardrobe/wardrobe_list_screen.dart';
 import '../filter/filter_selection_screen.dart';
+import '../cloth/add_cloth_flow_screen.dart';
 import '../cloth/add_cloth_screen.dart';
 import '../cloth/edit_cloth_screen.dart';
 import '../cloth/comment_screen.dart';
@@ -1070,11 +1071,13 @@ class _ClothesScreenState extends State<ClothesScreen>
             final navigator = Navigator.of(navContext);
             await navigator.push(
               MaterialPageRoute(
-                builder: (_) => AddClothScreen(
-                  wardrobeId: wardrobeId,
-                  itemKind: itemKind,
-                  itemType: itemType,
-                ),
+                builder: (_) => itemKind == 'cloth'
+                    ? AddClothFlowScreen(wardrobeId: wardrobeId)
+                    : AddClothScreen(
+                        wardrobeId: wardrobeId,
+                        itemKind: itemKind,
+                        itemType: itemType,
+                      ),
               ),
             );
             if (mounted) {

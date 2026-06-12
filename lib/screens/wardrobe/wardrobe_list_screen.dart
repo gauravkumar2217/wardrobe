@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/navigation_provider.dart';
-import '../../providers/filter_provider.dart';
 import '../../widgets/wardrobe_card.dart';
 import '../../widgets/banner_slider_widget.dart';
 import '../../services/wardrobe_service.dart';
@@ -11,8 +9,8 @@ import '../../services/banner_service.dart';
 import '../../models/wardrobe.dart';
 import '../../models/banner.dart' as models;
 import 'create_wardrobe_screen.dart';
-import '../../utils/open_clothes_feed.dart';
 import '../../theme/wardrobe_tokens.dart';
+import 'wardrobe_assets_screen.dart';
 
 /// Wardrobe list screen
 class WardrobeListScreen extends StatefulWidget {
@@ -65,23 +63,17 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     }
   }
 
-  void _navigateToHomeWithWardrobe(Wardrobe wardrobe) {
-    // Set selected wardrobe in provider
-    final wardrobeProvider = Provider.of<WardrobeProvider>(context, listen: false);
+  void _openWardrobeAssets(Wardrobe wardrobe) {
+    final wardrobeProvider =
+        Provider.of<WardrobeProvider>(context, listen: false);
     wardrobeProvider.setSelectedWardrobe(wardrobe);
-    
-    // Clear any other filters
-    final filterProvider = Provider.of<FilterProvider>(context, listen: false);
-    filterProvider.clearFilters();
-    
-    // Home tab + open Clothes feed (swipe closet), same as Home "Clothes" card
-    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-    openClothesFeed(navigationProvider);
-    
-    // Pop wardrobe list screen if it was pushed (i.e., not from main navigation tab)
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WardrobeAssetsScreen(wardrobe: wardrobe),
+      ),
+    ).then((_) => _loadWardrobes());
   }
 
   @override
@@ -256,8 +248,7 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
                                 wardrobeProvider.setSelectedWardrobe(wardrobe);
                                 Navigator.of(context).pop();
                               } : () {
-                                // In normal mode, navigate to home screen with wardrobe filter
-                                _navigateToHomeWithWardrobe(wardrobe);
+                                _openWardrobeAssets(wardrobe);
                               },
                               // Only show edit/delete buttons if not in selection mode
                               onEdit: widget.selectionMode ? null : () {

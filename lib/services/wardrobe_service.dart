@@ -99,6 +99,16 @@ class WardrobeService {
     required String wardrobeId,
   }) async {
     try {
+      final uri = Uri.parse(ApiConfig.wardrobeClothes(wardrobeId)).replace(
+        queryParameters: const {'per_page': '1'},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        final total = data['total'];
+        if (total is int) return total;
+        if (total is String) return int.tryParse(total) ?? 0;
+      }
       final wardrobe = await getWardrobe(userId: userId, wardrobeId: wardrobeId);
       return wardrobe?.totalItems ?? 0;
     } catch (e) {

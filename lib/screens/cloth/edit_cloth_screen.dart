@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart' as app_auth;
 import '../../providers/wardrobe_provider.dart';
 import '../../services/tag_list_service.dart';
 import '../../models/wardrobe.dart';
+import '../../widgets/compact_app_bar.dart';
 
 /// Edit cloth screen
 class EditClothScreen extends StatefulWidget {
@@ -271,7 +272,7 @@ class _EditClothScreenState extends State<EditClothScreen> {
   Widget build(BuildContext context) {
     if (_isLoadingTags) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Cloth')),
+        appBar: const CompactAppBar(title: 'Edit Cloth'),
         body: const SafeArea(
           top: false,
           bottom: true,
@@ -285,9 +286,9 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('Edit Cloth'),
-        backgroundColor: const Color(0xFF043915),
+      appBar: const CompactAppBar(
+        title: 'Edit Cloth',
+        backgroundColor: Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(

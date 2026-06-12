@@ -8,6 +8,7 @@ import '../../providers/wardrobe_provider.dart';
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../services/tag_list_service.dart';
 import '../../services/ai_detection_service.dart';
+import '../../widgets/compact_app_bar.dart';
 
 /// Add cloth screen using dynamic tag lists from Firestore.
 /// [itemKind]: 'cloth' | 'makeup' | 'footwear' | 'accessories'. Defaults to 'cloth'.
@@ -462,14 +463,14 @@ class _AddClothScreenState extends State<AddClothScreen> {
         _getAppBarTitle().replaceFirst('Add ', ''); // e.g. Clothing, Beauty
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_getAppBarTitle()),
+      appBar: CompactAppBar(
+        title: _getAppBarTitle(),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-            16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+            16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: Form(
           key: _formKey,
           child: Column(
