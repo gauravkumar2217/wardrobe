@@ -15,7 +15,7 @@ import '../widgets/premium/wardrobe_top_header.dart';
 import '../utils/main_shell_navigation.dart';
 import 'home/wardrobe_home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
-import 'tryon/tryon_hub_screen.dart';
+import 'changing_room/changing_room_screen.dart';
 import 'community/community_screen.dart';
 import 'assistant/ai_assistant_screen.dart';
 import 'profile/profile_screen.dart';
@@ -43,7 +43,7 @@ class _MainNavigationState extends State<MainNavigation>
   final List<Widget> _screens = [
     const WardrobeHomeScreen(),
     const WardrobeListScreen(),
-    const TryOnHubScreen(),
+    const ChangingRoomScreen(),
     const CommunityScreen(),
     const AiAssistantScreen(),
   ];
@@ -239,10 +239,10 @@ class _MainNavigationState extends State<MainNavigation>
             break;
           case 2:
             step = OnboardingStep(
-              id: 'friends',
-              title: 'Connect with Friends',
+              id: 'tryon',
+              title: 'Virtual Try-On',
               description:
-                  'Add friends to share your clothes and get style inspiration. You can see what your friends are wearing!',
+                  'Tap TRY-ON to open the changing room. Try wardrobe items on your avatar with AI.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,

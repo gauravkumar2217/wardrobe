@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cloth_provider.dart';
+import '../../providers/navigation_provider.dart';
 import '../../models/avatar.dart' as avatar_model show Avatar;
 import '../../models/cloth.dart';
 import '../../models/tryon_outfit.dart';
@@ -361,7 +362,13 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.pop(context);
+                    } else {
+                      context.read<NavigationProvider>().navigateToHome();
+                    }
+                  },
                   child: const Text('Go back'),
                 ),
               ],
