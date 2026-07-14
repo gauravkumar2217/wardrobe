@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/wardrobe_provider.dart';
+import '../cloth/add_cloth_flow_screen.dart';
+import '../wardrobe/create_wardrobe_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
 import '../../widgets/premium/glass_panel.dart';
 import '../../widgets/premium/premium_card.dart';
@@ -47,6 +51,78 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadClosetSummary());
+  }
+
+  Future<void> _loadClosetSummary() async {
+    final auth = context.read<AuthProvider>();
+    final wardrobeProvider = context.read<WardrobeProvider>();
+    final userId = auth.user?.uid;
+    if (userId == null) return;
+
+    try {
+      // Fast path: API already includes total_items — skip per-wardrobe count calls
+      // that were leaving the home spinner stuck when the API was slow/flaky.
+      await wardrobeProvider
+          .loadWardrobes(userId, refreshCounts: false)
+          .timeout(const Duration(seconds: 12));
+    } catch (e) {
+      debugPrint('Home closet summary failed: $e');
+    }
+  }
+
+  int _totalClothCount(WardrobeProvider wardrobeProvider) {
+    return wardrobeProvider.wardrobes.fold<int>(
+      0,
+      (sum, w) => sum + w.totalItems,
+    );
+  }
+
+  bool _hasClothes(WardrobeProvider wardrobeProvider) {
+    return _totalClothCount(wardrobeProvider) > 0;
+  }
+
+  Future<void> _openGetStartedFlow() async {
+    final wardrobeProvider = context.read<WardrobeProvider>();
+
+    if (wardrobeProvider.wardrobes.isEmpty) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const CreateWardrobeScreen()),
+      );
+      if (!mounted) return;
+      await _loadClosetSummary();
+      if (!mounted) return;
+
+      final updated = context.read<WardrobeProvider>();
+      if (updated.wardrobes.isEmpty) return;
+
+      final wardrobeId = updated.wardrobes.first.id;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AddClothFlowScreen(wardrobeId: wardrobeId),
+        ),
+      );
+      if (mounted) await _loadClosetSummary();
+      return;
+    }
+
+    if (_totalClothCount(wardrobeProvider) == 0) {
+      final wardrobeId = wardrobeProvider.wardrobes.first.id;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AddClothFlowScreen(wardrobeId: wardrobeId),
+        ),
+      );
+      if (mounted) await _loadClosetSummary();
+      return;
+    }
+
+    context.read<NavigationProvider>().navigateToWardrobes();
+  }
+
+  @override
   void dispose() {
     _outfitController.dispose();
     super.dispose();
@@ -54,34 +130,49 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wardrobeProvider = context.watch<WardrobeProvider>();
+    final hasClothes = _hasClothes(wardrobeProvider);
+    final totalItems = _totalClothCount(wardrobeProvider);
+    final wardrobeCount = wardrobeProvider.wardrobes.length;
+
     return Scaffold(
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
         slivers: [
-            // Daily outfit suggestion card (pageable)
+            // Daily outfit suggestion — empty state when no clothes
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(0, 28, 0, 0),
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 0,
-                  child: _DailyOutfitPager(
-                    controller: _outfitController,
-                    outfits: _outfits,
-                    index: _outfitIndex,
-                    onIndexChanged: (i) => setState(() => _outfitIndex = i),
-                    onTryOn: () =>
-                        context.read<NavigationProvider>().navigateToTryOn(),
-                    onPrev: () => _outfitController.previousPage(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                    ),
-                    onNext: () => _outfitController.nextPage(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ),
+                  child: hasClothes
+                      ? _DailyOutfitPager(
+                          controller: _outfitController,
+                          outfits: _outfits,
+                          index: _outfitIndex,
+                          onIndexChanged: (i) =>
+                              setState(() => _outfitIndex = i),
+                          onTryOn: () => context
+                              .read<NavigationProvider>()
+                              .navigateToTryOn(),
+                          onPrev: () => _outfitController.previousPage(
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          ),
+                          onNext: () => _outfitController.nextPage(
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          ),
+                        )
+                      : _DailyOutfitEmptyState(
+                          hasWardrobe: wardrobeCount > 0,
+                          onGetStarted: _openGetStartedFlow,
+                          onTryOn: () => context
+                              .read<NavigationProvider>()
+                              .navigateToTryOn(),
+                        ),
                 ),
               ),
             ),
@@ -106,7 +197,8 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 1.18,
+                  // Taller cells so title/subtitle don't overflow on small phones.
+                  childAspectRatio: 1.02,
                 ),
                 delegate: SliverChildListDelegate.fixed(
                   [
@@ -159,10 +251,12 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                 child: StaggeredFadeIn(
                   index: 7,
                   child: _WardrobeProgressCard(
-                    completion: 0.42,
-                    totalItems: 37,
+                    completion: totalItems == 0
+                        ? 0
+                        : (totalItems / 50).clamp(0.0, 1.0),
+                    totalItems: totalItems,
                     avatarReady: false,
-                    onBuildWardrobe: () {},
+                    onBuildWardrobe: _openGetStartedFlow,
                   ),
                 ),
               ),
@@ -322,31 +416,13 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               ),
             ),
 
-            // 11) Events planner
+            // 11) Events planner (empty until events API is available)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 18,
-                  child: _EventsCard(
-                    events: const [
-                      _EventItem(
-                        title: 'Dinner Date',
-                        dateLabel: 'Fri, 7:30 PM',
-                        icon: Icons.restaurant_rounded,
-                      ),
-                      _EventItem(
-                        title: 'Office Meeting',
-                        dateLabel: 'Mon, 10:00 AM',
-                        icon: Icons.meeting_room_rounded,
-                      ),
-                      _EventItem(
-                        title: 'Friend Party',
-                        dateLabel: 'Sat, 9:00 PM',
-                        icon: Icons.celebration_rounded,
-                      ),
-                    ],
-                  ),
+                  child: const _EventsCard(events: []),
                 ),
               ),
             ),
@@ -435,66 +511,90 @@ class _DailyOutfitPager extends StatelessWidget {
             onPageChanged: onIndexChanged,
             itemBuilder: (context, i) {
               final o = outfits[i];
+              final scheme = Theme.of(context).colorScheme;
+              final textTheme = Theme.of(context).textTheme;
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: PremiumCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Hero(
-                        tag: 'daily_outfit_$i',
-                        child: _OutfitCollage(accentIcon: o.accentIcon),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                _OccasionPill(text: o.occasion),
-                                const SizedBox(width: 8),
-                                _WeatherPill(tempC: o.tempC),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              o.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              o.note,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.72),
-                                  ),
-                            ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                _MatchPill(percent: o.matchPercent),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 44,
-                                    child: ElevatedButton(
-                                      onPressed: onTryOn,
-                                      child: const Text('Try On Avatar'),
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: MediaQuery.textScalerOf(context).clamp(
+                      minScaleFactor: 0.85,
+                      maxScaleFactor: 1.1,
+                    ),
+                  ),
+                  child: PremiumCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Hero(
+                          tag: 'daily_outfit_$i',
+                          child: _OutfitCollage(accentIcon: o.accentIcon),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(child: _OccasionPill(text: o.occasion)),
+                                  const SizedBox(width: 6),
+                                  _WeatherPill(tempC: o.tempC),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                o.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.15,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                o.note,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurface.withValues(alpha: 0.72),
+                                  height: 1.2,
+                                ),
+                              ),
+                              const Spacer(),
+                              Row(
+                                children: [
+                                  _MatchPill(percent: o.matchPercent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 40,
+                                      child: ElevatedButton(
+                                        onPressed: onTryOn,
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        child: const FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text('Try On Avatar'),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -520,6 +620,174 @@ class _DailyOutfitPager extends StatelessWidget {
                         .onSurface
                         .withValues(alpha: 0.22),
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyOutfitEmptyState extends StatelessWidget {
+  final bool hasWardrobe;
+  final VoidCallback onGetStarted;
+  final VoidCallback onTryOn;
+
+  const _DailyOutfitEmptyState({
+    required this.hasWardrobe,
+    required this.onGetStarted,
+    required this.onTryOn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Daily Outfit Suggestion',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: PremiumCard(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(WardrobeTokens.radiusMd),
+                        border: Border.all(color: WardrobeTokens.outlineGold),
+                        color: scheme.primary.withValues(alpha: 0.16),
+                      ),
+                      child: Icon(
+                        Icons.checkroom_rounded,
+                        color: scheme.primary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hasWardrobe
+                                ? 'Your closet is empty'
+                                : 'Start your wardrobe',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            hasWardrobe
+                                ? 'Upload your clothes with Try On AI so we can suggest daily outfits for you.'
+                                : 'Please create a wardrobe and upload your clothes with help of Try On AI to unlock daily outfit suggestions.',
+                            style:
+                                Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: scheme.onSurface
+                                          .withValues(alpha: 0.72),
+                                      height: 1.35,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    key: const ValueKey('daily_outfit_get_started'),
+                    onPressed: onGetStarted,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hasWardrobe
+                              ? Icons.add_a_photo_outlined
+                              : Icons.create_new_folder_outlined,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            hasWardrobe
+                                ? 'Upload clothes with Try On AI'
+                                : 'Create wardrobe & upload clothes',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, height: 1.2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: Material(
+                    key: const ValueKey('daily_outfit_open_tryon'),
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onTryOn,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: scheme.primary.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 15,
+                              color: scheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Open Try-On',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.25,
+                                color: scheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -724,48 +992,60 @@ class _QuickCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return PremiumCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.primary.withValues(alpha: 0.22),
-                  const Color(0xFF06211C),
-                ],
+    final textTheme = Theme.of(context).textTheme;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: MediaQuery.textScalerOf(context).clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.1,
+        ),
+      ),
+      child: PremiumCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primary.withValues(alpha: 0.22),
+                    const Color(0xFF06211C),
+                  ],
+                ),
+                border: Border.all(color: WardrobeTokens.outlineGold),
               ),
-              border: Border.all(color: WardrobeTokens.outlineGold),
+              child: Icon(icon, color: scheme.primary, size: 20),
             ),
-            child: Icon(icon, color: scheme.primary),
-          ),
-          const Spacer(),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.72),
-                ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const Spacer(),
+            Text(
+              title,
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.72),
+                height: 1.15,
+                fontSize: 11,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -906,35 +1186,36 @@ class _StoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 106,
+      height: 112,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         scrollDirection: Axis.horizontal,
         itemBuilder: (context, i) {
           final it = items[i];
-          return Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.22),
-                      const Color(0xFF06211C),
-                    ],
+          return SizedBox(
+            width: 74,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        scheme.primary.withValues(alpha: 0.22),
+                        const Color(0xFF06211C),
+                      ],
+                    ),
+                    border: Border.all(color: WardrobeTokens.outlineGold),
                   ),
-                  border: Border.all(color: WardrobeTokens.outlineGold),
+                  child: Icon(it.icon, color: scheme.primary, size: 22),
                 ),
-                child: Icon(it.icon, color: scheme.primary),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: 74,
-                child: Text(
+                const SizedBox(height: 6),
+                Text(
                   it.label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -942,10 +1223,12 @@ class _StoryRow extends StatelessWidget {
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: scheme.onSurface.withValues(alpha: 0.86),
                         fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        height: 1.15,
                       ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
         separatorBuilder: (_, __) => const SizedBox(width: 12),
@@ -1422,58 +1705,75 @@ class _OutfitPlannerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
-      height: 168,
+      height: 176,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         scrollDirection: Axis.horizontal,
         itemBuilder: (context, i) {
           final it = items[i];
           return SizedBox(
-            width: 180,
-            child: PremiumCard(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    it.day,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: scheme.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 72,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: WardrobeTokens.outlineGold),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          scheme.primary.withValues(alpha: 0.14),
-                          const Color(0xFF041E1A),
-                        ],
+            width: 160,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: MediaQuery.textScalerOf(context).clamp(
+                  minScaleFactor: 0.85,
+                  maxScaleFactor: 1.1,
+                ),
+              ),
+              child: PremiumCard(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      it.day,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: scheme.primary,
+                        height: 1.1,
                       ),
                     ),
-                    child: Center(
-                      child: Icon(Icons.checkroom_rounded,
-                          color: scheme.primary.withValues(alpha: 0.78), size: 30),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    it.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: WardrobeTokens.outlineGold),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              scheme.primary.withValues(alpha: 0.14),
+                              const Color(0xFF041E1A),
+                            ],
+                          ),
                         ),
-                  ),
-                ],
+                        child: Center(
+                          child: Icon(
+                            Icons.checkroom_rounded,
+                            color: scheme.primary.withValues(alpha: 0.78),
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      it.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -1513,57 +1813,105 @@ class _EventsCard extends StatelessWidget {
             subtitle: 'Dress for what’s coming up',
           ),
           const SizedBox(height: 12),
-          ...events.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: WardrobeTokens.outlineGold),
-                  color: const Color(0xFF06231E),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: scheme.primary.withValues(alpha: 0.14),
-                        border: Border.all(color: WardrobeTokens.outlineGold),
+          if (events.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: WardrobeTokens.outlineGold),
+                color: const Color(0xFF06231E),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.event_available_rounded,
+                    size: 36,
+                    color: scheme.primary.withValues(alpha: 0.9),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Schedule your event',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'No events yet. Event planning will be available soon.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.72),
+                          height: 1.3,
+                        ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...events.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: WardrobeTokens.outlineGold),
+                    color: const Color(0xFF06231E),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: scheme.primary.withValues(alpha: 0.14),
+                          border: Border.all(color: WardrobeTokens.outlineGold),
+                        ),
+                        child: Icon(e.icon, color: scheme.primary),
                       ),
-                      child: Icon(e.icon, color: scheme.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            e.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            e.dateLabel,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.72),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              e.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              e.dateLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: scheme.onSurface
+                                        .withValues(alpha: 0.72),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(Icons.chevron_right_rounded,
-                        color: scheme.onSurface.withValues(alpha: 0.7)),
-                  ],
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: scheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

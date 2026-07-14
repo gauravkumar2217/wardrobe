@@ -20,18 +20,24 @@ class WardrobeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Load wardrobes for a user
-  Future<void> loadWardrobes(String userId) async {
+  /// Load wardrobes for a user.
+  /// Set [refreshCounts] to false when API already returns `total_items`
+  /// (avoids N extra network calls that can hang the UI).
+  Future<void> loadWardrobes(
+    String userId, {
+    bool refreshCounts = true,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       _wardrobes = await WardrobeService.getUserWardrobes(userId);
-      
-      // Refresh counts for all wardrobes
-      await _refreshAllWardrobeCounts(userId);
-      
+
+      if (refreshCounts) {
+        await _refreshAllWardrobeCounts(userId);
+      }
+
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load wardrobes: ${e.toString()}';
