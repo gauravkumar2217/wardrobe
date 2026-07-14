@@ -8,6 +8,7 @@ import '../../services/cloth_service.dart';
 import '../chat/chat_detail_screen.dart';
 import '../cloth/cloth_detail_screen.dart';
 import '../friends/friend_requests_screen.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Notifications screen with grouped notifications and deep linking
 class NotificationsScreen extends StatefulWidget {
@@ -193,30 +194,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _groupNotifications(notificationProvider.notifications);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        actions: [
-          if (notificationProvider.unreadCount > 0)
-            IconButton(
-              icon: const Icon(Icons.done_all),
-              tooltip: 'Mark all as read',
-              onPressed: () async {
-                if (authProvider.user != null) {
-                  await notificationProvider
-                      .markAllAsRead(authProvider.user!.uid);
-                }
-              },
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+            child: Row(
+              children: [
+                const Expanded(child: ShellBackButton()),
+                if (notificationProvider.unreadCount > 0)
+                  IconButton(
+                    icon: const Icon(Icons.done_all),
+                    tooltip: 'Mark all as read',
+                    onPressed: () async {
+                      if (authProvider.user != null) {
+                        await notificationProvider
+                            .markAllAsRead(authProvider.user!.uid);
+                      }
+                    },
+                  ),
+              ],
             ),
-        ],
-      ),
-      body: notificationProvider.isLoading &&
-              notificationProvider.notifications.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : notificationProvider.errorMessage != null &&
-                  notificationProvider.notifications.isEmpty
-              ? Center(
+          ),
+          Expanded(
+            child: notificationProvider.isLoading &&
+                    notificationProvider.notifications.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : notificationProvider.errorMessage != null &&
+                        notificationProvider.notifications.isEmpty
+                    ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -369,6 +375,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         },
                       ),
                     ),
+          ),
+        ],
+      ),
     );
   }
 

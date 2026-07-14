@@ -426,10 +426,7 @@ class _MainNavigationState extends State<MainNavigation>
               Positioned.fill(
                 child: Padding(
                   padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top +
-                        WardrobeTopHeader.barHeight +
-                        (WardrobeTopHeader.logoSize *
-                            WardrobeTopHeader.logoOutFraction),
+                    top: WardrobeTopHeader.contentTopInset(context),
                   ),
                   child: Navigator(
                     key: _contentNavigatorKey,

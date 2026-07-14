@@ -7,7 +7,8 @@ import '../../theme/wardrobe_tokens.dart';
 /// Fixed app shell header: profile + search | floating logo | notifications + settings.
 class WardrobeTopHeader extends StatelessWidget {
   /// Height of the header bar area (excluding SafeArea top padding).
-  static const double barHeight = 56;
+  /// Matches the inner [SizedBox] height in this header.
+  static const double barHeight = 48;
 
   /// Floating logo size.
   static const double logoSize = _FloatingHeaderLogo.size;
@@ -15,6 +16,13 @@ class WardrobeTopHeader extends StatelessWidget {
   /// Portion of logo that overflows *outside* the header (below the bottom line).
   /// 40% out, 60% in.
   static const double logoOutFraction = 0.4;
+
+  /// Total top inset for main shell content under this header.
+  static double contentTopInset(BuildContext context) {
+    return MediaQuery.paddingOf(context).top +
+        barHeight +
+        (logoSize * logoOutFraction);
+  }
 
   final VoidCallback onProfilePressed;
   final VoidCallback onNotificationsPressed;

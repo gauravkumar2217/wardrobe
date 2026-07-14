@@ -20,6 +20,7 @@ import '../auth/login_screen.dart';
 import '../privacy_policy_screen.dart';
 import '../terms_conditions_screen.dart';
 import '../scheduler/scheduler_list_screen.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Live store links for sharing (Android → Google Play, iOS → App Store).
 const String _kGooglePlayShareUrl =
@@ -371,14 +372,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 0, 4, 0),
+            child: ShellBackButton(),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
               children: [
                 // Account section
                 const _SectionHeader(title: 'Account'),
@@ -800,6 +804,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -12,7 +12,7 @@ import '../../providers/wardrobe_provider.dart';
 import '../../services/cloth_detection_service.dart';
 import '../../services/cloth_service.dart';
 import '../../theme/wardrobe_tokens.dart';
-import '../../widgets/compact_app_bar.dart';
+import '../../widgets/shell_back_button.dart';
 import 'add_cloth_screen.dart';
 
 enum _FlowStep { source, analyzing, select, extracting, review, saving }
@@ -193,41 +193,34 @@ class _AddClothFlowScreenState extends State<AddClothFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CompactAppBar(
-        title: _titleForStep(),
-        actions: [
-          if (_step == _FlowStep.source)
-            TextButton(
-              onPressed: _openManualAdd,
-              child: const Text('Manual'),
-            ),
-        ],
-      ),
       body: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: _buildBody(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
+              child: Row(
+                children: [
+                  const Expanded(child: ShellBackButton()),
+                  if (_step == _FlowStep.source)
+                    TextButton(
+                      onPressed: _openManualAdd,
+                      child: const Text('Manual'),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _buildBody(),
+              ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  String _titleForStep() {
-    switch (_step) {
-      case _FlowStep.source:
-        return 'Add Clothing';
-      case _FlowStep.analyzing:
-        return 'Analyzing Photo';
-      case _FlowStep.select:
-        return 'Select Items';
-      case _FlowStep.extracting:
-        return 'Extracting Items';
-      case _FlowStep.review:
-        return 'Review Items';
-      case _FlowStep.saving:
-        return 'Saving';
-    }
   }
 
   Widget _buildBody() {

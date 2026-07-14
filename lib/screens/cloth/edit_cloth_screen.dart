@@ -6,7 +6,7 @@ import '../../providers/auth_provider.dart' as app_auth;
 import '../../providers/wardrobe_provider.dart';
 import '../../services/tag_list_service.dart';
 import '../../models/wardrobe.dart';
-import '../../widgets/compact_app_bar.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Edit cloth screen
 class EditClothScreen extends StatefulWidget {
@@ -271,12 +271,20 @@ class _EditClothScreenState extends State<EditClothScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingTags) {
-      return Scaffold(
-        appBar: const CompactAppBar(title: 'Edit Cloth'),
-        body: const SafeArea(
+      return const Scaffold(
+        body: SafeArea(
           top: false,
           bottom: true,
-          child: Center(child: CircularProgressIndicator()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 0),
+                child: ShellBackButton(),
+              ),
+              Expanded(child: Center(child: CircularProgressIndicator())),
+            ],
+          ),
         ),
       );
     }
@@ -286,16 +294,19 @@ class _EditClothScreenState extends State<EditClothScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: const CompactAppBar(
-        title: 'Edit Cloth',
-        backgroundColor: Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
       body: SafeArea(
         top: false,
         bottom: true,
         minimum: EdgeInsets.zero,
-        child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 0),
+              child: ShellBackButton(),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             16,
             16,
@@ -628,6 +639,9 @@ class _EditClothScreenState extends State<EditClothScreen> {
             ],
           ),
         ),
+              ),
+            ),
+          ],
         ),
       ),
     );

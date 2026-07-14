@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/avatar_2d_service.dart';
 import '../../services/user_service.dart';
 import '../../models/avatar.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Create Avatar screen for capturing a single full-body photo and generating 2D avatar
 class CreateAvatarScreen extends StatefulWidget {
@@ -199,18 +200,21 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('Create Avatar'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
       body: SafeArea(
         top: false,
         bottom: true,
         minimum: EdgeInsets.zero,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + keyboardInset),
-          child: Form(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 0),
+              child: ShellBackButton(),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + keyboardInset),
+                child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -389,6 +393,9 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
             ],
           ),
         ),
+              ),
+            ),
+          ],
         ),
       ),
     );

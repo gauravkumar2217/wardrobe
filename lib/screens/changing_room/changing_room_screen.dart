@@ -10,6 +10,7 @@ import '../../models/tryon_outfit.dart';
 import '../../services/user_service.dart';
 import '../../services/tryon_2d_service.dart';
 import '../../widgets/avatar_2d_display_widget.dart';
+import '../profile/create_avatar_screen.dart';
 
 /// Changing room: Gemini try-on on your avatar; tap wardrobe thumbnails to try items.
 class ChangingRoomScreen extends StatefulWidget {
@@ -321,26 +322,26 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     });
   }
 
+  Future<void> _openCreateAvatar() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CreateAvatarScreen()),
+    );
+    if (mounted) {
+      setState(() => _isLoading = true);
+      await _loadBodyProfile();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Changing Room'),
-          backgroundColor: _brand,
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_avatar == null || !_avatar!.isGenerated) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Changing Room'),
-          backgroundColor: _brand,
-          foregroundColor: Colors.white,
-        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -356,20 +357,34 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Create your avatar in Profile first. Then you can try any wardrobe item here with AI.',
+                  'Create your avatar first. Then you can try any wardrobe item here with AI.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[700], fontSize: 14),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    if (Navigator.of(context).canPop()) {
-                      Navigator.pop(context);
-                    } else {
-                      context.read<NavigationProvider>().navigateToHome();
-                    }
-                  },
-                  child: const Text('Go back'),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _openCreateAvatar,
+                    icon: const Icon(Icons.face_retouching_natural),
+                    label: const Text('Create Avatar'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.pop(context);
+                      } else {
+                        context.read<NavigationProvider>().navigateToHome();
+                      }
+                    },
+                    child: const Text('Go back'),
+                  ),
                 ),
               ],
             ),
@@ -384,37 +399,40 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     final heroHeight = MediaQuery.sizeOf(context).height * 0.48;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Changing Room'),
-        backgroundColor: _brand,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Show avatar only',
-            onPressed: _tryOnResultUrl != null ? _clearTryOnResult : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.shuffle),
-            tooltip: 'Shuffle outfit ideas (highlights only)',
-            onPressed: clothProvider.clothes.isEmpty ? null : _shuffleOutfitIdeas,
-          ),
-        ],
-      ),
       body: SafeArea(
         top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                'Tap items to build a full outfit — each type stacks; same type replaces',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[800],
-                  fontWeight: FontWeight.w600,
-                ),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Tap items to build a full outfit — each type stacks; same type replaces',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.grey[800],
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    tooltip: 'Show avatar only',
+                    onPressed:
+                        _tryOnResultUrl != null ? _clearTryOnResult : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.shuffle),
+                    tooltip: 'Shuffle outfit ideas (highlights only)',
+                    onPressed: clothProvider.clothes.isEmpty
+                        ? null
+                        : _shuffleOutfitIdeas,
+                  ),
+                ],
               ),
             ),
             Expanded(

@@ -1,49 +1,33 @@
 import 'package:flutter/material.dart';
 
-/// Compact page header with reduced vertical padding for sub-screens.
+/// Intentionally empty under the main shell header — sub-pages do not show a
+/// second title bar. [title] / [actions] / [leading] are accepted for
+/// call-site compatibility only (not rendered).
+///
+/// Navigation: use the system/back gesture, bottom tabs, or in-body controls.
 class CompactAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
   final Widget? leading;
   final Color? backgroundColor;
   final Color? foregroundColor;
+  final bool? automaticallyImplyLeading;
 
   const CompactAppBar({
     super.key,
-    required this.title,
+    this.title = '',
     this.actions,
     this.leading,
     this.backgroundColor,
     this.foregroundColor,
+    this.automaticallyImplyLeading,
   });
 
-  static const double toolbarHeight = 48;
+  static const double toolbarHeight = 0;
 
   @override
-  Size get preferredSize => const Size.fromHeight(toolbarHeight);
+  Size get preferredSize => Size.zero;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return AppBar(
-      toolbarHeight: toolbarHeight,
-      titleSpacing: leading == null ? 16 : 0,
-      centerTitle: false,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: backgroundColor ?? scheme.surface,
-      foregroundColor: foregroundColor ?? scheme.onSurface,
-      leading: leading,
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
-        ),
-      ),
-      actions: actions,
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

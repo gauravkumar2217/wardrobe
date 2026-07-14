@@ -8,7 +8,7 @@ import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../services/cloth_service.dart';
 import '../../theme/wardrobe_tokens.dart';
-import '../../widgets/compact_app_bar.dart';
+import '../../widgets/shell_back_button.dart';
 import '../../utils/open_clothes_feed.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../cloth/cloth_detail_screen.dart';
@@ -110,28 +110,6 @@ class _WardrobeAssetsScreenState extends State<WardrobeAssetsScreen> {
     final userId = auth.user?.uid;
 
     return Scaffold(
-      appBar: CompactAppBar(
-        title: widget.wardrobe.name,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'swipe_feed') _openSwipeFeedBackup();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'swipe_feed',
-                child: Row(
-                  children: [
-                    Icon(Icons.swipe_rounded, size: 20),
-                    SizedBox(width: 10),
-                    Text('Swipe feed view'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddCloth,
         backgroundColor: scheme.primary,
@@ -139,20 +117,52 @@ class _WardrobeAssetsScreenState extends State<WardrobeAssetsScreen> {
         child: const Icon(Icons.add_rounded, size: 28),
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text(
-              '${_clothes.length} item${_clothes.length == 1 ? '' : 's'}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface.withValues(alpha: 0.72),
-              ),
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+            child: Row(
+              children: [
+                const Expanded(child: ShellBackButton()),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'swipe_feed') _openSwipeFeedBackup();
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'swipe_feed',
+                      child: Row(
+                        children: [
+                          Icon(Icons.swipe_rounded, size: 20),
+                          SizedBox(width: 10),
+                          Text('Swipe feed view'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          Expanded(child: _buildBody(scheme, userId)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: Text(
+                    '${_clothes.length} item${_clothes.length == 1 ? '' : 's'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ),
+                Expanded(child: _buildBody(scheme, userId)),
+              ],
+            ),
+          ),
         ],
       ),
     );
