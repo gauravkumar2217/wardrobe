@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
+import '../../services/cloth_service.dart';
+import '../../services/outfit_suggestion_service.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
@@ -22,33 +26,9 @@ class WardrobeHomeScreen extends StatefulWidget {
 class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
   final PageController _outfitController = PageController(viewportFraction: 0.92);
   int _outfitIndex = 0;
-
-  final _outfits = const <_DailyOutfit>[
-    _DailyOutfit(
-      title: 'Smart Casual',
-      matchPercent: 95,
-      tempC: 28,
-      occasion: 'Office',
-      note: 'Perfect for office weather',
-      accentIcon: Icons.work_outline_rounded,
-    ),
-    _DailyOutfit(
-      title: 'Street Minimal',
-      matchPercent: 92,
-      tempC: 26,
-      occasion: 'Casual',
-      note: 'Clean lines, effortless layers',
-      accentIcon: Icons.directions_walk_rounded,
-    ),
-    _DailyOutfit(
-      title: 'Evening Chic',
-      matchPercent: 90,
-      tempC: 24,
-      occasion: 'Dinner',
-      note: 'Gold accents, sleek silhouette',
-      accentIcon: Icons.wine_bar_rounded,
-    ),
-  ];
+  List<_DailyOutfit> _outfits = const [];
+  bool _suggestionsLoading = false;
+  bool _suggestionsLoaded = false;
 
   @override
   void initState() {
@@ -56,7 +36,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadClosetSummary());
   }
 
-  Future<void> _loadClosetSummary() async {
+  Future<void> _loadClosetSummary({bool forceNewSuggestions = false}) async {
     final auth = context.read<AuthProvider>();
     final wardrobeProvider = context.read<WardrobeProvider>();
     final userId = auth.user?.uid;
@@ -70,6 +50,116 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
           .timeout(const Duration(seconds: 12));
     } catch (e) {
       debugPrint('Home closet summary failed: $e');
+    }
+
+    if (!mounted) return;
+    if (_hasClothes(context.read<WardrobeProvider>())) {
+      await _loadDailyOutfitSuggestions(forceNew: forceNewSuggestions);
+    } else if (mounted) {
+      setState(() {
+        _outfits = const [];
+        _suggestionsLoaded = true;
+        _suggestionsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadDailyOutfitSuggestions({bool forceNew = false}) async {
+    final auth = context.read<AuthProvider>();
+    final userId = auth.user?.uid;
+    if (userId == null) return;
+
+    setState(() {
+      _suggestionsLoading = true;
+    });
+
+    try {
+      final clothes = await ClothService.getAllUserClothes(userId);
+      var suggestions =
+          await OutfitSuggestionService.getOrCreateDailySuggestions(
+        userId: userId,
+        availableClothes: clothes,
+        maxSuggestions: 3,
+        forceNew: forceNew,
+      );
+
+      final byId = <String, Cloth>{for (final c in clothes) c.id: c};
+
+      // If cached sets reference deleted/missing items, rebuild for today.
+      final cacheStale = !forceNew &&
+          suggestions.isNotEmpty &&
+          suggestions.every((s) {
+            final resolved = s.clothIds
+                .map((id) => byId[id])
+                .whereType<Cloth>()
+                .length;
+            return resolved < 2;
+          });
+      if (cacheStale) {
+        suggestions =
+            await OutfitSuggestionService.getOrCreateDailySuggestions(
+          userId: userId,
+          availableClothes: clothes,
+          maxSuggestions: 3,
+          forceNew: true,
+        );
+      }
+
+      final outfits = <_DailyOutfit>[];
+
+      for (var i = 0; i < suggestions.length; i++) {
+        final s = suggestions[i];
+        final items = s.clothIds
+            .map((id) => byId[id])
+            .whereType<Cloth>()
+            .toList();
+        if (items.length < 2) continue;
+
+        final meta = s.metadata;
+        final occasion = (meta['occasion'] as String?)?.trim();
+        final match = meta['matchPercent'];
+        final matchPercent = match is int
+            ? match
+            : (match is num ? match.round() : 88);
+
+        outfits.add(
+          _DailyOutfit(
+            title: (s.title?.trim().isNotEmpty == true)
+                ? s.title!.trim()
+                : 'Look ${i + 1}',
+            matchPercent: matchPercent.clamp(1, 99),
+            occasion: (occasion != null && occasion.isNotEmpty)
+                ? occasion
+                : (items.first.occasions.isNotEmpty
+                    ? items.first.occasions.first
+                    : 'Everyday'),
+            note: (s.description?.trim().isNotEmpty == true)
+                ? s.description!.trim()
+                : 'Styled from your uploaded clothes for today',
+            items: items,
+            setLabel: 'Set ${i + 1} of ${suggestions.length}',
+          ),
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _outfits = outfits;
+        _outfitIndex = 0;
+        _suggestionsLoading = false;
+        _suggestionsLoaded = true;
+      });
+      if (_outfitController.hasClients) {
+        _outfitController.jumpToPage(0);
+      }
+    } catch (e) {
+      debugPrint('Home daily outfit suggestions failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _outfits = const [];
+        _suggestionsLoading = false;
+        _suggestionsLoaded = true;
+      });
     }
   }
 
@@ -104,7 +194,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
           builder: (_) => AddClothFlowScreen(wardrobeId: wardrobeId),
         ),
       );
-      if (mounted) await _loadClosetSummary();
+      if (mounted) await _loadClosetSummary(forceNewSuggestions: true);
       return;
     }
 
@@ -115,7 +205,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
           builder: (_) => AddClothFlowScreen(wardrobeId: wardrobeId),
         ),
       );
-      if (mounted) await _loadClosetSummary();
+      if (mounted) await _loadClosetSummary(forceNewSuggestions: true);
       return;
     }
 
@@ -147,32 +237,38 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 0,
-                  child: hasClothes
-                      ? _DailyOutfitPager(
-                          controller: _outfitController,
-                          outfits: _outfits,
-                          index: _outfitIndex,
-                          onIndexChanged: (i) =>
-                              setState(() => _outfitIndex = i),
-                          onTryOn: () => context
-                              .read<NavigationProvider>()
-                              .navigateToTryOn(),
-                          onPrev: () => _outfitController.previousPage(
-                            duration: const Duration(milliseconds: 320),
-                            curve: Curves.easeOutCubic,
-                          ),
-                          onNext: () => _outfitController.nextPage(
-                            duration: const Duration(milliseconds: 320),
-                            curve: Curves.easeOutCubic,
-                          ),
-                        )
-                      : _DailyOutfitEmptyState(
+                  child: !hasClothes
+                      ? _DailyOutfitEmptyState(
                           hasWardrobe: wardrobeCount > 0,
                           onGetStarted: _openGetStartedFlow,
                           onTryOn: () => context
                               .read<NavigationProvider>()
                               .navigateToTryOn(),
-                        ),
+                        )
+                      : _suggestionsLoading && !_suggestionsLoaded
+                          ? const _DailyOutfitLoadingState()
+                          : _outfits.isEmpty
+                              ? _DailyOutfitNeedMoreItemsState(
+                                  onUpload: _openGetStartedFlow,
+                                )
+                              : _DailyOutfitPager(
+                                  controller: _outfitController,
+                                  outfits: _outfits,
+                                  index: _outfitIndex,
+                                  onIndexChanged: (i) =>
+                                      setState(() => _outfitIndex = i),
+                                  onTryOn: () => context
+                                      .read<NavigationProvider>()
+                                      .navigateToTryOn(),
+                                  onPrev: () => _outfitController.previousPage(
+                                    duration: const Duration(milliseconds: 320),
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                  onNext: () => _outfitController.nextPage(
+                                    duration: const Duration(milliseconds: 320),
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                ),
                 ),
               ),
             ),
@@ -440,18 +536,18 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
 class _DailyOutfit {
   final String title;
   final int matchPercent;
-  final int tempC;
   final String occasion;
   final String note;
-  final IconData accentIcon;
+  final List<Cloth> items;
+  final String setLabel;
 
   const _DailyOutfit({
     required this.title,
     required this.matchPercent,
-    required this.tempC,
     required this.occasion,
     required this.note,
-    required this.accentIcon,
+    required this.items,
+    required this.setLabel,
   });
 }
 
@@ -490,16 +586,18 @@ class _DailyOutfitPager extends StatelessWidget {
                       ),
                 ),
               ),
-              IconButton(
-                onPressed: onPrev,
-                tooltip: 'Previous outfit',
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              IconButton(
-                onPressed: onNext,
-                tooltip: 'Next outfit',
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
+              if (outfits.length > 1) ...[
+                IconButton(
+                  onPressed: onPrev,
+                  tooltip: 'Previous outfit',
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                IconButton(
+                  onPressed: onNext,
+                  tooltip: 'Next outfit',
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ],
             ],
           ),
         ),
@@ -528,7 +626,7 @@ class _DailyOutfitPager extends StatelessWidget {
                       children: [
                         Hero(
                           tag: 'daily_outfit_$i',
-                          child: _OutfitCollage(accentIcon: o.accentIcon),
+                          child: _OutfitCollage(items: o.items),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -537,9 +635,11 @@ class _DailyOutfitPager extends StatelessWidget {
                             children: [
                               Row(
                                 children: [
-                                  Flexible(child: _OccasionPill(text: o.occasion)),
+                                  Flexible(
+                                    child: _OccasionPill(text: o.occasion),
+                                  ),
                                   const SizedBox(width: 6),
-                                  _WeatherPill(tempC: o.tempC),
+                                  _SetPill(text: o.setLabel),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -601,25 +701,138 @@ class _DailyOutfitPager extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            outfits.length,
-            (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: i == index ? 18 : 7,
-              height: 7,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(99),
-                color: i == index
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.22),
+        if (outfits.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              outfits.length,
+              (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: i == index ? 18 : 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  color: i == index
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.22),
+                ),
               ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DailyOutfitLoadingState extends StatelessWidget {
+  const _DailyOutfitLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Daily Outfit Suggestion',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: PremiumCard(
+            padding: const EdgeInsets.symmetric(vertical: 36),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Styling today’s looks from your closet…',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.72),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyOutfitNeedMoreItemsState extends StatelessWidget {
+  final VoidCallback onUpload;
+
+  const _DailyOutfitNeedMoreItemsState({required this.onUpload});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Daily Outfit Suggestion',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: PremiumCard(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Need a few more pieces',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Upload at least 2 wearable items so we can build outfit sets for today.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.72),
+                        height: 1.35,
+                      ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: onUpload,
+                    child: const Text('Upload more clothes'),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -797,12 +1010,20 @@ class _DailyOutfitEmptyState extends StatelessWidget {
 }
 
 class _OutfitCollage extends StatelessWidget {
-  final IconData accentIcon;
-  const _OutfitCollage({required this.accentIcon});
+  final List<Cloth> items;
+  const _OutfitCollage({required this.items});
+
+  String _imageUrl(Cloth cloth) {
+    final processed = cloth.processedImageUrl?.trim();
+    if (processed != null && processed.isNotEmpty) return processed;
+    return cloth.imageUrl;
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final previews = items.take(3).toList();
+
     return Container(
       width: 110,
       height: double.infinity,
@@ -820,33 +1041,43 @@ class _OutfitCollage extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Positioned(
-            left: 10,
-            top: 12,
-            child: _CollageTile(
-              size: 44,
-              icon: Icons.checkroom_rounded,
-              color: scheme.primary,
+          if (previews.isNotEmpty)
+            Positioned(
+              left: 10,
+              top: 12,
+              child: _CollageImageTile(
+                size: 44,
+                imageUrl: _imageUrl(previews[0]),
+              ),
             ),
-          ),
-          Positioned(
-            right: 10,
-            top: 56,
-            child: _CollageTile(
-              size: 38,
-              icon: Icons.snowshoeing_rounded,
-              color: scheme.secondary,
+          if (previews.length > 1)
+            Positioned(
+              right: 10,
+              top: 56,
+              child: _CollageImageTile(
+                size: 38,
+                imageUrl: _imageUrl(previews[1]),
+              ),
             ),
-          ),
-          Positioned(
-            left: 18,
-            bottom: 18,
-            child: _CollageTile(
-              size: 46,
-              icon: accentIcon,
-              color: scheme.primary,
+          if (previews.length > 2)
+            Positioned(
+              left: 18,
+              bottom: 18,
+              child: _CollageImageTile(
+                size: 46,
+                imageUrl: _imageUrl(previews[2]),
+              ),
+            )
+          else
+            Positioned(
+              left: 18,
+              bottom: 18,
+              child: _CollageTile(
+                size: 46,
+                icon: Icons.checkroom_rounded,
+                color: scheme.primary,
+              ),
             ),
-          ),
           Positioned(
             right: 10,
             bottom: 10,
@@ -857,6 +1088,63 @@ class _OutfitCollage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CollageImageTile extends StatelessWidget {
+  final double size;
+  final String imageUrl;
+
+  const _CollageImageTile({required this.size, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GlassPanel(
+      borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.all(4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: imageUrl.trim().isEmpty
+              ? ColoredBox(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  child: Icon(
+                    Icons.checkroom_rounded,
+                    color: scheme.primary,
+                    size: size * 0.45,
+                  ),
+                )
+              : CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => ColoredBox(
+                    color: scheme.primary.withValues(alpha: 0.10),
+                    child: Center(
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => ColoredBox(
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.checkroom_rounded,
+                      color: scheme.primary,
+                      size: size * 0.45,
+                    ),
+                  ),
+                ),
+        ),
       ),
     );
   }
@@ -902,29 +1190,19 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class _WeatherPill extends StatelessWidget {
-  final int tempC;
-  const _WeatherPill({required this.tempC});
+class _SetPill extends StatelessWidget {
+  final String text;
+  const _SetPill({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return _Pill(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.wb_sunny_rounded,
-            size: 16,
-            color: Theme.of(context).colorScheme.secondary,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$tempC°C',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
       ),
     );
   }
