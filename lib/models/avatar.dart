@@ -18,6 +18,7 @@ class Avatar {
   // Generation status
   final String? generationStatus; // 'pending', 'processing', 'completed', 'failed'
   final String? generationJobId; // Backend job ID for tracking
+  final String? errorMessage;
 
   // Body measurements (for try-on)
   final double? userHeightCm;
@@ -34,6 +35,7 @@ class Avatar {
     this.poseLandmarks,
     this.generationStatus,
     this.generationJobId,
+    this.errorMessage,
     this.userHeightCm,
     this.measurements,
     this.createdAt,
@@ -70,6 +72,8 @@ class Avatar {
       generationJobId: json['generation_job_id']?.toString() ??
           json['generationJobId']?.toString() ??
           json['id']?.toString(),
+      errorMessage: json['error_message'] as String? ??
+          json['errorMessage'] as String?,
       userHeightCm: _parseDouble(json['user_height_cm']) ??
           _parseDouble(json['userHeightCm']),
       measurements: json['measurements'] != null
@@ -93,6 +97,7 @@ class Avatar {
       if (poseLandmarks != null) 'poseLandmarks': poseLandmarks,
       if (generationStatus != null) 'generationStatus': generationStatus,
       if (generationJobId != null) 'generationJobId': generationJobId,
+      if (errorMessage != null) 'errorMessage': errorMessage,
       if (userHeightCm != null) 'userHeightCm': userHeightCm,
       if (measurements != null) 'measurements': measurements!.toJson(),
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
@@ -107,6 +112,7 @@ class Avatar {
     Map<String, dynamic>? poseLandmarks,
     String? generationStatus,
     String? generationJobId,
+    String? errorMessage,
     double? userHeightCm,
     BodyMeasurements? measurements,
     DateTime? createdAt,
@@ -120,6 +126,7 @@ class Avatar {
       poseLandmarks: poseLandmarks ?? this.poseLandmarks,
       generationStatus: generationStatus ?? this.generationStatus,
       generationJobId: generationJobId ?? this.generationJobId,
+      errorMessage: errorMessage ?? this.errorMessage,
       userHeightCm: userHeightCm ?? this.userHeightCm,
       measurements: measurements ?? this.measurements,
       createdAt: createdAt ?? this.createdAt,
@@ -134,12 +141,19 @@ class Avatar {
 
   /// Check if avatar is generated (2D transparent PNG)
   bool get isGenerated {
-    return avatarImageUrl != null;
+    final url = avatarImageUrl?.trim();
+    if (url == null || url.isEmpty) return false;
+    if (isGenerating || isFailed) return false;
+    return true;
   }
 
   /// Check if generation is in progress
   bool get isGenerating {
     return generationStatus == 'pending' || generationStatus == 'processing';
+  }
+
+  bool get isFailed {
+    return generationStatus == 'failed';
   }
 }
 

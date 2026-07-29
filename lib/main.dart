@@ -16,6 +16,7 @@ import 'providers/filter_provider.dart';
 import 'providers/onboarding_provider.dart';
 import 'providers/scheduler_provider.dart';
 import 'services/fcm_service.dart';
+import 'services/avatar_fcm_handler.dart';
 import 'services/tag_list_service.dart';
 import 'services/local_notification_service.dart';
 import 'services/update_service.dart';
@@ -56,6 +57,7 @@ void main() async {
   try {
     await FCMService.initialize();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await AvatarFcmHandler.initialize();
   } catch (e) {
     debugPrint('FCM Service initialization failed: $e');
   }

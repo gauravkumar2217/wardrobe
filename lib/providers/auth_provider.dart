@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_user.dart';
 import '../models/user_profile.dart';
+import '../services/avatar_2d_service.dart';
 import '../services/fcm_service.dart';
 import '../services/laravel_auth_service.dart';
 import '../services/social_auth_bridge.dart';
@@ -35,6 +36,11 @@ class AuthProvider with ChangeNotifier {
           await FCMService.registerDeviceToken(_user!.uid);
         } catch (e) {
           debugPrint('Failed to register FCM token on init: $e');
+        }
+        try {
+          await Avatar2DService.resumePendingPolling(_user!.uid);
+        } catch (e) {
+          debugPrint('Failed to resume avatar polling: $e');
         }
       }
     } catch (e) {
@@ -96,6 +102,7 @@ class AuthProvider with ChangeNotifier {
       await _loadUserProfile();
       try {
         await FCMService.registerDeviceToken(_user!.uid);
+        await Avatar2DService.resumePendingPolling(_user!.uid);
       } catch (e) {
         debugPrint('Failed to register FCM token after sign-in: $e');
       }

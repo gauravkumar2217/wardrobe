@@ -81,6 +81,7 @@ class ApiConfig {
   static String get avatarGenerate => '$baseUrl/avatar/generate';
   static String get avatarMe => '$baseUrl/avatar/me';
   static String avatarStatus(String avatarId) => '$baseUrl/avatar/status/$avatarId';
+  static String avatarRetry(String avatarId) => '$baseUrl/avatar/$avatarId/retry';
 
   static String get tryOnRender => '$baseUrl/try-on/render';
   static String tryOnStatus(String resultId) => '$baseUrl/try-on/status/$resultId';

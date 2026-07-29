@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/schedule.dart';
+import '../screens/profile/create_avatar_screen.dart';
 import '../screens/suggestions/daily_suggestion_screen.dart';
 import '../screens/suggestions/outfit_suggestion_screen.dart';
 import '../utils/navigator_key.dart' show navigatorKey;
@@ -128,6 +129,16 @@ class LocalNotificationService {
             navigatorKey.currentState?.push(
               MaterialPageRoute(
                 builder: (_) => const DailySuggestionScreen(),
+              ),
+            );
+          } else if (type == 'avatar_ready' || type == 'avatar_failed') {
+            if (kDebugMode) {
+              debugPrint(
+                  'Avatar notification tapped - navigating to create avatar screen');
+            }
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => const CreateAvatarScreen(),
               ),
             );
           }
