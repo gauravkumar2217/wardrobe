@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
@@ -30,6 +29,7 @@ class _CommentScreenState extends State<CommentScreen> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSubmitting = false;
+  int _commentsRefreshToken = 0;
   final Map<String, UserProfile?> _userProfiles = {};
   final Map<String, bool> _loadingProfiles =
       {}; // Track loading state for each profile
@@ -149,8 +149,11 @@ class _CommentScreenState extends State<CommentScreen> {
       );
 
       _commentController.clear();
+      if (mounted) {
+        setState(() => _commentsRefreshToken++);
+      }
 
-      // Refresh comment count from Firestore
+      // Refresh comment count from API
       final actualCount = await clothProvider.getCommentCount(
         ownerId: widget.cloth.ownerId,
         wardrobeId: widget.cloth.wardrobeId,
@@ -407,6 +410,7 @@ class _CommentScreenState extends State<CommentScreen> {
           // Comments list
           Expanded(
             child: StreamBuilder<List<Comment>>(
+              key: ValueKey(_commentsRefreshToken),
               stream: _getCommentsStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -772,27 +776,26 @@ class _CommentScreenState extends State<CommentScreen> {
     );
   }
 
-  Stream<List<Comment>> _getCommentsStream() {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.cloth.ownerId)
-        .collection('wardrobes')
-        .doc(widget.cloth.wardrobeId)
-        .collection('clothes')
-        .doc(widget.cloth.id)
-        .collection('comments')
-        .orderBy('createdAt', descending: false)
-        .snapshots()
-        .map((snapshot) {
-      final comments = snapshot.docs
-          .map((doc) => Comment.fromJson(doc.data(), doc.id))
-          .toList();
-
-      // Filter out comments from blocked users
+  Stream<List<Comment>> _getCommentsStream() async* {
+    Future<List<Comment>> load() async {
+      final comments = await ClothService.getComments(
+        ownerId: widget.cloth.ownerId,
+        wardrobeId: widget.cloth.wardrobeId,
+        clothId: widget.cloth.id,
+      );
       return comments
           .where((comment) => !_blockedUserIds.contains(comment.userId))
           .toList();
-    });
+    }
+
+    yield await load();
+    await for (final _ in Stream.periodic(const Duration(seconds: 8))) {
+      try {
+        yield await load();
+      } catch (e) {
+        debugPrint('Comment poll error: $e');
+      }
+    }
   }
 
   /// Build skeleton/placeholder for loading comments

@@ -9,7 +9,10 @@ import '../../utils/main_shell_navigation.dart';
 
 /// Chat list screen showing all user chats
 class ChatListScreen extends StatefulWidget {
-  const ChatListScreen({super.key});
+  /// When true, omit AppBar for embedding inside Community tabs.
+  final bool embedded;
+
+  const ChatListScreen({super.key, this.embedded = false});
 
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
@@ -82,13 +85,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Messages'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        leading: mainShellAppBarLeading(context),
-      ),
+      appBar: widget.embedded
+          ? AppBar(
+              title: const Text('Chats'),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+            )
+          : AppBar(
+              title: const Text('Messages'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+              automaticallyImplyLeading: false,
+              leading: mainShellAppBarLeading(context),
+            ),
       body: chatProvider.isLoading && chatProvider.chats.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : chatProvider.errorMessage != null

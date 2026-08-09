@@ -77,6 +77,36 @@ class ApiConfig {
       '$baseUrl/messages/$messageId';
   static String clothShare(String clothId) => '$baseUrl/clothes/$clothId/share';
 
+  // Style posts (Community Style Feed)
+  static String get stylePosts => '$baseUrl/style-posts';
+  static String stylePost(String postId) => '$baseUrl/style-posts/$postId';
+  static String stylePostLike(String postId) =>
+      '$baseUrl/style-posts/$postId/like';
+  static String stylePostComments(String postId) =>
+      '$baseUrl/style-posts/$postId/comments';
+  static String stylePostShare(String postId) =>
+      '$baseUrl/style-posts/$postId/share';
+
+  // Friends
+  static String get friends => '$baseUrl/friends';
+  static String friend(String friendId) => '$baseUrl/friends/$friendId';
+  static String userFriends(String userId) => '$baseUrl/users/$userId/friends';
+  static String get friendRequests => '$baseUrl/friend-requests';
+  static String get friendRequestsPending => '$baseUrl/friend-requests/pending';
+  static String friendRequest(String requestId) =>
+      '$baseUrl/friend-requests/$requestId';
+  static String friendRequestAccept(String requestId) =>
+      '$baseUrl/friend-requests/$requestId/accept';
+  static String friendRequestReject(String requestId) =>
+      '$baseUrl/friend-requests/$requestId/reject';
+  static String friendRequestCancel(String requestId) =>
+      '$baseUrl/friend-requests/$requestId/cancel';
+
+  // Comments (Laravel)
+  static String clothComments(String clothId) =>
+      '$baseUrl/clothes/$clothId/comments';
+  static String comment(String commentId) => '$baseUrl/comments/$commentId';
+
   // API Endpoints
   static String get avatarGenerate => '$baseUrl/avatar/generate';
   static String get avatarMe => '$baseUrl/avatar/me';

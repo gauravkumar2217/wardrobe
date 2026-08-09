@@ -251,9 +251,9 @@ class _MainNavigationState extends State<MainNavigation>
           case 3:
             step = OnboardingStep(
               id: 'chat',
-              title: 'Chat & Share',
+              title: 'Community',
               description:
-                  'Message your friends and share your favorite clothes directly in chat. Get feedback and style tips!',
+                  'Browse your Style feed, manage friends, and chat — all in one place.',
               targetOffset: targetOffset,
               targetSize: Size(targetSize, targetSize),
               alignment: Alignment.topCenter,

@@ -406,14 +406,35 @@ class Comment {
     this.updatedAt,
   });
 
-  factory Comment.fromJson(Map<String, dynamic> json, String id) {
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    if (value is Timestamp) return value.toDate();
+    try {
+      final dynamic d = value.toDate();
+      if (d is DateTime) return d;
+    } catch (_) {}
+    return DateTime.now();
+  }
+
+  factory Comment.fromJson(Map<String, dynamic> json, [String? id]) {
+    final resolvedId = id ?? json['id']?.toString() ?? '';
+    final userId = json['user_id']?.toString() ??
+        json['userId']?.toString() ??
+        (json['user'] is Map
+            ? (json['user'] as Map)['id']?.toString()
+            : null) ??
+        '';
     return Comment(
-      id: id,
-      userId: json['userId'] as String,
-      text: json['text'] as String,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: json['updatedAt'] != null
-          ? (json['updatedAt'] as Timestamp).toDate()
+      id: resolvedId,
+      userId: userId,
+      text: json['text']?.toString() ?? '',
+      createdAt: _parseDate(json['created_at'] ?? json['createdAt']),
+      updatedAt: json['updated_at'] != null || json['updatedAt'] != null
+          ? _parseDate(json['updated_at'] ?? json['updatedAt'])
           : null,
     );
   }
@@ -422,8 +443,8 @@ class Comment {
     return {
       'userId': userId,
       'text': text,
-      'createdAt': Timestamp.fromDate(createdAt),
-      if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
+      'createdAt': createdAt.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
   }
 }

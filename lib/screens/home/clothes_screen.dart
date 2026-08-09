@@ -44,9 +44,19 @@ class _ResponsivePageScrollPhysics extends ScrollPhysics {
   double get frictionFactor => 0.36;
 }
 
-/// Full-screen vertical swipe feed of cloth cards (opened from Home → Clothes).
+/// Full-screen vertical swipe Style Feed (wardrobe items).
 class ClothesScreen extends StatefulWidget {
-  const ClothesScreen({super.key});
+  /// Embed inside Community hub (Style tab).
+  final bool communityMode;
+
+  /// When false, hide Mark Worn actions (Worn lives on Try-On).
+  final bool showWornActions;
+
+  const ClothesScreen({
+    super.key,
+    this.communityMode = false,
+    this.showWornActions = true,
+  });
 
   @override
   State<ClothesScreen> createState() => _ClothesScreenState();
@@ -830,10 +840,14 @@ class _ClothesScreenState extends State<ClothesScreen>
                                     onShare: isOwner
                                         ? () => _handleShare(cloth)
                                         : null,
-                                    onMarkWorn: isOwner
+                                    onMarkWorn: (isOwner &&
+                                            widget.showWornActions &&
+                                            !widget.communityMode)
                                         ? () => _handleToggleWorn(cloth)
                                         : null,
-                                    onWornHistory: () {
+                                    onWornHistory: widget.communityMode
+                                        ? null
+                                        : () {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(

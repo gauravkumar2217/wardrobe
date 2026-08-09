@@ -590,7 +590,7 @@ class ClothService {
     }
   }
 
-  /// Add comment to cloth
+  /// Add comment to cloth (Laravel API)
   static Future<String> addComment({
     required String userId,
     required String ownerId,
@@ -599,110 +599,49 @@ class ClothService {
     required String text,
   }) async {
     try {
-      // Filter content before posting
       final isSafe = await ContentFilterService.isContentSafe(text);
-
       if (!isSafe) {
         throw Exception(
             'Your comment contains inappropriate content and cannot be posted. Please revise your message.');
       }
 
-      final commentId = _firestore.collection('comments').doc().id;
-      final now = DateTime.now();
-
-      // Create comment document
-      await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('comments')
-          .doc(commentId)
-          .set({
-        'userId': userId,
-        'text': text,
-        'createdAt': Timestamp.fromDate(now),
-      });
-
-      // Update commentsCount on subcollection cloth document
-      final clothRef =
-          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
-
-      // Check if cloth exists before updating
-      final clothDoc = await clothRef.get();
-      if (!clothDoc.exists) {
-        // Cloth doesn't exist, delete the comment we just created
-        await _firestore
-            .collection(_clothesPath(ownerId, wardrobeId))
-            .doc(clothId)
-            .collection('comments')
-            .doc(commentId)
-            .delete();
-        throw Exception('Cloth not found');
+      final body = await LaravelApiClient.postJson(
+        ApiConfig.clothComments(clothId),
+        {'text': text},
+      );
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        final id = data['id']?.toString();
+        if (id != null && id.isNotEmpty) return id;
       }
-
-      // Update commentsCount on subcollection cloth document
-      // Wrap in try-catch to handle permission errors gracefully
-      // The comment document is already created, so this is just for count sync
-      try {
-        await clothRef.update({
-          'commentsCount': FieldValue.increment(1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint(
-            'Failed to update commentsCount in subcollection (non-critical): $e');
-        // Continue - comment document is already created
-      }
-
-      // Update commentsCount on top-level cloth document
-      try {
-        await _firestore.collection('clothes').doc(clothId).update({
-          'commentsCount': FieldValue.increment(1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint(
-            'Failed to update commentsCount in top-level collection (non-critical): $e');
-        // Continue - comment document is already created
-      }
-
-      // Send notification to cloth owner (non-blocking)
-      if (ownerId != userId) {
-        PushNotificationService.sendClothCommentNotification(
-          recipientUserId: ownerId,
-          commenterUserId: userId,
-          clothId: clothId,
-          commentId: commentId,
-          clothOwnerId: ownerId,
-          clothWardrobeId: wardrobeId,
-          commentText: text,
-        ).catchError((e) {
-          debugPrint('Failed to send cloth comment notification: $e');
-        });
-      }
-
-      return commentId;
+      throw Exception(body['message']?.toString() ?? 'Failed to add comment');
     } catch (e) {
       debugPrint('Failed to add comment: $e');
       rethrow;
     }
   }
 
-  /// Get comments for cloth
+  /// Get comments for cloth (Laravel API)
   static Future<List<Comment>> getComments({
     required String ownerId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('comments')
-          .orderBy('createdAt', descending: false)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Comment.fromJson(doc.data(), doc.id))
+      final body =
+          await LaravelApiClient.getJson(ApiConfig.clothComments(clothId));
+      final data = LaravelApiClient.extractData(body);
+      List<dynamic> list;
+      if (data is List) {
+        list = data;
+      } else if (data is Map<String, dynamic> && data['data'] is List) {
+        list = data['data'] as List;
+      } else {
+        list = const [];
+      }
+      return list
+          .whereType<Map>()
+          .map((e) => Comment.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     } catch (e) {
       debugPrint('Failed to get comments: $e');
@@ -710,7 +649,7 @@ class ClothService {
     }
   }
 
-  /// Delete comment
+  /// Delete comment (Laravel API)
   static Future<void> deleteComment({
     required String userId,
     required String ownerId,
@@ -719,72 +658,26 @@ class ClothService {
     required String commentId,
   }) async {
     try {
-      final commentDoc = await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('comments')
-          .doc(commentId)
-          .get();
-
-      if (!commentDoc.exists) return;
-
-      final data = commentDoc.data();
-      if (data == null) return;
-
-      final comment = Comment.fromJson(data, commentId);
-
-      // Only comment author can delete
-      if (comment.userId != userId) {
-        throw Exception('Only comment author can delete');
-      }
-
-      // Delete comment document
-      await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('comments')
-          .doc(commentId)
-          .delete();
-
-      // Update commentsCount on subcollection cloth document
-      final clothRef =
-          _firestore.collection(_clothesPath(ownerId, wardrobeId)).doc(clothId);
-
-      // Check if cloth exists before updating
-      final clothDoc = await clothRef.get();
-      if (clothDoc.exists) {
-        await clothRef.update({
-          'commentsCount': FieldValue.increment(-1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        // Update commentsCount on top-level cloth document
-        await _firestore.collection('clothes').doc(clothId).update({
-          'commentsCount': FieldValue.increment(-1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-      // If cloth doesn't exist, that's okay - the comment is already deleted
+      await LaravelApiClient.deleteJson(ApiConfig.comment(commentId));
     } catch (e) {
       debugPrint('Failed to delete comment: $e');
       rethrow;
     }
   }
 
-  /// Get actual comment count from Firestore (counts comment documents)
+  /// Comment count from Laravel cloth record / comments list length
   static Future<int> getCommentCount({
     required String ownerId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final snapshot = await _firestore
-          .collection(_clothesPath(ownerId, wardrobeId))
-          .doc(clothId)
-          .collection('comments')
-          .get();
-
-      return snapshot.docs.length;
+      final comments = await getComments(
+        ownerId: ownerId,
+        wardrobeId: wardrobeId,
+        clothId: clothId,
+      );
+      return comments.length;
     } catch (e) {
       debugPrint('Failed to get comment count: $e');
       return 0;

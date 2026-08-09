@@ -21,7 +21,14 @@ enum _FlowStep { source, analyzing, select, extracting, review, saving }
 class AddClothFlowScreen extends StatefulWidget {
   final String wardrobeId;
 
-  const AddClothFlowScreen({super.key, required this.wardrobeId});
+  /// Optional: start detection immediately with this local file (e.g. scanned from Style Feed).
+  final File? initialImageFile;
+
+  const AddClothFlowScreen({
+    super.key,
+    required this.wardrobeId,
+    this.initialImageFile,
+  });
 
   @override
   State<AddClothFlowScreen> createState() => _AddClothFlowScreenState();
@@ -39,23 +46,26 @@ class _AddClothFlowScreenState extends State<AddClothFlowScreen> {
   String? _error;
   int _saveProgress = 0;
 
-  Future<void> _pick(ImageSource source) async {
-    try {
-      final file = await _picker.pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-      if (file == null || !mounted) return;
-
-      setState(() {
-        _sourceImage = File(file.path);
-        _step = _FlowStep.analyzing;
-        _error = null;
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialImageFile;
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _analyzeFile(initial);
       });
+    }
+  }
 
-      final result = await ClothDetectionService.detectItems(_sourceImage!);
+  Future<void> _analyzeFile(File file) async {
+    setState(() {
+      _sourceImage = file;
+      _step = _FlowStep.analyzing;
+      _error = null;
+    });
+
+    try {
+      final result = await ClothDetectionService.detectItems(file);
       if (!mounted) return;
 
       setState(() {
@@ -66,6 +76,25 @@ class _AddClothFlowScreenState extends State<AddClothFlowScreen> {
           ..addAll(result.items.map((e) => e.id));
         _step = _FlowStep.select;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _step = _FlowStep.source;
+      });
+    }
+  }
+
+  Future<void> _pick(ImageSource source) async {
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+      if (file == null || !mounted) return;
+      await _analyzeFile(File(file.path));
     } catch (e) {
       if (!mounted) return;
       setState(() {

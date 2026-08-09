@@ -1,11 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Friend Request model
+/// Friend Request model (Laravel API + legacy Firestore-compatible parsing).
 class FriendRequest {
   final String id;
   final String fromUserId;
   final String toUserId;
-  final String status; // "pending", "accepted", "rejected", "canceled"
+  final String status; // pending | accepted | rejected | canceled
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,41 +16,82 @@ class FriendRequest {
     required this.updatedAt,
   });
 
-  factory FriendRequest.fromJson(Map<String, dynamic> json, String id) {
-    try {
-      final fromUserId = json['fromUserId'] as String?;
-      final toUserId = json['toUserId'] as String?;
-      final status = json['status'] as String?;
-      final createdAt = json['createdAt'] as Timestamp?;
-      final updatedAt = json['updatedAt'] as Timestamp?;
-
-      if (fromUserId == null || fromUserId.isEmpty) {
-        throw Exception('fromUserId is missing or empty');
-      }
-      if (toUserId == null || toUserId.isEmpty) {
-        throw Exception('toUserId is missing or empty');
-      }
-      if (status == null || status.isEmpty) {
-        throw Exception('status is missing or empty');
-      }
-      if (createdAt == null) {
-        throw Exception('createdAt is missing');
-      }
-      if (updatedAt == null) {
-        throw Exception('updatedAt is missing');
-      }
-
-      return FriendRequest(
-        id: id,
-        fromUserId: fromUserId,
-        toUserId: toUserId,
-        status: status,
-        createdAt: createdAt.toDate(),
-        updatedAt: updatedAt.toDate(),
-      );
-    } catch (e) {
-      throw Exception('Failed to parse friend request: $e. JSON: $json');
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value) ?? DateTime.now();
     }
+    // Firestore Timestamp duck-typing
+    try {
+      final dynamic d = value.toDate();
+      if (d is DateTime) return d;
+    } catch (_) {}
+    return DateTime.now();
+  }
+
+  factory FriendRequest.fromApiJson(Map<String, dynamic> json) {
+    final id = json['id']?.toString() ?? '';
+    final from = json['from_user_id']?.toString() ??
+        json['fromUserId']?.toString() ??
+        (json['from_user'] is Map
+            ? (json['from_user'] as Map)['id']?.toString()
+            : null) ??
+        (json['fromUser'] is Map
+            ? (json['fromUser'] as Map)['id']?.toString()
+            : null) ??
+        '';
+    final to = json['to_user_id']?.toString() ??
+        json['toUserId']?.toString() ??
+        (json['to_user'] is Map
+            ? (json['to_user'] as Map)['id']?.toString()
+            : null) ??
+        (json['toUser'] is Map
+            ? (json['toUser'] as Map)['id']?.toString()
+            : null) ??
+        '';
+
+    final created = _parseDate(json['created_at'] ?? json['createdAt']);
+    final updated =
+        _parseDate(json['updated_at'] ?? json['updatedAt'] ?? created);
+
+    return FriendRequest(
+      id: id,
+      fromUserId: from,
+      toUserId: to,
+      status: json['status']?.toString() ?? 'pending',
+      createdAt: created,
+      updatedAt: updated,
+    );
+  }
+
+  factory FriendRequest.fromJson(Map<String, dynamic> json, String id) {
+    // Prefer Laravel-style keys when present.
+    if (json.containsKey('from_user_id') || json.containsKey('to_user_id')) {
+      return FriendRequest.fromApiJson({...json, 'id': id});
+    }
+
+    final fromUserId =
+        json['fromUserId']?.toString() ?? json['from_user_id']?.toString() ?? '';
+    final toUserId =
+        json['toUserId']?.toString() ?? json['to_user_id']?.toString() ?? '';
+    final status = json['status']?.toString() ?? 'pending';
+    final createdAt = _parseDate(json['createdAt'] ?? json['created_at']);
+    final updatedAt =
+        _parseDate(json['updatedAt'] ?? json['updated_at'] ?? createdAt);
+
+    if (fromUserId.isEmpty || toUserId.isEmpty) {
+      throw Exception('Failed to parse friend request. JSON: $json');
+    }
+
+    return FriendRequest(
+      id: id,
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      status: status,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -60,8 +99,8 @@ class FriendRequest {
       'fromUserId': fromUserId,
       'toUserId': toUserId,
       'status': status,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
@@ -91,7 +130,7 @@ class FriendRequest {
 
 /// Friend relationship model
 class Friend {
-  final String id; // friendId
+  final String id;
   final String friendId;
   final DateTime createdAt;
 
@@ -104,16 +143,19 @@ class Friend {
   factory Friend.fromJson(Map<String, dynamic> json, String id) {
     return Friend(
       id: id,
-      friendId: json['friendId'] as String? ?? id,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      friendId: json['friend_id']?.toString() ??
+          json['friendId']?.toString() ??
+          id,
+      createdAt: FriendRequest._parseDate(
+        json['created_at'] ?? json['createdAt'],
+      ),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'friendId': friendId,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 }
-

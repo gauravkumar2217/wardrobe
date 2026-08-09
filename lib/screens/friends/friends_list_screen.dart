@@ -12,7 +12,10 @@ import '../../utils/main_shell_navigation.dart';
 
 /// Friends list screen
 class FriendsListScreen extends StatefulWidget {
-  const FriendsListScreen({super.key});
+  /// When true, omit AppBar for embedding inside Community tabs.
+  final bool embedded;
+
+  const FriendsListScreen({super.key, this.embedded = false});
 
   @override
   State<FriendsListScreen> createState() => _FriendsListScreenState();
@@ -249,27 +252,51 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     final friendProvider = Provider.of<FriendProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Friends'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        leading: mainShellAppBarLeading(context),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchUsersScreen()),
-              ).then((_) {
-                _loadFriends();
-                _loadFriendRequests();
-              });
-            },
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? AppBar(
+              title: const Text('Friends'),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.person_add),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SearchUsersScreen()),
+                    ).then((_) {
+                      _loadFriends();
+                      _loadFriendRequests();
+                    });
+                  },
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Friends'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+              automaticallyImplyLeading: false,
+              leading: mainShellAppBarLeading(context),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.person_add),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SearchUsersScreen()),
+                    ).then((_) {
+                      _loadFriends();
+                      _loadFriendRequests();
+                    });
+                  },
+                ),
+              ],
+            ),
       body: friendProvider.isLoading &&
               friendProvider.friends.isEmpty &&
               friendProvider.incomingRequests.isEmpty
