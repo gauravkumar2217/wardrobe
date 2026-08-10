@@ -274,24 +274,34 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
     if (authProvider.user == null) return;
 
+    // Clear immediately so typing feels instant.
+    _messageController.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scrollToBottom();
+    });
+
     final success = await chatProvider.sendTextMessage(
       userId: authProvider.user!.uid,
       chatId: widget.chat.id,
-      text: _messageController.text.trim(),
+      text: text,
     );
 
     if (mounted) {
       if (success) {
-        _messageController.clear();
         _scrollToBottom();
       } else {
+        _messageController.text = text;
+        _messageController.selection = TextSelection.collapsed(
+          offset: text.length,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:

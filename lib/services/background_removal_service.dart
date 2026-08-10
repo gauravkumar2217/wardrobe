@@ -11,7 +11,14 @@ class BackgroundRemovalService {
   static const String _removeBgApiUrl = 'https://api.remove.bg/v1.0/removebg';
 
   /// Get remove.bg API key from environment variables
-  static String? get _removeBgApiKey => dotenv.env['REMOVE_BG_API_KEY'];
+  static String? get _removeBgApiKey {
+    try {
+      if (!dotenv.isInitialized) return null;
+      return dotenv.env['REMOVE_BG_API_KEY'];
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Remove background from image using remove.bg API
   /// Returns processed image file without background

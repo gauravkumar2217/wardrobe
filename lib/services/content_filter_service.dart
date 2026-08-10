@@ -13,26 +13,38 @@ class ContentFilterService {
   static bool _disabled = false;
   static bool _loggedDisable = false;
 
-  static String? get _apiKey => dotenv.env['GOOGLE_CLOUD_API_KEY'];
+  static String? _env(String key) {
+    try {
+      if (!dotenv.isInitialized) return null;
+      return dotenv.env[key];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? get _apiKey => _env('GOOGLE_CLOUD_API_KEY');
 
   /// Explicit opt-in: set CONTENT_FILTER_ENABLED=true in .env to use the API.
   /// Default is off so chat is not slowed / flooded by 403s when the key
   /// cannot access language.googleapis.com.
   static bool get _enabledInEnv {
-    final v = dotenv.env['CONTENT_FILTER_ENABLED']?.trim().toLowerCase();
+    final v = _env('CONTENT_FILTER_ENABLED')?.trim().toLowerCase();
     return v == 'true' || v == '1' || v == 'yes';
   }
 
+  /// True only when filter is opted-in and not disabled after API failures.
+  static bool get isActive => !_disabled && _enabledInEnv;
+
   static Future<bool> isContentSafe(String text) async {
-    if (text.trim().isEmpty) return true;
-    if (_disabled || !_enabledInEnv) return true;
-
-    final apiKey = _apiKey;
-    if (apiKey == null || apiKey.isEmpty) {
-      return true;
-    }
-
     try {
+      if (text.trim().isEmpty) return true;
+      if (_disabled || !_enabledInEnv) return true;
+
+      final apiKey = _apiKey;
+      if (apiKey == null || apiKey.isEmpty) {
+        return true;
+      }
+
       final response = await http.post(
         Uri.parse('$_moderateUrl?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
@@ -49,7 +61,8 @@ class ContentFilterService {
         final moderationCategories = data['moderationCategories'] as List?;
         if (moderationCategories != null && moderationCategories.isNotEmpty) {
           for (final category in moderationCategories) {
-            final confidence = (category['confidence'] as num?)?.toDouble() ?? 0.0;
+            final confidence =
+                (category['confidence'] as num?)?.toDouble() ?? 0.0;
             if (confidence >= 0.7) {
               debugPrint(
                   'Content blocked: ${category['name']} (confidence: $confidence)');
@@ -63,7 +76,8 @@ class ContentFilterService {
       _disableIfApiKeyBlocked(response.statusCode, response.body);
       return true;
     } catch (e) {
-      debugPrint('Content filter error: $e');
+      // Fail open — never block chat because filter/dotenv is misconfigured.
+      debugPrint('Content filter error (allowing message): $e');
       return true;
     }
   }
@@ -94,7 +108,6 @@ class ContentFilterService {
 
   static Future<double> getToxicityScore(String text) async {
     if (!_enabledInEnv || _disabled || text.trim().isEmpty) return 0.0;
-    // Reuse safety check path only when enabled; score not critical for chat.
     final safe = await isContentSafe(text);
     return safe ? 0.0 : 1.0;
   }

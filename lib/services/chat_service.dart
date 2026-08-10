@@ -98,7 +98,7 @@ class ChatService {
         throw Exception('Message must have text, image, or cloth');
       }
 
-      if (text != null && text.isNotEmpty) {
+      if (text != null && text.isNotEmpty && ContentFilterService.isActive) {
         final isSafe = await ContentFilterService.isContentSafe(text);
         if (!isSafe) {
           throw Exception(
@@ -107,11 +107,8 @@ class ChatService {
         }
       }
 
-      final chat = await getChat(userId: userId, chatId: chatId);
-      if (chat == null) throw Exception('Chat not found');
-
       final payload = <String, dynamic>{};
-      if (text != null) payload['text'] = text;
+      if (text != null && text.isNotEmpty) payload['text'] = text;
       if (imageUrl != null) payload['image_url'] = imageUrl;
       if (clothId != null) {
         payload['cloth_id'] = clothId;
@@ -131,13 +128,15 @@ class ChatService {
       }
       final messageId = data['id']?.toString() ?? '';
 
-      // Push + in-app notification are sent by Laravel MessageController
-      // (AppNotificationService / FCM). Do not use Firestore triggers.
+      // Push + in-app notification are sent by Laravel MessageController.
 
       if (clothId != null && clothOwnerId != null) {
         try {
-          final recipientIds =
-              chat.participants.where((id) => id != userId).toList();
+          final chat = await getChat(userId: userId, chatId: chatId);
+          final recipientIds = chat?.participants
+                  .where((id) => id != userId)
+                  .toList() ??
+              <String>[];
           if (recipientIds.isNotEmpty) {
             await LaravelApiClient.putJson(
               ApiConfig.clothShare(clothId),
@@ -208,10 +207,11 @@ class ChatService {
     required String userId,
     required String chatId,
     int limit = 50,
+    Duration interval = const Duration(seconds: 2),
   }) async* {
     yield await getMessages(userId: userId, chatId: chatId, limit: limit);
     while (true) {
-      await Future.delayed(const Duration(seconds: 5));
+      await Future.delayed(interval);
       yield await getMessages(userId: userId, chatId: chatId, limit: limit);
     }
   }

@@ -283,8 +283,22 @@ class ChatProvider with ChangeNotifier {
         _messagesSubscription?.cancel();
         return;
       }
-      
+
+      // Keep optimistic local messages until the server list includes them.
+      final pendingLocal = _messages
+          .where((m) => m.id.startsWith('local_'))
+          .toList();
       _messages = messages;
+      for (final local in pendingLocal) {
+        final arrived = _messages.any((m) =>
+            m.senderId == local.senderId &&
+            m.text == local.text &&
+            m.createdAt.difference(local.createdAt).abs() <
+                const Duration(minutes: 2));
+        if (!arrived) {
+          _messages = [..._messages, local];
+        }
+      }
       _errorMessage = null;
       // Calculate unread count from loaded messages (no Firestore query needed)
       _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
@@ -313,30 +327,54 @@ class ChatProvider with ChangeNotifier {
   }
 
 
-  /// Send text message
+  /// Send text message (optimistic — shows instantly, syncs in background).
   Future<bool> sendTextMessage({
     required String userId,
     required String chatId,
     required String text,
   }) async {
-    _isLoading = true;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+
+    final tempId = 'local_${DateTime.now().microsecondsSinceEpoch}';
+    final optimistic = ChatMessage(
+      id: tempId,
+      senderId: userId,
+      text: trimmed,
+      createdAt: DateTime.now(),
+      seenBy: [userId],
+    );
+
+    _messages = [..._messages, optimistic];
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await ChatService.sendMessage(
+      final messageId = await ChatService.sendMessage(
         userId: userId,
         chatId: chatId,
-        text: text,
+        text: trimmed,
       );
-      _errorMessage = null;
+
+      final idx = _messages.indexWhere((m) => m.id == tempId);
+      if (idx != -1) {
+        final updated = List<ChatMessage>.from(_messages);
+        updated[idx] = ChatMessage(
+          id: messageId.isNotEmpty ? messageId : tempId,
+          senderId: userId,
+          text: trimmed,
+          createdAt: optimistic.createdAt,
+          seenBy: [userId],
+        );
+        _messages = updated;
+        notifyListeners();
+      }
       return true;
     } catch (e) {
+      _messages = _messages.where((m) => m.id != tempId).toList();
       _errorMessage = 'Failed to send message: ${e.toString()}';
-      return false;
-    } finally {
-      _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
