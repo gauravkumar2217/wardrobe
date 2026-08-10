@@ -6,6 +6,9 @@ class FriendRequest {
   final String status; // pending | accepted | rejected | canceled
   final DateTime createdAt;
   final DateTime updatedAt;
+  /// From nested `from_user` on API — avoids extra profile fetches.
+  final String? fromDisplayName;
+  final String? fromUsername;
 
   FriendRequest({
     required this.id,
@@ -14,6 +17,8 @@ class FriendRequest {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.fromDisplayName,
+    this.fromUsername,
   });
 
   static DateTime _parseDate(dynamic value) {
@@ -32,14 +37,13 @@ class FriendRequest {
 
   factory FriendRequest.fromApiJson(Map<String, dynamic> json) {
     final id = json['id']?.toString() ?? '';
+    Map? fromUser;
+    final rawFrom = json['from_user'] ?? json['fromUser'];
+    if (rawFrom is Map) fromUser = rawFrom;
+
     final from = json['from_user_id']?.toString() ??
         json['fromUserId']?.toString() ??
-        (json['from_user'] is Map
-            ? (json['from_user'] as Map)['id']?.toString()
-            : null) ??
-        (json['fromUser'] is Map
-            ? (json['fromUser'] as Map)['id']?.toString()
-            : null) ??
+        fromUser?['id']?.toString() ??
         '';
     final to = json['to_user_id']?.toString() ??
         json['toUserId']?.toString() ??
@@ -62,6 +66,9 @@ class FriendRequest {
       status: json['status']?.toString() ?? 'pending',
       createdAt: created,
       updatedAt: updated,
+      fromDisplayName: fromUser?['display_name']?.toString() ??
+          fromUser?['displayName']?.toString(),
+      fromUsername: fromUser?['username']?.toString(),
     );
   }
 
@@ -94,6 +101,16 @@ class FriendRequest {
     );
   }
 
+  String get fromLabel {
+    if (fromDisplayName != null && fromDisplayName!.trim().isNotEmpty) {
+      return fromDisplayName!.trim();
+    }
+    if (fromUsername != null && fromUsername!.trim().isNotEmpty) {
+      return '@${fromUsername!.trim()}';
+    }
+    return 'Unknown User';
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'fromUserId': fromUserId,
@@ -111,6 +128,8 @@ class FriendRequest {
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? fromDisplayName,
+    String? fromUsername,
   }) {
     return FriendRequest(
       id: id ?? this.id,
@@ -119,6 +138,8 @@ class FriendRequest {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      fromDisplayName: fromDisplayName ?? this.fromDisplayName,
+      fromUsername: fromUsername ?? this.fromUsername,
     );
   }
 

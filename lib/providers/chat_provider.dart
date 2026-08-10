@@ -60,6 +60,11 @@ class ChatProvider with ChangeNotifier {
 
     try {
       _chats = await ChatService.getUserChats(userId);
+      // Unread counts come with the lightweight chat list — no N+1 message fetches.
+      _unreadCounts = {
+        for (final chat in _chats)
+          if (chat.unreadCount > 0) chat.id: chat.unreadCount,
+      };
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load chats: ${e.toString()}';
@@ -100,9 +105,16 @@ class ChatProvider with ChangeNotifier {
       }
       
       _chats = chats;
+      _unreadCounts = {
+        for (final chat in chats)
+          if (chat.unreadCount > 0) chat.id: chat.unreadCount,
+      };
+      // Keep calculated count for open chat if present
+      if (_currentChat != null &&
+          _unreadCounts.containsKey(_currentChat!.id) == false) {
+        // no-op; open chat uses message-based count via mark seen
+      }
       _errorMessage = null;
-      // Refresh unread counts when chats update
-      _refreshUnreadCounts(userId);
       notifyListeners();
     }, onError: (error) {
       _errorMessage = 'Failed to watch chats: ${error.toString()}';
@@ -124,60 +136,36 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Refresh unread counts for all chats
-  /// Note: This is only called when needed (e.g., initial load or chat list update)
-  /// For active chats, we calculate from loaded messages instead
-  /// Uses simple get() queries instead of snapshots() for better performance
+  /// Refresh unread counts for all chats from the lightweight chat list payload.
   Future<void> _refreshUnreadCounts(String userId) async {
-    // Check authentication before making any queries
     try {
       final currentUserId = await LaravelAuthService.getCurrentUserId();
       if (currentUserId == null || currentUserId != userId) {
-        // User is not authenticated, clear counts and return
         _unreadCounts = {};
         notifyListeners();
         return;
       }
     } catch (e) {
-      // If auth check fails, don't make queries
       return;
     }
-    
+
     try {
-      // Use simple get() queries like cloth detail screen does
-      // This is more efficient and doesn't require real-time listeners
-      final allUnreadCounts = <String, int>{};
-      
-      // Get all chats first
-      final chats = await ChatService.getUserChats(userId);
-      
-      // For each chat, get unread count using simple get() query
-      for (var chat in chats) {
-        try {
-          final count = await ChatService.getUnreadCount(
-            userId: userId,
-            chatId: chat.id,
-          );
-          if (count > 0) {
-            allUnreadCounts[chat.id] = count;
-          }
-        } catch (e) {
-          // Skip if permission denied (user might have signed out)
-          debugPrint('Failed to get unread count for chat ${chat.id}: $e');
-        }
-      }
-      
-      // Merge with calculated counts from loaded messages
+      final chats = _chats.isNotEmpty
+          ? _chats
+          : await ChatService.getUserChats(userId);
+      final allUnreadCounts = <String, int>{
+        for (final chat in chats)
+          if (chat.unreadCount > 0) chat.id: chat.unreadCount,
+      };
+
       if (_currentChat != null && _unreadCounts.containsKey(_currentChat!.id)) {
-        // Keep calculated count for current chat
         allUnreadCounts[_currentChat!.id] = _unreadCounts[_currentChat!.id]!;
       }
-      
+
       _unreadCounts = allUnreadCounts;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to refresh unread counts: $e');
-      // Don't throw - just log the error
     }
   }
 
@@ -243,7 +231,10 @@ class ChatProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    // Avoid notifyListeners during widget build/mount.
+    scheduleMicrotask(() {
+      notifyListeners();
+    });
 
     try {
       _currentChat = await ChatService.getChat(userId: userId, chatId: chatId);

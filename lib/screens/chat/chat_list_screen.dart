@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/user_profile.dart';
-import '../../services/user_service.dart';
+import '../../providers/friend_provider.dart';
 import 'chat_detail_screen.dart';
 import '../../utils/main_shell_navigation.dart';
 
@@ -19,50 +18,27 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  final Map<String, UserProfile?> _participantProfiles = {};
-
   @override
   void initState() {
     super.initState();
-    // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadChats();
     });
   }
 
-  Future<void> _loadParticipantProfile(String userId) async {
-    if (_participantProfiles.containsKey(userId)) return;
-
-    try {
-      final profile = await UserService.getUserProfile(userId);
-      if (mounted) {
-        setState(() {
-          _participantProfiles[userId] = profile;
-        });
-      }
-    } catch (e) {
-      // Silently fail - will show fallback UI
-    }
-  }
-
-  void _loadChats() {
+  Future<void> _loadChats() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
-    if (authProvider.user != null) {
-      chatProvider.loadChats(authProvider.user!.uid);
-      // Only watch chats if user is authenticated
-      if (authProvider.isAuthenticated && authProvider.user != null) {
-        chatProvider.watchChats(authProvider.user!.uid);
+    if (authProvider.user != null && authProvider.isAuthenticated) {
+      final uid = authProvider.user!.uid;
+      // Friends list needed to hide chats with non-friends (client fallback).
+      if (friendProvider.friends.isEmpty) {
+        await friendProvider.loadFriends(uid);
       }
-      // Load unread counts
-      // Only load unread counts if user is authenticated
-      if (authProvider.isAuthenticated && authProvider.user != null) {
-        chatProvider.loadUnreadCounts(authProvider.user!.uid).catchError((e) {
-          // Silently handle errors (user might have signed out)
-          debugPrint('Failed to load unread counts: $e');
-        });
-      }
+      await chatProvider.loadChats(uid);
+      chatProvider.watchChats(uid);
     }
   }
 
@@ -70,19 +46,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final friendProvider = Provider.of<FriendProvider>(context);
+    final currentUid = authProvider.user?.uid;
+    final friendIds = friendProvider.friends.toSet();
 
-    // Load profiles for all chat participants
-    if (authProvider.user != null) {
-      for (var chat in chatProvider.chats) {
-        if (!chat.isGroup) {
-          final otherParticipantId =
-              chat.getOtherParticipant(authProvider.user!.uid);
-          if (otherParticipantId != null) {
-            _loadParticipantProfile(otherParticipantId);
-          }
-        }
-      }
-    }
+    // Hide 1:1 chats where the other person is no longer a friend.
+    final visibleChats = currentUid == null
+        ? chatProvider.chats
+        : chatProvider.chats.where((chat) {
+            if (chat.isGroup) return true;
+            final other = chat.getOtherParticipant(currentUid);
+            if (other == null || other.isEmpty) return false;
+            return friendIds.contains(other);
+          }).toList();
 
     return Scaffold(
       appBar: widget.embedded
@@ -100,7 +76,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               automaticallyImplyLeading: false,
               leading: mainShellAppBarLeading(context),
             ),
-      body: chatProvider.isLoading && chatProvider.chats.isEmpty
+      body: chatProvider.isLoading && visibleChats.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : chatProvider.errorMessage != null
               ? Center(
@@ -135,7 +111,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ],
                   ),
                 )
-              : chatProvider.chats.isEmpty
+              : visibleChats.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -157,65 +133,36 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     )
                   : RefreshIndicator(
                       onRefresh: () async {
-                        _loadChats();
-                        await Future.delayed(const Duration(milliseconds: 500));
+                        if (currentUid != null) {
+                          await friendProvider.loadFriends(currentUid);
+                          await chatProvider.loadChats(currentUid);
+                        }
                       },
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: chatProvider.chats.length,
+                        itemCount: visibleChats.length,
                         itemBuilder: (context, index) {
-                          final chat = chatProvider.chats[index];
-                          final authProvider =
-                              Provider.of<AuthProvider>(context, listen: false);
-
-                          // Get other participant for non-group chats
-                          String? otherParticipantId;
-                          UserProfile? otherParticipantProfile;
-
-                          if (!chat.isGroup && authProvider.user != null) {
-                            otherParticipantId = chat
-                                .getOtherParticipant(authProvider.user!.uid);
-                            if (otherParticipantId != null) {
-                              otherParticipantProfile =
-                                  _participantProfiles[otherParticipantId];
-                              // Trigger profile load if not already loaded
-                              _loadParticipantProfile(otherParticipantId);
+                          final chat = visibleChats[index];
+                          var displayName = currentUid != null
+                              ? chat.displayNameFor(currentUid)
+                              : 'Chat';
+                          if ((displayName == 'Chat' || displayName.isEmpty) &&
+                              currentUid != null) {
+                            final other = chat.getOtherParticipant(currentUid);
+                            final fp = other != null
+                                ? friendProvider.profileFor(other)
+                                : null;
+                            if (fp?.displayName != null &&
+                                fp!.displayName!.trim().isNotEmpty) {
+                              displayName = fp.displayName!.trim();
+                            } else if (fp?.username != null &&
+                                fp!.username!.trim().isNotEmpty) {
+                              displayName = '@${fp.username!.trim()}';
                             }
                           }
-
-                          // Determine display name and avatar
-                          String displayName;
-                          String? photoUrl;
-                          String avatarLetter;
-
-                          if (chat.isGroup) {
-                            displayName = 'Group Chat';
-                            avatarLetter = 'G';
-                          } else if (otherParticipantProfile != null) {
-                            displayName = otherParticipantProfile.displayName ??
-                                (otherParticipantProfile.username != null
-                                    ? '@${otherParticipantProfile.username}'
-                                    : 'Chat');
-                            photoUrl = otherParticipantProfile.photoUrl;
-                            avatarLetter = otherParticipantProfile.displayName
-                                    ?.substring(0, 1)
-                                    .toUpperCase() ??
-                                (otherParticipantId != null &&
-                                        otherParticipantId.isNotEmpty
-                                    ? otherParticipantId
-                                        .substring(0, 1)
-                                        .toUpperCase()
-                                    : '?');
-                          } else {
-                            displayName = 'Chat';
-                            avatarLetter = otherParticipantId != null &&
-                                    otherParticipantId.isNotEmpty
-                                ? otherParticipantId
-                                    .substring(0, 1)
-                                    .toUpperCase()
-                                : '?';
-                          }
-
+                          final avatarLetter = displayName.isNotEmpty
+                              ? displayName.substring(0, 1).toUpperCase()
+                              : '?';
                           final unreadCount =
                               chatProvider.getUnreadCount(chat.id);
 
@@ -226,19 +173,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             leading: CircleAvatar(
                               radius: 22,
                               backgroundColor: const Color(0xFF043915),
-                              backgroundImage: photoUrl != null
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child: photoUrl == null
-                                  ? Text(
-                                      avatarLetter,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    )
-                                  : null,
+                              child: Text(
+                                avatarLetter,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                             title: Row(
                               children: [

@@ -4,8 +4,6 @@ import '../models/chat.dart';
 import 'content_filter_service.dart';
 import 'laravel_api_client.dart';
 import 'laravel_auth_service.dart';
-import 'push_notification_service.dart';
-import 'user_service.dart';
 
 /// Chat service backed by Laravel API.
 class ChatService {
@@ -133,14 +131,13 @@ class ChatService {
       }
       final messageId = data['id']?.toString() ?? '';
 
-      final previewText =
-          text ?? (imageUrl != null ? '📷 Image' : '👕 Cloth');
+      // Push + in-app notification are sent by Laravel MessageController
+      // (AppNotificationService / FCM). Do not use Firestore triggers.
 
       if (clothId != null && clothOwnerId != null) {
         try {
-          final recipientIds = chat.participants
-              .where((id) => id != userId)
-              .toList();
+          final recipientIds =
+              chat.participants.where((id) => id != userId).toList();
           if (recipientIds.isNotEmpty) {
             await LaravelApiClient.putJson(
               ApiConfig.clothShare(clothId),
@@ -149,33 +146,6 @@ class ChatService {
           }
         } catch (e) {
           debugPrint('Cloth share via API failed (message still sent): $e');
-        }
-      }
-
-      for (final participantId in chat.participants) {
-        if (participantId == userId) continue;
-        try {
-          final isInForeground =
-              await PushNotificationService.isUserAppInForeground(
-            participantId,
-          );
-          if (!isInForeground) {
-            final senderProfile = await UserService.getUserProfile(userId);
-            final senderName = senderProfile?.displayName ??
-                (senderProfile?.username != null
-                    ? '@${senderProfile!.username}'
-                    : 'Someone');
-            await PushNotificationService.sendChatMessageNotification(
-              recipientUserId: participantId,
-              senderUserId: userId,
-              chatId: chatId,
-              messageId: messageId,
-              messageText: previewText,
-              senderName: senderName,
-            );
-          }
-        } catch (e) {
-          debugPrint('Push notification failed: $e');
         }
       }
 
@@ -250,12 +220,13 @@ class ChatService {
   static Stream<List<Chat>> watchUserChats(String userId) async* {
     yield await getUserChats(userId);
     while (true) {
-      await Future.delayed(const Duration(seconds: 10));
+      await Future.delayed(const Duration(seconds: 45));
       yield await getUserChats(userId);
     }
   }
 
-  /// Get unread message count for a specific chat
+  /// Prefer [Chat.unreadCount] from the chat list API.
+  /// Avoid calling this on every row — it loads messages and is slow.
   static Future<int> getUnreadCount({
     required String userId,
     required String chatId,
@@ -265,7 +236,7 @@ class ChatService {
       if (currentUserId == null || currentUserId != userId) return 0;
 
       final messages =
-          await getMessages(userId: userId, chatId: chatId, limit: 200);
+          await getMessages(userId: userId, chatId: chatId, limit: 50);
       return messages
           .where((m) => m.senderId != userId && !m.isSeenBy(userId))
           .length;
@@ -275,20 +246,17 @@ class ChatService {
     }
   }
 
-  /// Get unread message counts for all chats
+  /// Get unread message counts for all chats (from list payload only).
   static Future<Map<String, int>> getAllUnreadCounts(String userId) async {
     try {
       final currentUserId = await LaravelAuthService.getCurrentUserId();
       if (currentUserId == null || currentUserId != userId) return {};
 
       final chats = await getUserChats(userId);
-      final counts = <String, int>{};
-      for (final chat in chats) {
-        final count =
-            await getUnreadCount(userId: userId, chatId: chat.id);
-        if (count > 0) counts[chat.id] = count;
-      }
-      return counts;
+      return {
+        for (final chat in chats)
+          if (chat.unreadCount > 0) chat.id: chat.unreadCount,
+      };
     } catch (e) {
       debugPrint('Failed to get all unread counts: $e');
       return {};

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../config/api_config.dart';
 import '../models/friend_request.dart';
+import '../models/user_profile.dart';
 import 'laravel_api_client.dart';
 
 /// Friend service — Laravel API (MySQL). No Firestore.
@@ -25,6 +26,20 @@ class FriendService {
           entry['friendId']?.toString();
     }
     return null;
+  }
+
+  /// Lightweight profile from friends / request payload (no photo fetch).
+  static UserProfile? _profileFromFriendEntry(dynamic entry) {
+    if (entry is! Map) return null;
+    final map = Map<String, dynamic>.from(entry);
+    final id = _userIdFromFriendEntry(map);
+    if (id == null || id.isEmpty) return null;
+    return UserProfile(
+      displayName: map['display_name'] as String? ??
+          map['displayName'] as String?,
+      username: map['username'] as String?,
+      // Intentionally omit photoUrl — list screens use initials only.
+    );
   }
 
   /// Send friend request. Returns request id.
@@ -109,16 +124,23 @@ class FriendService {
 
   /// Returns friend user ids.
   static Future<List<String>> getFriends(String userId) async {
+    final detailed = await getFriendsWithProfiles(userId);
+    return detailed.keys.toList();
+  }
+
+  /// Friends with display names from a single API call (no N+1 profile fetches).
+  static Future<Map<String, UserProfile>> getFriendsWithProfiles(
+    String userId,
+  ) async {
     final body = await LaravelApiClient.getJson(ApiConfig.friends);
     final list = _asList(LaravelApiClient.extractData(body));
-    final ids = <String>[];
+    final result = <String, UserProfile>{};
     for (final entry in list) {
       final id = _userIdFromFriendEntry(entry);
-      if (id != null && id.isNotEmpty && id != userId) {
-        ids.add(id);
-      }
+      if (id == null || id.isEmpty || id == userId) continue;
+      result[id] = _profileFromFriendEntry(entry) ?? UserProfile();
     }
-    return ids;
+    return result;
   }
 
   static Future<bool> checkFriendship(String userId1, String userId2) async {
@@ -158,14 +180,27 @@ class FriendService {
     await LaravelApiClient.deleteJson(ApiConfig.friend(friendId));
   }
 
-  /// Light polling stream (replaces Firestore watch).
+  /// Light polling stream (replaces Firestore watch). Slower interval to reduce load.
   static Stream<List<String>> watchFriends(String userId) async* {
     yield await getFriends(userId);
-    await for (final _ in Stream.periodic(const Duration(seconds: 20))) {
+    await for (final _ in Stream.periodic(const Duration(seconds: 60))) {
       try {
         yield await getFriends(userId);
       } catch (e) {
         if (kDebugMode) debugPrint('watchFriends poll error: $e');
+      }
+    }
+  }
+
+  static Stream<Map<String, UserProfile>> watchFriendsWithProfiles(
+    String userId,
+  ) async* {
+    yield await getFriendsWithProfiles(userId);
+    await for (final _ in Stream.periodic(const Duration(seconds: 60))) {
+      try {
+        yield await getFriendsWithProfiles(userId);
+      } catch (e) {
+        if (kDebugMode) debugPrint('watchFriendsWithProfiles poll error: $e');
       }
     }
   }
@@ -175,7 +210,7 @@ class FriendService {
     String type = 'incoming',
   }) async* {
     yield await getFriendRequests(userId: userId, type: type);
-    await for (final _ in Stream.periodic(const Duration(seconds: 20))) {
+    await for (final _ in Stream.periodic(const Duration(seconds: 60))) {
       try {
         yield await getFriendRequests(userId: userId, type: type);
       } catch (e) {

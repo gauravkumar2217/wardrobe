@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/friend_provider.dart';
-import '../../services/user_service.dart';
 import '../../services/chat_service.dart';
-import '../../models/user_profile.dart';
 import '../../models/friend_request.dart';
 import '../friends/search_users_screen.dart';
 import '../chat/chat_detail_screen.dart';
@@ -22,13 +20,9 @@ class FriendsListScreen extends StatefulWidget {
 }
 
 class _FriendsListScreenState extends State<FriendsListScreen> {
-  final Map<String, UserProfile?> _friendProfiles = {};
-  final Map<String, UserProfile?> _requestProfiles = {};
-
   @override
   void initState() {
     super.initState();
-    // Defer loading until after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFriends();
       _loadFriendRequests();
@@ -39,17 +33,10 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
-    if (authProvider.user != null) {
-      // Only load and watch if user is authenticated
-      if (authProvider.isAuthenticated && authProvider.user != null) {
-        await friendProvider.loadFriends(authProvider.user!.uid);
-        friendProvider.watchFriends(authProvider.user!.uid);
-      }
-
-      // Load profiles for all friends
-      for (var friendId in friendProvider.friends) {
-        _loadFriendProfile(friendId);
-      }
+    if (authProvider.user != null && authProvider.isAuthenticated) {
+      await friendProvider.loadFriends(authProvider.user!.uid);
+      // Pull-to-refresh + slower background poll only — avoid aggressive reload
+      friendProvider.watchFriends(authProvider.user!.uid);
     }
   }
 
@@ -57,39 +44,9 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final friendProvider = Provider.of<FriendProvider>(context, listen: false);
 
-    if (authProvider.user != null) {
-      // Only load and watch if user is authenticated
-      if (authProvider.isAuthenticated && authProvider.user != null) {
-        await friendProvider.loadFriendRequests(authProvider.user!.uid);
-        friendProvider.watchFriendRequests(authProvider.user!.uid);
-      }
-
-      // Load profiles for all incoming requests
-      for (var request in friendProvider.incomingRequests) {
-        _loadRequestProfile(request.fromUserId);
-      }
-    }
-  }
-
-  Future<void> _loadFriendProfile(String friendId) async {
-    if (_friendProfiles.containsKey(friendId)) return;
-
-    final profile = await UserService.getUserProfile(friendId);
-    if (mounted) {
-      setState(() {
-        _friendProfiles[friendId] = profile;
-      });
-    }
-  }
-
-  Future<void> _loadRequestProfile(String userId) async {
-    if (_requestProfiles.containsKey(userId)) return;
-
-    final profile = await UserService.getUserProfile(userId);
-    if (mounted) {
-      setState(() {
-        _requestProfiles[userId] = profile;
-      });
+    if (authProvider.user != null && authProvider.isAuthenticated) {
+      await friendProvider.loadFriendRequests(authProvider.user!.uid);
+      friendProvider.watchFriendRequests(authProvider.user!.uid);
     }
   }
 
@@ -104,14 +61,10 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
           const SnackBar(content: Text('Friend request accepted')),
         );
 
-        // Load profile for the new friend
-        _loadFriendProfile(request.fromUserId);
-
         // Reload both friends and requests to ensure sync
         await _loadFriends();
         await _loadFriendRequests();
 
-        // Force a refresh by notifying listeners
         if (mounted) {
           setState(() {});
         }
@@ -135,9 +88,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend request rejected')),
         );
-        setState(() {
-          _requestProfiles.remove(request.fromUserId);
-        });
         _loadFriendRequests();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -233,9 +183,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Friend removed')),
           );
-          setState(() {
-            _friendProfiles.remove(friendId);
-          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -375,8 +322,10 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             (context, index) {
                               final request =
                                   friendProvider.incomingRequests[index];
-                              final profile =
-                                  _requestProfiles[request.fromUserId];
+                              final label = request.fromLabel;
+                              final letter = label.isNotEmpty
+                                  ? label.substring(0, 1).toUpperCase()
+                                  : '?';
 
                               return Card(
                                 margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -388,23 +337,14 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                   leading: CircleAvatar(
                                     radius: 20,
                                     backgroundColor: const Color(0xFF043915),
-                                    backgroundImage: profile?.photoUrl != null
-                                        ? NetworkImage(profile!.photoUrl!)
-                                        : null,
-                                    child: profile?.photoUrl == null
-                                        ? Text(
-                                            profile?.displayName
-                                                    ?.substring(0, 1)
-                                                    .toUpperCase() ??
-                                                '?',
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14),
-                                          )
-                                        : null,
+                                    child: Text(
+                                      letter,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
                                   ),
                                   title: Text(
-                                    profile?.displayName ?? 'Unknown User',
+                                    label,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13),
@@ -474,7 +414,15 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
                               final friendId = friendProvider.friends[index];
-                              final profile = _friendProfiles[friendId];
+                              final profile =
+                                  friendProvider.profileFor(friendId);
+                              final displayName = profile?.displayName ??
+                                  (profile?.username != null
+                                      ? '@${profile!.username}'
+                                      : 'Friend');
+                              final letter = displayName.isNotEmpty
+                                  ? displayName.substring(0, 1).toUpperCase()
+                                  : '?';
 
                               return Card(
                                 margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -485,23 +433,14 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                   leading: CircleAvatar(
                                     radius: 20,
                                     backgroundColor: const Color(0xFF043915),
-                                    backgroundImage: profile?.photoUrl != null
-                                        ? NetworkImage(profile!.photoUrl!)
-                                        : null,
-                                    child: profile?.photoUrl == null
-                                        ? Text(
-                                            profile?.displayName
-                                                    ?.substring(0, 1)
-                                                    .toUpperCase() ??
-                                                '?',
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14),
-                                          )
-                                        : null,
+                                    child: Text(
+                                      letter,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
                                   ),
                                   title: Text(
-                                    profile?.displayName ?? 'Unknown User',
+                                    displayName,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13),
@@ -510,7 +449,9 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                     profile?.username != null &&
                                             profile!.username!.isNotEmpty
                                         ? '@${profile.username}'
-                                        : friendId.substring(0, 8),
+                                        : friendId.length > 8
+                                            ? friendId.substring(0, 8)
+                                            : friendId,
                                     style: TextStyle(
                                         color: Colors.grey[600], fontSize: 11),
                                   ),
@@ -551,8 +492,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                                     ],
                                   ),
                                   onTap: () {
-                                    // TODO: Navigate to friend's profile when profile screen is created
-                                    // For now, start a chat
                                     _startChat(friendId);
                                   },
                                 ),

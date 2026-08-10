@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/friend_request.dart';
+import '../models/user_profile.dart';
 import '../services/friend_service.dart';
 import '../services/user_service.dart';
 import '../services/laravel_auth_service.dart';
@@ -8,16 +9,19 @@ import '../services/laravel_auth_service.dart';
 /// Friend provider for managing friends and friend requests
 class FriendProvider with ChangeNotifier {
   List<String> _friends = [];
+  Map<String, UserProfile> _friendProfiles = {};
   List<FriendRequest> _incomingRequests = [];
   List<FriendRequest> _outgoingRequests = [];
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
   String? _errorMessage;
-  StreamSubscription<List<String>>? _friendsSubscription;
+  StreamSubscription? _friendsSubscription;
   StreamSubscription<List<FriendRequest>>? _incomingRequestsSubscription;
   StreamSubscription<List<FriendRequest>>? _outgoingRequestsSubscription;
 
   List<String> get friends => _friends;
+  Map<String, UserProfile> get friendProfiles => _friendProfiles;
+  UserProfile? profileFor(String userId) => _friendProfiles[userId];
   List<FriendRequest> get incomingRequests => _incomingRequests;
   List<FriendRequest> get outgoingRequests => _outgoingRequests;
   List<Map<String, dynamic>> get searchResults => _searchResults;
@@ -32,6 +36,7 @@ class FriendProvider with ChangeNotifier {
       if (currentUserId == null || currentUserId != userId) {
         // User is not authenticated, clear friends and return
         _friends = [];
+        _friendProfiles = {};
         _errorMessage = null;
         _isLoading = false;
         notifyListeners();
@@ -40,6 +45,7 @@ class FriendProvider with ChangeNotifier {
     } catch (e) {
       // If auth check fails, don't load
       _friends = [];
+      _friendProfiles = {};
       _errorMessage = null;
       _isLoading = false;
       notifyListeners();
@@ -51,7 +57,8 @@ class FriendProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _friends = await FriendService.getFriends(userId);
+      _friendProfiles = await FriendService.getFriendsWithProfiles(userId);
+      _friends = _friendProfiles.keys.toList();
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Failed to load friends: ${e.toString()}';
@@ -64,32 +71,43 @@ class FriendProvider with ChangeNotifier {
 
   /// Watch friends for real-time updates
   void watchFriends(String userId) {
-    // Cancel existing subscription
-    _friendsSubscription?.cancel();
+    // Cancel existing subscription (untyped — survives hot reload type changes)
+    try {
+      _friendsSubscription?.cancel();
+    } catch (_) {}
+    _friendsSubscription = null;
     
     final currentUserId = LaravelAuthService.memoryUserId;
     if (currentUserId == null || currentUserId != userId) {
       _friends = [];
+      _friendProfiles = {};
       notifyListeners();
       return;
     }
 
-    _friendsSubscription = FriendService.watchFriends(userId).listen((friends) {
+    _friendsSubscription =
+        FriendService.watchFriendsWithProfiles(userId).listen((profiles) {
       try {
         if (LaravelAuthService.memoryUserId != userId) {
-          // User signed out, cancel subscription
-          _friendsSubscription?.cancel();
+          try {
+            _friendsSubscription?.cancel();
+          } catch (_) {}
+          _friendsSubscription = null;
           _friends = [];
+          _friendProfiles = {};
           notifyListeners();
           return;
         }
       } catch (e) {
-        // If auth check fails, cancel subscription
-        _friendsSubscription?.cancel();
+        try {
+          _friendsSubscription?.cancel();
+        } catch (_) {}
+        _friendsSubscription = null;
         return;
       }
       
-      _friends = friends;
+      _friendProfiles = profiles;
+      _friends = profiles.keys.toList();
       _errorMessage = null;
       notifyListeners();
     }, onError: (error) {
@@ -208,13 +226,16 @@ class FriendProvider with ChangeNotifier {
   
   /// Clean up all subscriptions and reset state
   void cleanup() {
-    _friendsSubscription?.cancel();
+    try {
+      _friendsSubscription?.cancel();
+    } catch (_) {}
     _friendsSubscription = null;
     _incomingRequestsSubscription?.cancel();
     _incomingRequestsSubscription = null;
     _outgoingRequestsSubscription?.cancel();
     _outgoingRequestsSubscription = null;
     _friends = [];
+    _friendProfiles = {};
     _incomingRequests = [];
     _outgoingRequests = [];
     _searchResults = [];
@@ -258,12 +279,14 @@ class FriendProvider with ChangeNotifier {
       // If not found locally, we'll still proceed - the service will fetch it
       String? fromUserId;
       int? requestIndex;
+      FriendRequest? acceptedRequest;
       
       // Safely find the request index
       if (_incomingRequests.isNotEmpty) {
         requestIndex = _incomingRequests.indexWhere((r) => r.id == requestId);
         if (requestIndex != -1 && requestIndex < _incomingRequests.length) {
-          fromUserId = _incomingRequests[requestIndex].fromUserId;
+          acceptedRequest = _incomingRequests[requestIndex];
+          fromUserId = acceptedRequest.fromUserId;
         } else {
           requestIndex = null; // Invalid index, don't try to remove
         }
@@ -288,8 +311,14 @@ class FriendProvider with ChangeNotifier {
       }
       
       // Add the friend to the friends list immediately if we have the fromUserId
-      if (fromUserId != null && fromUserId.isNotEmpty && !_friends.contains(fromUserId)) {
+      if (fromUserId != null &&
+          fromUserId.isNotEmpty &&
+          !_friends.contains(fromUserId)) {
         _friends.add(fromUserId);
+        _friendProfiles[fromUserId] = UserProfile(
+          displayName: acceptedRequest?.fromDisplayName,
+          username: acceptedRequest?.fromUsername,
+        );
       }
       
       _errorMessage = null;
@@ -360,6 +389,7 @@ class FriendProvider with ChangeNotifier {
         friendId: friendId,
       );
       _friends.remove(friendId);
+      _friendProfiles.remove(friendId);
       _errorMessage = null;
       return true;
     } catch (e) {

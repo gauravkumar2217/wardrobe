@@ -8,6 +8,9 @@ class Chat {
   final DateTime? lastMessageAt;
   final bool isGroup;
   final DateTime createdAt;
+  /// Lightweight peer labels from API (no photo fetch needed).
+  final Map<String, String> participantNames;
+  final int unreadCount;
 
   Chat({
     required this.id,
@@ -16,6 +19,8 @@ class Chat {
     this.lastMessageAt,
     this.isGroup = false,
     required this.createdAt,
+    this.participantNames = const {},
+    this.unreadCount = 0,
   });
 
   factory Chat.fromJson(Map<String, dynamic> json, String id) {
@@ -24,6 +29,24 @@ class Chat {
       if (value is Timestamp) return value.toDate();
       if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
       return null;
+    }
+
+    final names = <String, String>{};
+    final profiles = json['participant_profiles'] ?? json['participantProfiles'];
+    if (profiles is List) {
+      for (final p in profiles) {
+        if (p is! Map) continue;
+        final pid = p['id']?.toString();
+        if (pid == null || pid.isEmpty) continue;
+        final display = p['display_name']?.toString() ??
+            p['displayName']?.toString();
+        final username = p['username']?.toString();
+        if (display != null && display.trim().isNotEmpty) {
+          names[pid] = display.trim();
+        } else if (username != null && username.trim().isNotEmpty) {
+          names[pid] = '@${username.trim()}';
+        }
+      }
     }
 
     return Chat(
@@ -35,6 +58,10 @@ class Chat {
       isGroup: json['is_group'] as bool? ?? json['isGroup'] as bool? ?? false,
       createdAt: parseDate(json['created_at'] ?? json['createdAt']) ??
           DateTime.now(),
+      participantNames: names,
+      unreadCount: (json['unread_count'] as num?)?.toInt() ??
+          (json['unreadCount'] as num?)?.toInt() ??
+          0,
     );
   }
 
@@ -60,6 +87,8 @@ class Chat {
     DateTime? lastMessageAt,
     bool? isGroup,
     DateTime? createdAt,
+    Map<String, String>? participantNames,
+    int? unreadCount,
   }) {
     return Chat(
       id: id ?? this.id,
@@ -68,14 +97,26 @@ class Chat {
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       isGroup: isGroup ?? this.isGroup,
       createdAt: createdAt ?? this.createdAt,
+      participantNames: participantNames ?? this.participantNames,
+      unreadCount: unreadCount ?? this.unreadCount,
     );
   }
 
   String? getOtherParticipant(String currentUserId) {
     if (participants.length == 2) {
-      return participants.firstWhere((id) => id != currentUserId);
+      return participants.firstWhere(
+        (id) => id != currentUserId,
+        orElse: () => '',
+      );
     }
     return null;
+  }
+
+  String displayNameFor(String currentUserId) {
+    if (isGroup) return 'Group Chat';
+    final other = getOtherParticipant(currentUserId);
+    if (other == null || other.isEmpty) return 'Chat';
+    return participantNames[other] ?? 'Chat';
   }
 }
 

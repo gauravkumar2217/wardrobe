@@ -3,33 +3,39 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Content filter service using Google Cloud Natural Language API
-/// Filters objectionable content before it's posted
+/// Content filter using Google Cloud Natural Language ModerateText.
+/// If the API key cannot call Language API, filtering is disabled (fail open).
 class ContentFilterService {
-  static const String _moderateUrl = 'https://language.googleapis.com/v1/documents:moderateText';
+  static const String _moderateUrl =
+      'https://language.googleapis.com/v1/documents:moderateText';
 
-  /// Get Google Cloud API key from environment variables
+  /// After a hard API-key block, stop calling Google on every message.
+  static bool _disabled = false;
+  static bool _loggedDisable = false;
+
   static String? get _apiKey => dotenv.env['GOOGLE_CLOUD_API_KEY'];
 
-  /// Check if content is safe to post
-  /// Returns true if content is safe, false if it should be blocked
+  /// Explicit opt-in: set CONTENT_FILTER_ENABLED=true in .env to use the API.
+  /// Default is off so chat is not slowed / flooded by 403s when the key
+  /// cannot access language.googleapis.com.
+  static bool get _enabledInEnv {
+    final v = dotenv.env['CONTENT_FILTER_ENABLED']?.trim().toLowerCase();
+    return v == 'true' || v == '1' || v == 'yes';
+  }
+
   static Future<bool> isContentSafe(String text) async {
     if (text.trim().isEmpty) return true;
+    if (_disabled || !_enabledInEnv) return true;
 
     final apiKey = _apiKey;
     if (apiKey == null || apiKey.isEmpty) {
-      debugPrint('⚠️ Google Cloud API key not set. Content filtering disabled.');
-      // Fail open - allow content if API key not configured
       return true;
     }
 
     try {
-      // Use moderateText API for toxicity detection
       final response = await http.post(
         Uri.parse('$_moderateUrl?key=$apiKey'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'document': {
             'type': 'PLAIN_TEXT',
@@ -40,100 +46,67 @@ class ContentFilterService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        // Check for moderation categories
         final moderationCategories = data['moderationCategories'] as List?;
         if (moderationCategories != null && moderationCategories.isNotEmpty) {
-          // Content has been flagged - check severity
-          for (var category in moderationCategories) {
-            final confidence = category['confidence'] as double? ?? 0.0;
-            // Block if confidence is high (>= 0.7)
+          for (final category in moderationCategories) {
+            final confidence = (category['confidence'] as num?)?.toDouble() ?? 0.0;
             if (confidence >= 0.7) {
-              debugPrint('Content blocked: ${category['name']} (confidence: $confidence)');
+              debugPrint(
+                  'Content blocked: ${category['name']} (confidence: $confidence)');
               return false;
             }
           }
         }
-
         return true;
-      } else {
-        // If API call fails, allow content but log error
-        // In production, you might want to block content if filter fails
-        debugPrint('Content filter API error: ${response.statusCode} - ${response.body}');
-        return true; // Fail open for now - adjust based on your policy
       }
+
+      _disableIfApiKeyBlocked(response.statusCode, response.body);
+      return true;
     } catch (e) {
       debugPrint('Content filter error: $e');
-      // Fail open - allow content if filter fails
-      // In production, consider failing closed for stricter moderation
       return true;
     }
   }
 
-  /// Get toxicity score for content
-  /// Returns a score between 0.0 (safe) and 1.0 (highly toxic)
-  static Future<double> getToxicityScore(String text) async {
-    if (text.trim().isEmpty) return 0.0;
-
-    final apiKey = _apiKey;
-    if (apiKey == null || apiKey.isEmpty) {
-      debugPrint('⚠️ Google Cloud API key not set. Returning default score.');
-      return 0.0;
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse('$_moderateUrl?key=$apiKey'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'document': {
-            'type': 'PLAIN_TEXT',
-            'content': text,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final moderationCategories = data['moderationCategories'] as List?;
-        
-        if (moderationCategories != null && moderationCategories.isNotEmpty) {
-          // Return the highest confidence score
-          double maxConfidence = 0.0;
-          for (var category in moderationCategories) {
-            final confidence = category['confidence'] as double? ?? 0.0;
-            if (confidence > maxConfidence) {
-              maxConfidence = confidence;
-            }
-          }
-          return maxConfidence;
-        }
+  static void _disableIfApiKeyBlocked(int statusCode, String body) {
+    final blocked = statusCode == 403 &&
+        (body.contains('API_KEY_SERVICE_BLOCKED') ||
+            body.contains('PERMISSION_DENIED') ||
+            body.contains('are blocked'));
+    if (!blocked && statusCode != 403) {
+      if (kDebugMode) {
+        debugPrint('Content filter API error: $statusCode');
       }
-    } catch (e) {
-      debugPrint('Toxicity score error: $e');
+      return;
     }
 
-    return 0.0;
+    _disabled = true;
+    if (!_loggedDisable) {
+      _loggedDisable = true;
+      debugPrint(
+        'Content filter disabled: Google Language API blocked for this API key '
+        '(API_KEY_SERVICE_BLOCKED). Chat messages will still send. '
+        'Fix: Cloud Console → Credentials → your key → API restrictions → '
+        'include "Cloud Natural Language API", or set CONTENT_FILTER_ENABLED=false.',
+      );
+    }
   }
 
-  /// Filter content and return filtered version
-  /// Replaces objectionable words with asterisks
+  static Future<double> getToxicityScore(String text) async {
+    if (!_enabledInEnv || _disabled || text.trim().isEmpty) return 0.0;
+    // Reuse safety check path only when enabled; score not critical for chat.
+    final safe = await isContentSafe(text);
+    return safe ? 0.0 : 1.0;
+  }
+
   static Future<String> filterContent(String text) async {
-    // For now, return original text
-    // In production, you could implement word replacement logic
     final isSafe = await isContentSafe(text);
-    if (!isSafe) {
-      return ''; // Return empty string if content is unsafe
-    }
-    return text;
+    return isSafe ? text : '';
   }
 
-  /// Check multiple texts at once
   static Future<List<bool>> areContentsSafe(List<String> texts) async {
     final results = <bool>[];
-    for (var text in texts) {
+    for (final text in texts) {
       results.add(await isContentSafe(text));
     }
     return results;

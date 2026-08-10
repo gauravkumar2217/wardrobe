@@ -77,6 +77,13 @@ class ApiConfig {
       '$baseUrl/messages/$messageId';
   static String clothShare(String clothId) => '$baseUrl/clothes/$clothId/share';
 
+  // Blocks & reports (Laravel)
+  static String get blocks => '$baseUrl/blocks';
+  static String blockUser(String blockedUserId) =>
+      '$baseUrl/blocks/$blockedUserId';
+  static String blockCheck(String userId) => '$baseUrl/blocks/check/$userId';
+  static String get reports => '$baseUrl/reports';
+
   // Style posts (Community Style Feed)
   static String get stylePosts => '$baseUrl/style-posts';
   static String stylePost(String postId) => '$baseUrl/style-posts/$postId';

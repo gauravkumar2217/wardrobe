@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat.dart';
-import '../../models/user_profile.dart';
 import '../../models/report.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/chat_bubble.dart';
-import '../../services/user_service.dart';
 import '../../services/report_service.dart';
 import '../../services/block_service.dart';
 import '../cloth/cloth_detail_screen.dart';
-import 'dart:async';
 
 /// Chat detail screen for a specific chat
 class ChatDetailScreen extends StatefulWidget {
@@ -28,94 +25,36 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  UserProfile? _otherParticipantProfile;
-  bool _isLoadingProfile = false;
   List<String> _blockedUserIds = [];
-  StreamSubscription<List<String>>? _blockedUsersSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _loadOtherParticipantProfile();
-    _loadBlockedUsers();
+    // Defer provider updates — calling notifyListeners during mount/build crashes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadMessages();
+      _loadBlockedUsers();
+    });
   }
 
   Future<void> _loadBlockedUsers() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.user == null) return;
 
-    // Load blocked users list
+    // Blocks are Laravel-only now (no Firestore).
     final blockedIds =
         await BlockService.getBlockedUserIds(authProvider.user!.uid);
-    if (mounted) {
-      setState(() {
-        _blockedUserIds = blockedIds;
-      });
-    }
-
-    // Watch for changes
-    _blockedUsersSubscription =
-        BlockService.watchBlockedUserIds(authProvider.user!.uid)
-            .listen((blockedIds) {
-      if (mounted) {
-        setState(() {
-          _blockedUserIds = blockedIds;
-          // Reload messages to filter blocked users
-          _loadMessages();
-        });
-      }
+    if (!mounted) return;
+    setState(() {
+      _blockedUserIds = blockedIds;
     });
-  }
-
-  Future<void> _loadOtherParticipantProfile() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    if (authProvider.user == null) return;
-
-    final otherParticipantId =
-        widget.chat.getOtherParticipant(authProvider.user!.uid);
-    if (otherParticipantId == null) return;
-
-    // Defer setState to avoid calling during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _isLoadingProfile = true;
-        });
-      }
-    });
-
-    try {
-      final profile = await UserService.getUserProfile(otherParticipantId);
-      if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _otherParticipantProfile = profile;
-              _isLoadingProfile = false;
-            });
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _isLoadingProfile = false;
-            });
-          }
-        });
-      }
-    }
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    _blockedUsersSubscription?.cancel();
     super.dispose();
   }
 
@@ -368,73 +307,46 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final chatProvider = Provider.of<ChatProvider>(context);
-    final otherParticipantId =
-        widget.chat.getOtherParticipant(authProvider.user?.uid ?? '');
+    final currentUid = authProvider.user?.uid ?? '';
+    final otherParticipantId = widget.chat.getOtherParticipant(currentUid);
+    final peerName = currentUid.isNotEmpty
+        ? widget.chat.displayNameFor(currentUid)
+        : 'Chat';
+    final peerLetter =
+        peerName.isNotEmpty ? peerName.substring(0, 1).toUpperCase() : '?';
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: _isLoadingProfile
-            ? const Row(
+        title: widget.chat.isGroup
+            ? const Text('Group Chat', style: TextStyle(fontSize: 14))
+            : Row(
                 children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.white.withValues(alpha: 0.3),
+                    child: Text(
+                      peerLetter,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Text('Loading...', style: const TextStyle(fontSize: 14)),
-                ],
-              )
-            : widget.chat.isGroup
-                ? const Text('Group Chat', style: TextStyle(fontSize: 14))
-                : Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white.withValues(alpha: 0.3),
-                        backgroundImage: _otherParticipantProfile?.photoUrl !=
-                                null
-                            ? NetworkImage(_otherParticipantProfile!.photoUrl!)
-                            : null,
-                        child: _otherParticipantProfile?.photoUrl == null
-                            ? Text(
-                                _otherParticipantProfile?.displayName
-                                        ?.substring(0, 1)
-                                        .toUpperCase() ??
-                                    (otherParticipantId != null &&
-                                            otherParticipantId.isNotEmpty
-                                        ? otherParticipantId
-                                            .substring(0, 1)
-                                            .toUpperCase()
-                                        : '?'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              )
-                            : null,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      peerName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _otherParticipantProfile?.displayName ??
-                              (_otherParticipantProfile?.username != null
-                                  ? '@${_otherParticipantProfile!.username}'
-                                  : 'Chat'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                ],
+              ),
         backgroundColor: const Color(0xFF043915),
         foregroundColor: Colors.white,
         actions: widget.chat.isGroup
