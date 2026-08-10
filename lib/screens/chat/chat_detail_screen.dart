@@ -33,7 +33,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // Defer provider updates — calling notifyListeners during mount/build crashes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _loadMessages();
+      _openChatRoom();
       _loadBlockedUsers();
     });
   }
@@ -53,36 +53,38 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   void dispose() {
+    // Drop room state so the next chat never flashes these messages.
+    try {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      chatProvider.leaveChat(widget.chat.id);
+    } catch (_) {}
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _loadMessages() {
+  void _openChatRoom() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    if (authProvider.user != null) {
-      chatProvider.loadMessages(
-        userId: authProvider.user!.uid,
-        chatId: widget.chat.id,
-      );
-      chatProvider.watchMessages(
-        userId: authProvider.user!.uid,
-        chatId: widget.chat.id,
-      );
+    if (authProvider.user == null) return;
 
-      // Mark all messages as seen when opening the chat
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted && authProvider.user != null) {
-          await chatProvider.markAllMessagesAsSeen(
-            userId: authProvider.user!.uid,
-            chatId: widget.chat.id,
-          );
-        }
-      });
-    }
+    chatProvider.openChat(
+      userId: authProvider.user!.uid,
+      chatId: widget.chat.id,
+      chat: widget.chat,
+    );
+
+    // Mark all messages as seen after the room has loaded.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted || authProvider.user == null) return;
+      if (chatProvider.activeChatId != widget.chat.id) return;
+      await chatProvider.markAllMessagesAsSeen(
+        userId: authProvider.user!.uid,
+        chatId: widget.chat.id,
+      );
+    });
   }
 
   void _scrollToBottom() {
@@ -325,6 +327,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final peerLetter =
         peerName.isNotEmpty ? peerName.substring(0, 1).toUpperCase() : '?';
 
+    // Never render another room's messages while this screen is visible.
+    final roomMessages = chatProvider.activeChatId == widget.chat.id
+        ? chatProvider.messages
+        : const <ChatMessage>[];
+    final visibleMessages = roomMessages
+        .where((msg) => !_blockedUserIds.contains(msg.senderId))
+        .toList();
+    final showLoader =
+        chatProvider.isLoadingMessages && visibleMessages.isEmpty;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
@@ -401,9 +413,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           // Messages list
           Expanded(
-            child: chatProvider.isLoading && chatProvider.messages.isEmpty
+            child: showLoader
                 ? const Center(child: CircularProgressIndicator())
-                : chatProvider.errorMessage != null
+                : chatProvider.errorMessage != null && visibleMessages.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -425,7 +437,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             ElevatedButton.icon(
                               onPressed: () {
                                 chatProvider.clearError();
-                                _loadMessages();
+                                _openChatRoom();
                               },
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('Retry',
@@ -440,10 +452,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           ],
                         ),
                       )
-                    : chatProvider.messages
-                            .where((msg) =>
-                                !_blockedUserIds.contains(msg.senderId))
-                            .isEmpty
+                    : visibleMessages.isEmpty
                         ? const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -469,16 +478,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             controller: _scrollController,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 8),
-                            itemCount: chatProvider.messages
-                                .where((msg) =>
-                                    !_blockedUserIds.contains(msg.senderId))
-                                .length,
+                            itemCount: visibleMessages.length,
                             itemBuilder: (context, index) {
-                              final filteredMessages = chatProvider.messages
-                                  .where((msg) =>
-                                      !_blockedUserIds.contains(msg.senderId))
-                                  .toList();
-                              final message = filteredMessages[index];
+                              final message = visibleMessages[index];
                               return GestureDetector(
                                 onTap: message.isClothShare &&
                                         message.clothId != null

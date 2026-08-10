@@ -9,16 +9,24 @@ class ChatProvider with ChangeNotifier {
   List<Chat> _chats = [];
   List<ChatMessage> _messages = [];
   Chat? _currentChat;
+  /// Chat room currently shown in the UI — used to reject stale loads/polls.
+  String? _activeChatId;
+  int _messagesEpoch = 0;
   bool _isLoading = false;
+  bool _isLoadingMessages = false;
   String? _errorMessage;
   Map<String, int> _unreadCounts = {}; // chatId -> unread count
+  /// Optimistic sends waiting for server, keyed by chatId.
+  final Map<String, List<ChatMessage>> _pendingLocalByChat = {};
   StreamSubscription<List<Chat>>? _chatsSubscription;
   StreamSubscription<List<ChatMessage>>? _messagesSubscription;
 
   List<Chat> get chats => _chats;
   List<ChatMessage> get messages => _messages;
   Chat? get currentChat => _currentChat;
+  String? get activeChatId => _activeChatId;
   bool get isLoading => _isLoading;
+  bool get isLoadingMessages => _isLoadingMessages;
   String? get errorMessage => _errorMessage;
   Map<String, int> get unreadCounts => _unreadCounts;
   
@@ -131,8 +139,12 @@ class ChatProvider with ChangeNotifier {
     _chats = [];
     _messages = [];
     _currentChat = null;
+    _activeChatId = null;
+    _messagesEpoch++;
+    _pendingLocalByChat.clear();
     _unreadCounts = {};
     _errorMessage = null;
+    _isLoadingMessages = false;
     notifyListeners();
   }
 
@@ -224,89 +236,158 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// Load messages for a chat
-  Future<void> loadMessages({
+  /// Open a chat room: clear previous messages immediately, then load/watch.
+  void openChat({
     required String userId,
     required String chatId,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    // Avoid notifyListeners during widget build/mount.
-    scheduleMicrotask(() {
-      notifyListeners();
-    });
+    Chat? chat,
+  }) {
+    _messagesSubscription?.cancel();
+    _messagesSubscription = null;
 
+    _activeChatId = chatId;
+    _currentChat = chat;
+    _messages = [];
+    _errorMessage = null;
+    _isLoadingMessages = true;
+    final epoch = ++_messagesEpoch;
+    notifyListeners();
+
+    _fetchMessagesForActiveChat(
+      userId: userId,
+      chatId: chatId,
+      epoch: epoch,
+    );
+    _startWatchingMessages(
+      userId: userId,
+      chatId: chatId,
+      epoch: epoch,
+    );
+  }
+
+  /// Leave a chat room (call from ChatDetailScreen.dispose).
+  void leaveChat(String chatId) {
+    if (_activeChatId == null) return;
+    if (chatId.isNotEmpty && _activeChatId != chatId) return;
+
+    _messagesSubscription?.cancel();
+    _messagesSubscription = null;
+    _activeChatId = null;
+    _currentChat = null;
+    _messages = [];
+    _isLoadingMessages = false;
+    _messagesEpoch++;
+    notifyListeners();
+  }
+
+  bool _isActiveRoom(String chatId, int epoch) {
+    return _activeChatId == chatId && _messagesEpoch == epoch;
+  }
+
+  List<ChatMessage> _mergeWithPendingLocals(
+    String chatId,
+    List<ChatMessage> serverMessages,
+  ) {
+    final pending = _pendingLocalByChat[chatId];
+    if (pending == null || pending.isEmpty) return serverMessages;
+
+    final remaining = <ChatMessage>[];
+    for (final local in pending) {
+      final arrived = serverMessages.any((m) =>
+          m.senderId == local.senderId &&
+          m.text == local.text &&
+          m.createdAt.difference(local.createdAt).abs() <
+              const Duration(minutes: 2));
+      if (!arrived) remaining.add(local);
+    }
+    _pendingLocalByChat[chatId] = remaining;
+    if (remaining.isEmpty) {
+      return serverMessages;
+    }
+    return [...serverMessages, ...remaining];
+  }
+
+  Future<void> _fetchMessagesForActiveChat({
+    required String userId,
+    required String chatId,
+    required int epoch,
+  }) async {
     try {
-      _currentChat = await ChatService.getChat(userId: userId, chatId: chatId);
-      _messages = await ChatService.getMessages(
-        userId: userId,
-        chatId: chatId,
-      );
-      // Calculate unread count from loaded messages (no extra query needed)
+      final results = await Future.wait([
+        ChatService.getChat(userId: userId, chatId: chatId),
+        ChatService.getMessages(userId: userId, chatId: chatId),
+      ]);
+
+      if (!_isActiveRoom(chatId, epoch)) return;
+
+      final chat = results[0] as Chat?;
+      final messages = results[1] as List<ChatMessage>;
+      if (chat != null) _currentChat = chat;
+      _messages = _mergeWithPendingLocals(chatId, messages);
       _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
       _errorMessage = null;
     } catch (e) {
+      if (!_isActiveRoom(chatId, epoch)) return;
       _errorMessage = 'Failed to load messages: ${e.toString()}';
       debugPrint('Error loading messages: $e');
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (_isActiveRoom(chatId, epoch)) {
+        _isLoadingMessages = false;
+        notifyListeners();
+      }
     }
   }
 
-  /// Watch messages for real-time updates
-  void watchMessages({
+  void _startWatchingMessages({
     required String userId,
     required String chatId,
+    required int epoch,
   }) {
-    // Cancel existing subscription
-    _messagesSubscription?.cancel();
-    
     final currentUserId = LaravelAuthService.memoryUserId;
     if (currentUserId == null || currentUserId != userId) {
-      _messages = [];
-      notifyListeners();
       return;
     }
 
-    _messagesSubscription = ChatService.watchMessages(userId: userId, chatId: chatId).listen((messages) {
-      try {
-        if (LaravelAuthService.memoryUserId != userId) {
-          // User signed out, cancel subscription
-          _messagesSubscription?.cancel();
-          _messages = [];
-          notifyListeners();
-          return;
-        }
-      } catch (e) {
-        // If auth check fails, cancel subscription
+    _messagesSubscription = ChatService.watchMessages(
+      userId: userId,
+      chatId: chatId,
+    ).listen((messages) {
+      if (!_isActiveRoom(chatId, epoch)) return;
+      if (LaravelAuthService.memoryUserId != userId) {
         _messagesSubscription?.cancel();
         return;
       }
 
-      // Keep optimistic local messages until the server list includes them.
-      final pendingLocal = _messages
-          .where((m) => m.id.startsWith('local_'))
-          .toList();
-      _messages = messages;
-      for (final local in pendingLocal) {
-        final arrived = _messages.any((m) =>
-            m.senderId == local.senderId &&
-            m.text == local.text &&
-            m.createdAt.difference(local.createdAt).abs() <
-                const Duration(minutes: 2));
-        if (!arrived) {
-          _messages = [..._messages, local];
-        }
-      }
+      // Skip the first yield if we already have a fresh load in flight /
+      // completed — watch also yields immediately; prefer epoch-safe apply.
+      _messages = _mergeWithPendingLocals(chatId, messages);
       _errorMessage = null;
-      // Calculate unread count from loaded messages (no Firestore query needed)
+      _isLoadingMessages = false;
       _calculateUnreadCountFromMessages(userId: userId, chatId: chatId);
       notifyListeners();
     }, onError: (error) {
+      if (!_isActiveRoom(chatId, epoch)) return;
       _errorMessage = 'Failed to watch messages: ${error.toString()}';
       notifyListeners();
     });
+  }
+
+  /// Load messages for a chat (legacy entry — prefers [openChat]).
+  Future<void> loadMessages({
+    required String userId,
+    required String chatId,
+  }) async {
+    openChat(userId: userId, chatId: chatId);
+  }
+
+  /// Watch messages for real-time updates (legacy — handled by [openChat]).
+  void watchMessages({
+    required String userId,
+    required String chatId,
+  }) {
+    // No-op when openChat already started the watch for this room.
+    if (_activeChatId == chatId && _messagesSubscription != null) return;
+    openChat(userId: userId, chatId: chatId);
   }
 
   /// Calculate unread count from already-loaded messages (optimized - no Firestore query)
@@ -314,18 +395,18 @@ class ChatProvider with ChangeNotifier {
     required String userId,
     required String chatId,
   }) {
-    // Calculate from _messages instead of querying Firestore
+    if (_activeChatId != chatId) return;
+
     final unreadCount = _messages
         .where((msg) => msg.senderId != userId && !msg.isSeenBy(userId))
         .length;
-    
+
     if (unreadCount > 0) {
       _unreadCounts[chatId] = unreadCount;
     } else {
       _unreadCounts.remove(chatId);
     }
   }
-
 
   /// Send text message (optimistic — shows instantly, syncs in background).
   Future<bool> sendTextMessage({
@@ -345,9 +426,14 @@ class ChatProvider with ChangeNotifier {
       seenBy: [userId],
     );
 
-    _messages = [..._messages, optimistic];
-    _errorMessage = null;
-    notifyListeners();
+    _pendingLocalByChat.putIfAbsent(chatId, () => []).add(optimistic);
+
+    // Only paint into the open room for this chat.
+    if (_activeChatId == chatId) {
+      _messages = [..._messages, optimistic];
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       final messageId = await ChatService.sendMessage(
@@ -356,24 +442,32 @@ class ChatProvider with ChangeNotifier {
         text: trimmed,
       );
 
-      final idx = _messages.indexWhere((m) => m.id == tempId);
-      if (idx != -1) {
-        final updated = List<ChatMessage>.from(_messages);
-        updated[idx] = ChatMessage(
-          id: messageId.isNotEmpty ? messageId : tempId,
-          senderId: userId,
-          text: trimmed,
-          createdAt: optimistic.createdAt,
-          seenBy: [userId],
-        );
-        _messages = updated;
-        notifyListeners();
+      final pending = _pendingLocalByChat[chatId];
+      pending?.removeWhere((m) => m.id == tempId);
+
+      if (_activeChatId == chatId) {
+        final idx = _messages.indexWhere((m) => m.id == tempId);
+        if (idx != -1) {
+          final updated = List<ChatMessage>.from(_messages);
+          updated[idx] = ChatMessage(
+            id: messageId.isNotEmpty ? messageId : tempId,
+            senderId: userId,
+            text: trimmed,
+            createdAt: optimistic.createdAt,
+            seenBy: [userId],
+          );
+          _messages = updated;
+          notifyListeners();
+        }
       }
       return true;
     } catch (e) {
-      _messages = _messages.where((m) => m.id != tempId).toList();
-      _errorMessage = 'Failed to send message: ${e.toString()}';
-      notifyListeners();
+      _pendingLocalByChat[chatId]?.removeWhere((m) => m.id == tempId);
+      if (_activeChatId == chatId) {
+        _messages = _messages.where((m) => m.id != tempId).toList();
+        _errorMessage = 'Failed to send message: ${e.toString()}';
+        notifyListeners();
+      }
       return false;
     }
   }
@@ -461,10 +555,14 @@ class ChatProvider with ChangeNotifier {
     required String userId,
     required String chatId,
   }) async {
+    if (_activeChatId != chatId) return;
     try {
       // Get all unread messages
       final unreadMessages = _messages
-          .where((msg) => msg.senderId != userId && !msg.isSeenBy(userId))
+          .where((msg) =>
+              !msg.id.startsWith('local_') &&
+              msg.senderId != userId &&
+              !msg.isSeenBy(userId))
           .map((msg) => msg.id)
           .toList();
 
@@ -492,8 +590,10 @@ class ChatProvider with ChangeNotifier {
         chatId: chatId,
         messageId: messageId,
       );
-      _messages.removeWhere((m) => m.id == messageId);
-      notifyListeners();
+      if (_activeChatId == chatId) {
+        _messages.removeWhere((m) => m.id == messageId);
+        notifyListeners();
+      }
       return true;
     } catch (e) {
       _errorMessage = 'Failed to delete message: ${e.toString()}';
@@ -504,10 +604,11 @@ class ChatProvider with ChangeNotifier {
 
   /// Set current chat
   void setCurrentChat(Chat? chat) {
-    _currentChat = chat;
     if (chat == null) {
-      _messages = [];
+      if (_activeChatId != null) leaveChat(_activeChatId!);
+      return;
     }
+    _currentChat = chat;
     notifyListeners();
   }
 
