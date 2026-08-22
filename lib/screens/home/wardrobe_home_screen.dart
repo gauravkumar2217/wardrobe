@@ -10,6 +10,7 @@ import '../../models/style_post.dart';
 import '../../services/cloth_service.dart';
 import '../../services/style_post_service.dart';
 import '../../services/outfit_suggestion_service.dart';
+import '../cloth/cloth_detail_screen.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../community/trending_styles_screen.dart';
 import '../outfit/outfit_generator_screen.dart';
@@ -34,6 +35,9 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
   List<_DailyOutfit> _outfits = const [];
   bool _suggestionsLoading = false;
   bool _suggestionsLoaded = false;
+  bool _analyticsLoading = false;
+  List<_RankedCloth> _mostUsedItems = const [];
+  List<_RankedCloth> _leastUsedItems = const [];
 
   @override
   void initState() {
@@ -157,6 +161,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
       if (_outfitController.hasClients) {
         _outfitController.jumpToPage(0);
       }
+      await _loadClosetAnalytics(userId, clothes);
     } catch (e) {
       debugPrint('Home daily outfit suggestions failed: $e');
       if (!mounted) return;
@@ -165,6 +170,83 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
         _suggestionsLoading = false;
         _suggestionsLoaded = true;
       });
+      try {
+        final clothes = await ClothService.getAllUserClothes(userId);
+        await _loadClosetAnalytics(userId, clothes);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _loadClosetAnalytics(String userId, List<Cloth> clothes) async {
+    if (clothes.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _mostUsedItems = const [];
+        _leastUsedItems = const [];
+        _analyticsLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _analyticsLoading = true);
+
+    try {
+      const batchSize = 8;
+      final ranked = <_RankedCloth>[];
+
+      for (var i = 0; i < clothes.length; i += batchSize) {
+        final batch = clothes.skip(i).take(batchSize);
+        final batchResults = await Future.wait(
+          batch.map((cloth) async {
+            final history = await ClothService.getWearHistory(
+              userId: userId,
+              wardrobeId: cloth.wardrobeId,
+              clothId: cloth.id,
+            );
+            return _RankedCloth(
+              cloth: cloth,
+              wearCount: history.length,
+              lastWorn: history.isNotEmpty ? history.first.wornAt : cloth.wornAt,
+            );
+          }),
+        );
+        ranked.addAll(batchResults);
+      }
+
+      final most = List<_RankedCloth>.from(ranked)
+        ..sort((a, b) {
+          final byCount = b.wearCount.compareTo(a.wearCount);
+          if (byCount != 0) return byCount;
+          final aDate = a.lastWorn;
+          final bDate = b.lastWorn;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return bDate.compareTo(aDate);
+        });
+
+      final least = List<_RankedCloth>.from(ranked)
+        ..sort((a, b) {
+          final byCount = a.wearCount.compareTo(b.wearCount);
+          if (byCount != 0) return byCount;
+          final aDate = a.lastWorn;
+          final bDate = b.lastWorn;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return -1;
+          if (bDate == null) return 1;
+          return aDate.compareTo(bDate);
+        });
+
+      if (!mounted) return;
+      setState(() {
+        _mostUsedItems = most.take(4).toList();
+        _leastUsedItems = least.take(4).toList();
+        _analyticsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Home closet analytics failed: $e');
+      if (!mounted) return;
+      setState(() => _analyticsLoading = false);
     }
   }
 
@@ -432,45 +514,12 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               ),
             ),
 
-            // 8) Fashion insights
+            // 8) Closet analytics
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 12,
-                  child: const SectionHeader(
-                    title: 'Fashion Insights',
-                    subtitle: 'Personalized style intelligence',
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: StaggeredFadeIn(
-                  index: 13,
-                  child: Row(
-                    children: const [
-                      Expanded(child: _StyleScoreCard(score: 86)),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _MoodBoardCard(
-                          categories: ['Minimal', 'Smart', 'Street', 'Classic'],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // 9) Closet analytics
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: StaggeredFadeIn(
-                  index: 14,
                   child: const SectionHeader(
                     title: 'Closet Analytics',
                     subtitle: 'What you wear (and what you don’t)',
@@ -482,23 +531,23 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
-                  index: 15,
-                  child: Row(
-                    children: const [
-                      Expanded(
-                        child: _AnalyticsMiniCard(
-                          title: 'Most Used Items',
-                          items: ['Shirt', 'Sneakers'],
-                          icon: Icons.local_fire_department_rounded,
-                        ),
+                  index: 13,
+                  child: Column(
+                    children: [
+                      _ClosetUsageRow(
+                        title: 'Most Used Items',
+                        icon: Icons.local_fire_department_rounded,
+                        items: _mostUsedItems,
+                        loading: _analyticsLoading,
+                        emptyMessage: 'Wear items from your wardrobe to see stats here.',
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _AnalyticsMiniCard(
-                          title: 'Least Used Items',
-                          items: ['Jacket', 'Formal Shoes'],
-                          icon: Icons.timelapse_rounded,
-                        ),
+                      const SizedBox(height: 12),
+                      _ClosetUsageRow(
+                        title: 'Least Used Items',
+                        icon: Icons.timelapse_rounded,
+                        items: _leastUsedItems,
+                        loading: _analyticsLoading,
+                        emptyMessage: 'All items are getting good rotation!',
                       ),
                     ],
                   ),
@@ -506,7 +555,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               ),
             ),
 
-            // 10) Outfit planner
+            // 9) Outfit planner
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
               sliver: SliverToBoxAdapter(
@@ -2090,132 +2139,47 @@ class _ShareBanner extends StatelessWidget {
   }
 }
 
-class _StyleScoreCard extends StatelessWidget {
-  final int score;
-  const _StyleScoreCard({required this.score});
+class _RankedCloth {
+  final Cloth cloth;
+  final int wearCount;
+  final DateTime? lastWorn;
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Style Score',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: SizedBox(
-              width: 96,
-              height: 96,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: score / 100,
-                    strokeWidth: 10,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                  ),
-                  Text(
-                    '$score/100',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Consistency + fit balance',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.72),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
+  const _RankedCloth({
+    required this.cloth,
+    required this.wearCount,
+    this.lastWorn,
+  });
 }
 
-class _MoodBoardCard extends StatelessWidget {
-  final List<String> categories;
-  const _MoodBoardCard({required this.categories});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Style Mood Board',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: categories
-                .map(
-                  (c) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: WardrobeTokens.outlineGold),
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                    child: Text(
-                      c,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: scheme.onSurface.withValues(alpha: 0.9),
-                          ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Top recommended categories',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.72),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnalyticsMiniCard extends StatelessWidget {
+class _ClosetUsageRow extends StatelessWidget {
   final String title;
-  final List<String> items;
   final IconData icon;
+  final List<_RankedCloth> items;
+  final bool loading;
+  final String emptyMessage;
 
-  const _AnalyticsMiniCard({
+  const _ClosetUsageRow({
     required this.title,
-    required this.items,
     required this.icon,
+    required this.items,
+    required this.loading,
+    required this.emptyMessage,
   });
 
+  String _imageUrl(Cloth cloth) {
+    if (cloth.processedImageUrl != null &&
+        cloth.processedImageUrl!.isNotEmpty) {
+      return cloth.processedImageUrl!;
+    }
+    return cloth.imageUrl;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2233,28 +2197,107 @@ class _AnalyticsMiniCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ...items.map(
-            (t) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(Icons.check_rounded,
-                      size: 18, color: scheme.secondary.withValues(alpha: 0.95)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      t,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.86),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
+          const SizedBox(height: 12),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (items.isEmpty)
+            Text(
+              emptyMessage,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.7),
                   ),
-                ],
+            )
+          else
+            SizedBox(
+              height: 118,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final ranked = items[i];
+                  final cloth = ranked.cloth;
+                  final url = _imageUrl(cloth);
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ClothDetailScreen(
+                            cloth: cloth,
+                            isOwner: true,
+                          ),
+                        ),
+                      );
+                    },
+                    child: SizedBox(
+                      width: 88,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: WardrobeTokens.outlineGold,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: url.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: url,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        errorWidget: (_, __, ___) => ColoredBox(
+                                          color: scheme.primary
+                                              .withValues(alpha: 0.1),
+                                          child: const Icon(Icons.checkroom),
+                                        ),
+                                      )
+                                    : ColoredBox(
+                                        color: scheme.primary
+                                            .withValues(alpha: 0.1),
+                                        child: const Icon(Icons.checkroom),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            cloth.clothType,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            ranked.wearCount == 0
+                                ? 'Never worn'
+                                : '${ranked.wearCount} wear${ranked.wearCount == 1 ? '' : 's'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: scheme.onSurface
+                                      .withValues(alpha: 0.65),
+                                  fontSize: 10,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
         ],
       ),
     );
