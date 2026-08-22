@@ -17,10 +17,19 @@ class StylePostService {
     return const [];
   }
 
-  /// scope: mine | friends | all | public
-  static Future<List<StylePost>> getPosts({String scope = 'all'}) async {
+  /// scope: mine | friends | all | public | saved | wishlist
+  /// sort: created_at | likes
+  static Future<List<StylePost>> getPosts({
+    String scope = 'all',
+    String sort = 'created_at',
+    int perPage = 40,
+  }) async {
     final uri = Uri.parse(ApiConfig.stylePosts).replace(
-      queryParameters: {'scope': scope, 'per_page': '40'},
+      queryParameters: {
+        'scope': scope,
+        'sort': sort,
+        'per_page': '$perPage',
+      },
     );
     final body = await LaravelApiClient.getJson(uri.toString());
     final data = LaravelApiClient.extractData(body);
@@ -85,6 +94,24 @@ class StylePostService {
 
   static Future<void> unlike(String postId) async {
     await LaravelApiClient.deleteJson(ApiConfig.stylePostLike(postId));
+  }
+
+  static Future<void> addToWishlist(String postId) async {
+    await LaravelApiClient.postJson(ApiConfig.stylePostWishlist(postId), {});
+  }
+
+  static Future<void> removeFromWishlist(String postId) async {
+    await LaravelApiClient.deleteJson(ApiConfig.stylePostWishlist(postId));
+  }
+
+  /// Trending looks from friends/community, highest likes first.
+  static Future<List<StylePost>> getTrending({int perPage = 40}) {
+    return getPosts(scope: 'friends', sort: 'likes', perPage: perPage);
+  }
+
+  /// Saved wishlist looks for the current user.
+  static Future<List<StylePost>> getWishlist({int perPage = 40}) {
+    return getPosts(scope: 'wishlist', perPage: perPage);
   }
 
   static Future<void> shareWithFriends({

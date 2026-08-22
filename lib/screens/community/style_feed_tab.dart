@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,7 +5,7 @@ import '../../models/style_post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../services/style_post_service.dart';
-import '../../theme/wardrobe_tokens.dart';
+import '../../widgets/community/style_post_card.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
 import 'create_style_post_screen.dart';
@@ -85,6 +84,35 @@ class _StyleFeedTabState extends State<StyleFeedTab> {
       setState(() => _posts[idx] = post);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Like failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _toggleWishlist(StylePost post) async {
+    final idx = _posts.indexWhere((p) => p.id == post.id);
+    if (idx < 0) return;
+
+    final wasWishlisted = post.wishlistedByMe;
+    setState(() {
+      _posts[idx] = post.copyWith(wishlistedByMe: !wasWishlisted);
+    });
+
+    try {
+      if (wasWishlisted) {
+        await StylePostService.removeFromWishlist(post.id);
+      } else {
+        await StylePostService.addToWishlist(post.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Added to wishlist')),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _posts[idx] = post);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Wishlist update failed: $e')),
       );
     }
   }
@@ -275,10 +303,11 @@ class _StyleFeedTabState extends State<StyleFeedTab> {
                             itemBuilder: (context, i) {
                               final post = _posts[i];
                               final isMine = me != null && post.userId == me;
-                              return _StylePostCard(
+                              return StylePostCard(
                                 post: post,
                                 isMine: isMine,
                                 onLike: () => _toggleLike(post),
+                                onWishlist: () => _toggleWishlist(post),
                                 onScan: () => _scanPost(post),
                                 onDelete:
                                     isMine ? () => _deletePost(post) : null,
@@ -288,126 +317,6 @@ class _StyleFeedTabState extends State<StyleFeedTab> {
                         ),
         ),
       ],
-    );
-  }
-}
-
-class _StylePostCard extends StatelessWidget {
-  final StylePost post;
-  final bool isMine;
-  final VoidCallback onLike;
-  final VoidCallback onScan;
-  final VoidCallback? onDelete;
-
-  const _StylePostCard({
-    required this.post,
-    required this.isMine,
-    required this.onLike,
-    required this.onScan,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final name = post.user?.displayLabel ?? 'User';
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WardrobeTokens.outlineGold),
-        color: const Color(0xFF06231E),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: scheme.primary.withValues(alpha: 0.2),
-                  backgroundImage: (post.user?.photoUrl != null &&
-                          post.user!.photoUrl!.isNotEmpty)
-                      ? NetworkImage(post.user!.photoUrl!)
-                      : null,
-                  child: (post.user?.photoUrl == null ||
-                          post.user!.photoUrl!.isEmpty)
-                      ? Icon(Icons.person, size: 18, color: scheme.primary)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-                if (onDelete != null)
-                  IconButton(
-                    tooltip: 'Delete',
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                  ),
-              ],
-            ),
-          ),
-          AspectRatio(
-            aspectRatio: 3 / 4,
-            child: post.imageUrl.isEmpty
-                ? ColoredBox(
-                    color: scheme.primary.withValues(alpha: 0.1),
-                    child: const Icon(Icons.image_not_supported),
-                  )
-                : CachedNetworkImage(
-                    imageUrl: post.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    errorWidget: (_, __, ___) =>
-                        const Icon(Icons.broken_image_outlined),
-                  ),
-          ),
-          if (post.caption != null && post.caption!.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Text(post.caption!.trim()),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onLike,
-                  icon: Icon(
-                    post.likedByMe
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    color: post.likedByMe ? Colors.redAccent : null,
-                  ),
-                ),
-                Text('${post.likesCount}'),
-                const SizedBox(width: 8),
-                Icon(Icons.mode_comment_outlined,
-                    size: 20,
-                    color: scheme.onSurface.withValues(alpha: 0.75)),
-                const SizedBox(width: 6),
-                Text('${post.commentsCount}'),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: onScan,
-                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
-                  label: const Text('Scan to wardrobe'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -9,6 +9,7 @@ class StylePost {
   final int likesCount;
   final int commentsCount;
   final bool likedByMe;
+  final bool wishlistedByMe;
   final DateTime? createdAt;
   final StylePostUser? user;
 
@@ -22,6 +23,7 @@ class StylePost {
     this.likesCount = 0,
     this.commentsCount = 0,
     this.likedByMe = false,
+    this.wishlistedByMe = false,
     this.createdAt,
     this.user,
   });
@@ -54,6 +56,8 @@ class StylePost {
           (json['commentsCount'] as num?)?.toInt() ??
           0,
       likedByMe: json['liked_by_me'] == true || json['likedByMe'] == true,
+      wishlistedByMe:
+          json['wishlisted_by_me'] == true || json['wishlistedByMe'] == true,
       createdAt: created,
       user: json['user'] is Map
           ? StylePostUser.fromJson(Map<String, dynamic>.from(json['user'] as Map))
@@ -65,6 +69,7 @@ class StylePost {
     int? likesCount,
     int? commentsCount,
     bool? likedByMe,
+    bool? wishlistedByMe,
   }) {
     return StylePost(
       id: id,
@@ -76,6 +81,7 @@ class StylePost {
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       likedByMe: likedByMe ?? this.likedByMe,
+      wishlistedByMe: wishlistedByMe ?? this.wishlistedByMe,
       createdAt: createdAt,
       user: user,
     );

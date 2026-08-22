@@ -89,6 +89,8 @@ class ApiConfig {
   static String stylePost(String postId) => '$baseUrl/style-posts/$postId';
   static String stylePostLike(String postId) =>
       '$baseUrl/style-posts/$postId/like';
+  static String stylePostWishlist(String postId) =>
+      '$baseUrl/style-posts/$postId/wishlist';
   static String stylePostComments(String postId) =>
       '$baseUrl/style-posts/$postId/comments';
   static String stylePostShare(String postId) =>

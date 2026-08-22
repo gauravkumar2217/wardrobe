@@ -11,7 +11,9 @@ import '../../services/cloth_service.dart';
 import '../../services/style_post_service.dart';
 import '../../services/outfit_suggestion_service.dart';
 import '../cloth/add_cloth_flow_screen.dart';
+import '../community/trending_styles_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
+import '../wishlist/wishlist_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
 import '../../widgets/premium/glass_panel.dart';
 import '../../widgets/premium/premium_card.dart';
@@ -325,7 +327,11 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                         icon: Icons.bookmark_border_rounded,
                         title: 'Wishlist',
                         subtitle: 'Save fits you love',
-                        onTap: () {},
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const WishlistScreen(),
+                          ),
+                        ),
                       ),
                     ),
                     StaggeredFadeIn(
@@ -334,7 +340,11 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                         icon: Icons.trending_up_rounded,
                         title: 'Trending Styles',
                         subtitle: 'What’s hot today',
-                        onTap: () {},
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TrendingStylesScreen(),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1608,6 +1618,35 @@ class _CommunityFeedPreviewState extends State<_CommunityFeedPreview> {
     }
   }
 
+  Future<void> _toggleWishlist(StylePost post) async {
+    final idx = _posts.indexWhere((p) => p.id == post.id);
+    if (idx < 0) return;
+
+    final wasWishlisted = post.wishlistedByMe;
+    setState(() {
+      _posts[idx] = post.copyWith(wishlistedByMe: !wasWishlisted);
+    });
+
+    try {
+      if (wasWishlisted) {
+        await StylePostService.removeFromWishlist(post.id);
+      } else {
+        await StylePostService.addToWishlist(post.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Added to wishlist')),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _posts[idx] = post);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Wishlist update failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -1742,6 +1781,7 @@ class _CommunityFeedPreviewState extends State<_CommunityFeedPreview> {
             post: _posts[i],
             onTap: widget.onOpenCommunity,
             onLike: () => _toggleLike(_posts[i]),
+            onWishlist: () => _toggleWishlist(_posts[i]),
           ),
         ],
       ],
@@ -1765,11 +1805,13 @@ class _FeedCard extends StatelessWidget {
   final StylePost post;
   final VoidCallback? onTap;
   final VoidCallback? onLike;
+  final VoidCallback? onWishlist;
 
   const _FeedCard({
     required this.post,
     this.onTap,
     this.onLike,
+    this.onWishlist,
   });
 
   static String _timeAgo(DateTime? dt) {
@@ -1837,11 +1879,29 @@ class _FeedCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                       ),
-                    if (post.likedByMe) ...[
-                      const SizedBox(width: 8),
-                      Icon(Icons.bookmark_rounded,
-                          color: scheme.primary.withValues(alpha: 0.85),
-                          size: 20),
+                    if (onWishlist != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        tooltip: post.wishlistedByMe
+                            ? 'Remove from wishlist'
+                            : 'Add to wishlist',
+                        onPressed: onWishlist,
+                        icon: Icon(
+                          post.wishlistedByMe
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          color: post.wishlistedByMe
+                              ? scheme.primary
+                              : scheme.onSurface.withValues(alpha: 0.75),
+                          size: 20,
+                        ),
+                      ),
                     ],
                   ],
                 ),
