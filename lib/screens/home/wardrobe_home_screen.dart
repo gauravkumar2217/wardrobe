@@ -6,7 +6,9 @@ import '../../models/cloth.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/wardrobe_provider.dart';
+import '../../models/style_post.dart';
 import '../../services/cloth_service.dart';
+import '../../services/style_post_service.dart';
 import '../../services/outfit_suggestion_service.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
@@ -1518,6 +1520,20 @@ class _StoryRow extends StatelessWidget {
 
 enum _FeedTab { your, saved, all }
 
+extension _FeedTabApi on _FeedTab {
+  String get apiScope => switch (this) {
+        _FeedTab.your => 'mine',
+        _FeedTab.saved => 'saved',
+        _FeedTab.all => 'all',
+      };
+
+  String get label => switch (this) {
+        _FeedTab.your => 'Your Style',
+        _FeedTab.saved => 'Saved',
+        _FeedTab.all => 'All Styles',
+      };
+}
+
 class _CommunityFeedPreview extends StatefulWidget {
   final VoidCallback onOpenCommunity;
   const _CommunityFeedPreview({required this.onOpenCommunity});
@@ -1527,7 +1543,70 @@ class _CommunityFeedPreview extends StatefulWidget {
 }
 
 class _CommunityFeedPreviewState extends State<_CommunityFeedPreview> {
-  _FeedTab _tab = _FeedTab.your;
+  static const _previewCount = 2;
+
+  _FeedTab _tab = _FeedTab.all;
+  bool _loading = true;
+  String? _error;
+  List<StylePost> _posts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final posts =
+          await StylePostService.getPosts(scope: _tab.apiScope);
+      if (!mounted) return;
+      setState(() {
+        _posts = posts.take(_previewCount).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleLike(StylePost post) async {
+    final idx = _posts.indexWhere((p) => p.id == post.id);
+    if (idx < 0) return;
+
+    final wasLiked = post.likedByMe;
+    setState(() {
+      _posts[idx] = post.copyWith(
+        likedByMe: !wasLiked,
+        likesCount: (post.likesCount + (wasLiked ? -1 : 1)).clamp(0, 999999),
+      );
+    });
+
+    try {
+      if (wasLiked) {
+        await StylePostService.unlike(post.id);
+        if (_tab == _FeedTab.saved && mounted) {
+          setState(() => _posts.removeAt(idx));
+        }
+      } else {
+        await StylePostService.like(post.id);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _posts[idx] = post);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Like failed: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1552,13 +1631,14 @@ class _CommunityFeedPreviewState extends State<_CommunityFeedPreview> {
           ),
           const SizedBox(height: 12),
           SegmentedButton<_FeedTab>(
-            segments: const [
-              ButtonSegment(value: _FeedTab.your, label: Text('Your Style')),
-              ButtonSegment(value: _FeedTab.saved, label: Text('Saved')),
-              ButtonSegment(value: _FeedTab.all, label: Text('All Styles')),
-            ],
+            segments: _FeedTab.values
+                .map((t) => ButtonSegment(value: t, label: Text(t.label)))
+                .toList(),
             selected: {_tab},
-            onSelectionChanged: (s) => setState(() => _tab = s.first),
+            onSelectionChanged: (s) {
+              setState(() => _tab = s.first);
+              _loadPosts();
+            },
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
@@ -1585,140 +1665,276 @@ class _CommunityFeedPreviewState extends State<_CommunityFeedPreview> {
             duration: const Duration(milliseconds: 260),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-            child: Column(
-              key: ValueKey(_tab),
-              children: [
-                _FeedCard(
-                  username: _tab == _FeedTab.saved ? 'SavedLooks' : 'AishaStyles',
-                  timeAgo: '2h',
-                  likeCount: 1240,
-                  commentCount: 84,
-                ),
-                const SizedBox(height: 12),
-                _FeedCard(
-                  username: _tab == _FeedTab.all ? 'StreetLux' : 'OfficeMuse',
-                  timeAgo: '6h',
-                  likeCount: 630,
-                  commentCount: 41,
-                ),
-              ],
-            ),
+            child: _buildFeedBody(scheme),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildFeedBody(ColorScheme scheme) {
+    if (_loading) {
+      return const Padding(
+        key: ValueKey('loading'),
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        key: const ValueKey('error'),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            Text(
+              'Could not load style posts',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            TextButton(onPressed: _loadPosts, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    if (_posts.isEmpty) {
+      return Padding(
+        key: ValueKey('empty-${_tab.name}'),
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          children: [
+            Icon(Icons.auto_awesome_outlined,
+                size: 36, color: scheme.primary.withValues(alpha: 0.75)),
+            const SizedBox(height: 10),
+            Text(
+              _emptyTitle(),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _emptySubtitle(),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.7),
+                  ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: widget.onOpenCommunity,
+              child: const Text('Open Style Feed'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      key: ValueKey('posts-${_tab.name}-${_posts.map((p) => p.id).join()}'),
+      children: [
+        for (var i = 0; i < _posts.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _FeedCard(
+            post: _posts[i],
+            onTap: widget.onOpenCommunity,
+            onLike: () => _toggleLike(_posts[i]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _emptyTitle() => switch (_tab) {
+        _FeedTab.your => 'No style posts yet',
+        _FeedTab.saved => 'Nothing saved yet',
+        _FeedTab.all => 'No styles to show yet',
+      };
+
+  String _emptySubtitle() => switch (_tab) {
+        _FeedTab.your => 'Post your first look in Style Community.',
+        _FeedTab.saved => 'Like posts in the feed to save them here.',
+        _FeedTab.all => 'Be the first to share a look with friends.',
+      };
 }
 
 class _FeedCard extends StatelessWidget {
-  final String username;
-  final String timeAgo;
-  final int likeCount;
-  final int commentCount;
+  final StylePost post;
+  final VoidCallback? onTap;
+  final VoidCallback? onLike;
 
   const _FeedCard({
-    required this.username,
-    required this.timeAgo,
-    required this.likeCount,
-    required this.commentCount,
+    required this.post,
+    this.onTap,
+    this.onLike,
   });
+
+  static String _timeAgo(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${diff.inDays ~/ 7}w';
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
+    final username = post.user?.displayLabel ?? 'User';
+    final timeAgo = _timeAgo(post.createdAt);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: WardrobeTokens.outlineGold),
-        color: const Color(0xFF06231E),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: scheme.primary.withValues(alpha: 0.18),
-                  child: Icon(Icons.person_rounded, color: scheme.primary, size: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: WardrobeTokens.outlineGold),
+            color: const Color(0xFF06231E),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: scheme.primary.withValues(alpha: 0.18),
+                      backgroundImage: (post.user?.photoUrl != null &&
+                              post.user!.photoUrl!.isNotEmpty)
+                          ? NetworkImage(post.user!.photoUrl!)
+                          : null,
+                      child: (post.user?.photoUrl == null ||
+                              post.user!.photoUrl!.isEmpty)
+                          ? Icon(Icons.person_rounded,
+                              color: scheme.primary, size: 18)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        username,
+                        style:
+                            Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                    ),
+                    if (timeAgo.isNotEmpty)
+                      Text(
+                        timeAgo,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurface.withValues(alpha: 0.65),
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    if (post.likedByMe) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.bookmark_rounded,
+                          color: scheme.primary.withValues(alpha: 0.85),
+                          size: 20),
+                    ],
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    username,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  color: scheme.primary.withValues(alpha: 0.08),
+                  child: post.imageUrl.isEmpty
+                      ? Center(
+                          child: Icon(
+                            Icons.photo_camera_back_rounded,
+                            color: scheme.primary.withValues(alpha: 0.75),
+                            size: 34,
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: post.imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 180,
+                          placeholder: (_, __) => Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: scheme.primary.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: scheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
                         ),
+                ),
+              ),
+              if (post.caption != null && post.caption!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: Text(
+                    post.caption!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
-                Text(
-                  timeAgo,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 6, 12, 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onLike,
+                      icon: Icon(
+                        post.likedByMe
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: post.likedByMe
+                            ? Colors.redAccent
+                            : scheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    Text(
+                      '${post.likesCount}',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(width: 14),
+                    Icon(Icons.mode_comment_outlined,
+                        color: scheme.onSurface.withValues(alpha: 0.85),
+                        size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${post.commentsCount}',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.chevron_right_rounded,
                         color: scheme.onSurface.withValues(alpha: 0.65),
-                        fontWeight: FontWeight.w700,
-                      ),
+                        size: 22),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.bookmark_border_rounded,
-                    color: scheme.onSurface.withValues(alpha: 0.75), size: 20),
-              ],
-            ),
-          ),
-          Container(
-            height: 150,
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.primary.withValues(alpha: 0.18),
-                  const Color(0xFF041E1A),
-                ],
               ),
-              border: Border.all(color: WardrobeTokens.outlineGold),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.photo_camera_back_rounded,
-                color: scheme.primary.withValues(alpha: 0.75),
-                size: 34,
-              ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Row(
-              children: [
-                Icon(Icons.favorite_border_rounded, color: scheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '$likeCount',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(width: 14),
-                Icon(Icons.mode_comment_outlined,
-                    color: scheme.onSurface.withValues(alpha: 0.85), size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '$commentCount',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const Spacer(),
-                Icon(Icons.ios_share_rounded,
-                    color: scheme.onSurface.withValues(alpha: 0.85), size: 20),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
