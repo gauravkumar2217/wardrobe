@@ -12,6 +12,7 @@ import '../../services/style_post_service.dart';
 import '../../services/outfit_suggestion_service.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../community/trending_styles_screen.dart';
+import '../outfit/outfit_generator_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
 import '../wishlist/wishlist_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
@@ -307,8 +308,12 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                       child: _QuickCard(
                         icon: Icons.auto_awesome_rounded,
                         title: 'Outfit Generator',
-                        subtitle: 'AI outfit ideas',
-                        onTap: () {},
+                        subtitle: 'Build & save combos',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const OutfitGeneratorScreen(),
+                          ),
+                        ),
                       ),
                     ),
                     StaggeredFadeIn(

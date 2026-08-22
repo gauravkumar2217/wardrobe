@@ -96,6 +96,10 @@ class ApiConfig {
   static String stylePostShare(String postId) =>
       '$baseUrl/style-posts/$postId/share';
 
+  // Saved outfit combos (Outfit Generator)
+  static String get savedOutfits => '$baseUrl/saved-outfits';
+  static String savedOutfit(String outfitId) => '$baseUrl/saved-outfits/$outfitId';
+
   // Friends
   static String get friends => '$baseUrl/friends';
   static String friend(String friendId) => '$baseUrl/friends/$friendId';
