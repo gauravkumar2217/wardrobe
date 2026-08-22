@@ -9,7 +9,10 @@ import '../../providers/wardrobe_provider.dart';
 import '../../models/style_post.dart';
 import '../../services/cloth_service.dart';
 import '../../services/style_post_service.dart';
+import '../../models/planned_event.dart';
 import '../../models/saved_outfit.dart';
+import '../../services/planned_event_service.dart';
+import '../events/events_planner_screen.dart';
 import '../../services/saved_outfit_service.dart';
 import '../../services/outfit_suggestion_service.dart';
 import '../cloth/cloth_detail_screen.dart';
@@ -45,6 +48,8 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
   bool _plannerLoading = false;
   List<({String dayKey, String dayLabel, SavedOutfit? outfit})> _weekPlan =
       SavedOutfit.weekPlan(const []);
+  bool _eventsLoading = false;
+  List<PlannedEvent> _upcomingEvents = const [];
 
   @override
   void initState() {
@@ -70,6 +75,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
 
     if (!mounted) return;
     await _loadOutfitPlanner();
+    await _loadUpcomingEvents();
     if (_hasClothes(context.read<WardrobeProvider>())) {
       await _loadDailyOutfitSuggestions(forceNew: forceNewSuggestions);
     } else if (mounted) {
@@ -95,6 +101,29 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
       debugPrint('Home outfit planner failed: $e');
       if (!mounted) return;
       setState(() => _plannerLoading = false);
+    }
+  }
+
+  Future<void> _openEventsPlanner() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const EventsPlannerScreen()),
+    );
+    if (mounted) await _loadUpcomingEvents();
+  }
+
+  Future<void> _loadUpcomingEvents() async {
+    setState(() => _eventsLoading = true);
+    try {
+      final events = await PlannedEventService.getEvents(perPage: 5);
+      if (!mounted) return;
+      setState(() {
+        _upcomingEvents = events;
+        _eventsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Home events load failed: $e');
+      if (!mounted) return;
+      setState(() => _eventsLoading = false);
     }
   }
 
@@ -607,13 +636,28 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               ),
             ),
 
-            // 11) Events planner (empty until events API is available)
+            // 11) Events planner
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 18,
-                  child: const _EventsCard(events: []),
+                  child: _EventsCard(
+                    events: _upcomingEvents,
+                    loading: _eventsLoading,
+                    onSchedule: _openEventsPlanner,
+                    onEventTap: (event) async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EventDetailScreen(
+                            eventId: event.id,
+                            initial: event,
+                          ),
+                        ),
+                      );
+                      if (mounted) await _loadUpcomingEvents();
+                    },
+                  ),
                 ),
               ),
             ),
@@ -2511,21 +2555,35 @@ class _OutfitPlannerRow extends StatelessWidget {
   }
 }
 
-@immutable
-class _EventItem {
-  final String title;
-  final String dateLabel;
-  final IconData icon;
-  const _EventItem({
-    required this.title,
-    required this.dateLabel,
-    required this.icon,
-  });
-}
-
 class _EventsCard extends StatelessWidget {
-  final List<_EventItem> events;
-  const _EventsCard({required this.events});
+  final List<PlannedEvent> events;
+  final bool loading;
+  final VoidCallback onSchedule;
+  final void Function(PlannedEvent event) onEventTap;
+
+  const _EventsCard({
+    required this.events,
+    required this.loading,
+    required this.onSchedule,
+    required this.onEventTap,
+  });
+
+  IconData _iconForOccasion(String tag) {
+    final t = tag.toLowerCase();
+    if (t.contains('wedding') || t.contains('engagement')) {
+      return Icons.favorite_rounded;
+    }
+    if (t.contains('diwali') ||
+        t.contains('holi') ||
+        t.contains('festival') ||
+        t.contains('christmas')) {
+      return Icons.celebration_rounded;
+    }
+    if (t.contains('office') || t.contains('formal')) {
+      return Icons.business_center_rounded;
+    }
+    return Icons.event_rounded;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2534,110 +2592,155 @@ class _EventsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(
+          SectionHeader(
             title: 'Events Planner',
             subtitle: 'Dress for what’s coming up',
+            trailing: TextButton(
+              onPressed: onSchedule,
+              child: Text(
+                events.isEmpty ? 'Schedule' : 'View all',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
-          if (events.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: WardrobeTokens.outlineGold),
-                color: const Color(0xFF06231E),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.event_available_rounded,
-                    size: 36,
-                    color: scheme.primary.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Schedule your event',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'No events yet. Event planning will be available soon.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.72),
-                          height: 1.3,
-                        ),
-                  ),
-                ],
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (events.isEmpty)
+            GestureDetector(
+              onTap: onSchedule,
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: WardrobeTokens.outlineGold),
+                  color: const Color(0xFF06231E),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_available_rounded,
+                      size: 36,
+                      color: scheme.primary.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Schedule your event',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Add a festival, wedding, or party — get outfit suggestions from your wardrobe tags.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.72),
+                            height: 1.3,
+                          ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
-            ...events.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: WardrobeTokens.outlineGold),
-                    color: const Color(0xFF06231E),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color: scheme.primary.withValues(alpha: 0.14),
-                          border: Border.all(color: WardrobeTokens.outlineGold),
+            ...events.take(3).map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onEventTap(e),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border:
+                                Border.all(color: WardrobeTokens.outlineGold),
+                            color: const Color(0xFF06231E),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color:
+                                      scheme.primary.withValues(alpha: 0.14),
+                                  border: Border.all(
+                                      color: WardrobeTokens.outlineGold),
+                                ),
+                                child: Icon(
+                                  _iconForOccasion(e.occasionTag),
+                                  color: scheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      e.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${e.occasionTag} · ${e.dateLabel}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: scheme.onSurface
+                                                .withValues(alpha: 0.72),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    if (e.suggestions.isNotEmpty)
+                                      Text(
+                                        '${e.suggestions.length} outfit picks',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: scheme.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color:
+                                    scheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Icon(e.icon, color: scheme.primary),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              e.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              e.dateLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: scheme.onSurface
-                                        .withValues(alpha: 0.72),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: scheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
         ],
       ),
     );

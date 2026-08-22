@@ -100,6 +100,12 @@ class ApiConfig {
   static String get savedOutfits => '$baseUrl/saved-outfits';
   static String savedOutfit(String outfitId) => '$baseUrl/saved-outfits/$outfitId';
 
+  // Planned events (Events Planner)
+  static String get events => '$baseUrl/events';
+  static String event(String eventId) => '$baseUrl/events/$eventId';
+  static String eventSuggestions(String eventId) =>
+      '$baseUrl/events/$eventId/suggestions';
+
   // Friends
   static String get friends => '$baseUrl/friends';
   static String friend(String friendId) => '$baseUrl/friends/$friendId';

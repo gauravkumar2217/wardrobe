@@ -8,6 +8,7 @@ import '../../services/cloth_service.dart';
 import '../chat/chat_detail_screen.dart';
 import '../cloth/cloth_detail_screen.dart';
 import '../friends/friend_requests_screen.dart';
+import '../events/events_planner_screen.dart';
 import '../../widgets/shell_back_button.dart';
 
 /// Notifications screen with grouped notifications and deep linking
@@ -113,6 +114,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'suggestion':
         // Navigate to home screen or specific suggestion
         break;
+
+      case 'event_reminder':
+        final eventId = notification.data?['event_id']?.toString();
+        if (eventId != null && eventId.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EventDetailScreen(eventId: eventId),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EventsPlannerScreen()),
+          );
+        }
+        break;
     }
   }
 
@@ -130,6 +148,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.comment;
       case 'suggestion':
         return Icons.lightbulb;
+      case 'event_reminder':
+        return Icons.event_available;
       default:
         return Icons.notifications;
     }
@@ -149,6 +169,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Colors.orange;
       case 'suggestion':
         return Colors.amber;
+      case 'event_reminder':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
