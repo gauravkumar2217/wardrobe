@@ -9,6 +9,8 @@ import '../../providers/wardrobe_provider.dart';
 import '../../models/style_post.dart';
 import '../../services/cloth_service.dart';
 import '../../services/style_post_service.dart';
+import '../../models/saved_outfit.dart';
+import '../../services/saved_outfit_service.dart';
 import '../../services/outfit_suggestion_service.dart';
 import '../cloth/cloth_detail_screen.dart';
 import '../cloth/add_cloth_flow_screen.dart';
@@ -17,6 +19,8 @@ import '../outfit/outfit_generator_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
 import '../wishlist/wishlist_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
+import '../../utils/outfit_planner_days.dart';
+import '../../utils/outfit_slots.dart';
 import '../../widgets/premium/glass_panel.dart';
 import '../../widgets/premium/premium_card.dart';
 import '../../widgets/premium/section_header.dart';
@@ -38,6 +42,9 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
   bool _analyticsLoading = false;
   List<_RankedCloth> _mostUsedItems = const [];
   List<_RankedCloth> _leastUsedItems = const [];
+  bool _plannerLoading = false;
+  List<({String dayKey, String dayLabel, SavedOutfit? outfit})> _weekPlan =
+      SavedOutfit.weekPlan(const []);
 
   @override
   void initState() {
@@ -62,6 +69,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
     }
 
     if (!mounted) return;
+    await _loadOutfitPlanner();
     if (_hasClothes(context.read<WardrobeProvider>())) {
       await _loadDailyOutfitSuggestions(forceNew: forceNewSuggestions);
     } else if (mounted) {
@@ -69,8 +77,32 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
         _outfits = const [];
         _suggestionsLoaded = true;
         _suggestionsLoading = false;
+        _weekPlan = SavedOutfit.weekPlan(const []);
       });
     }
+  }
+
+  Future<void> _loadOutfitPlanner() async {
+    setState(() => _plannerLoading = true);
+    try {
+      final saved = await SavedOutfitService.getSavedOutfits();
+      if (!mounted) return;
+      setState(() {
+        _weekPlan = SavedOutfit.weekPlan(saved);
+        _plannerLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Home outfit planner failed: $e');
+      if (!mounted) return;
+      setState(() => _plannerLoading = false);
+    }
+  }
+
+  Future<void> _openOutfitGenerator() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const OutfitGeneratorScreen()),
+    );
+    if (mounted) await _loadOutfitPlanner();
   }
 
   Future<void> _loadDailyOutfitSuggestions({bool forceNew = false}) async {
@@ -391,11 +423,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                         icon: Icons.auto_awesome_rounded,
                         title: 'Outfit Generator',
                         subtitle: 'Build & save combos',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const OutfitGeneratorScreen(),
-                          ),
-                        ),
+                        onTap: _openOutfitGenerator,
                       ),
                     ),
                     StaggeredFadeIn(
@@ -572,11 +600,9 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               child: StaggeredFadeIn(
                 index: 17,
                 child: _OutfitPlannerRow(
-                  items: const [
-                    _PlannedOutfit(day: 'Monday', title: 'Monochrome Layers'),
-                    _PlannedOutfit(day: 'Tuesday', title: 'Smart Casual'),
-                    _PlannedOutfit(day: 'Wednesday', title: 'Street Minimal'),
-                  ],
+                  items: _weekPlan,
+                  loading: _plannerLoading,
+                  onOpenGenerator: _openOutfitGenerator,
                 ),
               ),
             ),
@@ -2304,21 +2330,40 @@ class _ClosetUsageRow extends StatelessWidget {
   }
 }
 
-@immutable
-class _PlannedOutfit {
-  final String day;
-  final String title;
-  const _PlannedOutfit({required this.day, required this.title});
-}
-
 class _OutfitPlannerRow extends StatelessWidget {
-  final List<_PlannedOutfit> items;
-  const _OutfitPlannerRow({required this.items});
+  final List<({String dayKey, String dayLabel, SavedOutfit? outfit})> items;
+  final bool loading;
+  final VoidCallback onOpenGenerator;
+
+  const _OutfitPlannerRow({
+    required this.items,
+    required this.loading,
+    required this.onOpenGenerator,
+  });
+
+  List<String> _previewUrls(SavedOutfit outfit) {
+    final urls = <String>[];
+    for (final key in OutfitSlots.all) {
+      final item = outfit.slotItems[key];
+      if (item != null && item.displayImageUrl.isNotEmpty) {
+        urls.add(item.displayImageUrl);
+      }
+    }
+    return urls.take(4).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
     return SizedBox(
       height: 176,
       child: ListView.separated(
@@ -2326,6 +2371,10 @@ class _OutfitPlannerRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemBuilder: (context, i) {
           final it = items[i];
+          final outfit = it.outfit;
+          final previews = outfit != null ? _previewUrls(outfit) : const <String>[];
+          final isToday = it.dayKey == OutfitPlannerDays.todayKey();
+
           return SizedBox(
             width: 160,
             child: MediaQuery(
@@ -2340,49 +2389,113 @@ class _OutfitPlannerRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      it.day,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: scheme.primary,
-                        height: 1.1,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            it.dayLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: isToday ? scheme.secondary : scheme.primary,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        if (isToday)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: scheme.secondary.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Today',
+                              style: textTheme.labelSmall?.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: scheme.secondary,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: WardrobeTokens.outlineGold),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              scheme.primary.withValues(alpha: 0.14),
-                              const Color(0xFF041E1A),
-                            ],
+                      child: GestureDetector(
+                        onTap: onOpenGenerator,
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: WardrobeTokens.outlineGold),
+                            color: const Color(0xFF041E1A),
                           ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.checkroom_rounded,
-                            color: scheme.primary.withValues(alpha: 0.78),
-                            size: 26,
-                          ),
+                          child: previews.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.add_rounded,
+                                        color: scheme.primary
+                                            .withValues(alpha: 0.75),
+                                        size: 26,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Add look',
+                                        style: textTheme.labelSmall?.copyWith(
+                                          color: scheme.onSurface
+                                              .withValues(alpha: 0.65),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : GridView.count(
+                                  crossAxisCount: 2,
+                                  padding: const EdgeInsets.all(4),
+                                  mainAxisSpacing: 4,
+                                  crossAxisSpacing: 4,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  children: previews
+                                      .map(
+                                        (url) => ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: CachedNetworkImage(
+                                            imageUrl: url,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) =>
+                                                ColoredBox(
+                                              color: scheme.primary
+                                                  .withValues(alpha: 0.1),
+                                              child: const Icon(
+                                                  Icons.checkroom, size: 16),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      it.title,
+                      outfit?.name ?? 'Plan a look',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         height: 1.15,
+                        color: outfit == null
+                            ? scheme.onSurface.withValues(alpha: 0.55)
+                            : null,
                       ),
                     ),
                   ],

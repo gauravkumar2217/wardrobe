@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/cloth_service.dart';
 import '../../services/saved_outfit_service.dart';
 import '../../theme/wardrobe_tokens.dart';
+import '../../utils/outfit_planner_days.dart';
 import '../../utils/outfit_slot_classifier.dart';
 import '../../utils/outfit_slots.dart';
 
@@ -141,30 +142,75 @@ class _OutfitGeneratorScreenState extends State<OutfitGeneratorScreen> {
           : 'My outfit ${DateTime.now().day}/${DateTime.now().month}',
     );
 
-    final name = await showDialog<String>(
+    var selectedDay = _editingOutfitId != null
+        ? _saved
+            .firstWhere(
+              (o) => o.id == _editingOutfitId,
+              orElse: () => SavedOutfit(
+                id: '',
+                userId: '',
+                name: 'My outfit',
+                slots: OutfitSlots.empty(),
+              ),
+            )
+            .plannedDay
+        : OutfitPlannerDays.todayKey();
+
+    final result = await showDialog<({String name, String? day})>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_editingOutfitId != null ? 'Update collection' : 'Save collection'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Collection name',
-            hintText: 'e.g. Office Friday',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+              _editingOutfitId != null ? 'Update collection' : 'Save collection'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Collection name',
+                  hintText: 'e.g. Office Friday',
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedDay,
+                decoration: const InputDecoration(
+                  labelText: 'Plan for day',
+                ),
+                items: OutfitPlannerDays.keys
+                    .map(
+                      (k) => DropdownMenuItem(
+                        value: k,
+                        child: Text(OutfitPlannerDays.labels[k] ?? k),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedDay = v),
+              ),
+            ],
           ),
-          textCapitalization: TextCapitalization.words,
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                (name: nameController.text.trim(), day: selectedDay),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
 
-    if (name == null || name.isEmpty) return;
+    if (result == null || result.name.isEmpty) return;
+    final name = result.name;
+    final plannedDay = result.day;
 
     setState(() => _saving = true);
     try {
@@ -173,9 +219,14 @@ class _OutfitGeneratorScreenState extends State<OutfitGeneratorScreen> {
           outfitId: _editingOutfitId!,
           name: name,
           slots: _slots,
+          plannedDay: plannedDay,
         );
       } else {
-        await SavedOutfitService.create(name: name, slots: _slots);
+        await SavedOutfitService.create(
+          name: name,
+          slots: _slots,
+          plannedDay: plannedDay,
+        );
       }
       if (!mounted) return;
       _resetBuilder();

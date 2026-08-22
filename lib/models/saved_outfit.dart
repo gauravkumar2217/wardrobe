@@ -1,10 +1,12 @@
 import '../utils/outfit_slots.dart';
+import '../utils/outfit_planner_days.dart';
 
 /// A user-saved outfit combo (Outfit Generator collection).
 class SavedOutfit {
   final String id;
   final String userId;
   final String name;
+  final String? plannedDay;
   final Map<String, String?> slots;
   final Map<String, SavedOutfitSlotItem?> slotItems;
   final DateTime? createdAt;
@@ -14,6 +16,7 @@ class SavedOutfit {
     required this.id,
     required this.userId,
     required this.name,
+    this.plannedDay,
     required this.slots,
     this.slotItems = const {},
     this.createdAt,
@@ -52,6 +55,7 @@ class SavedOutfit {
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? json['userId']?.toString() ?? '',
       name: json['name']?.toString() ?? 'My outfit',
+      plannedDay: json['planned_day']?.toString() ?? json['plannedDay']?.toString(),
       slots: slots,
       slotItems: slotItems,
       createdAt: parseDate(json['created_at'] ?? json['createdAt']),
@@ -70,6 +74,45 @@ class SavedOutfit {
       }
     }
     return null;
+  }
+
+  /// Build Mon–Sun planner rows from saved collections.
+  static List<({String dayKey, String dayLabel, SavedOutfit? outfit})> weekPlan(
+    List<SavedOutfit> saved,
+  ) {
+    final byDay = <String, SavedOutfit>{};
+    final unassigned = <SavedOutfit>[];
+
+    for (final outfit in saved) {
+      final day = outfit.plannedDay?.toLowerCase().trim();
+      if (day != null &&
+          day.isNotEmpty &&
+          OutfitPlannerDays.keys.contains(day) &&
+          !byDay.containsKey(day)) {
+        byDay[day] = outfit;
+      } else {
+        unassigned.add(outfit);
+      }
+    }
+
+    unassigned.sort((a, b) {
+      final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return ad.compareTo(bd);
+    });
+
+    var spare = 0;
+    return OutfitPlannerDays.keys.map((key) {
+      SavedOutfit? outfit = byDay[key];
+      if (outfit == null && spare < unassigned.length) {
+        outfit = unassigned[spare++];
+      }
+      return (
+        dayKey: key,
+        dayLabel: OutfitPlannerDays.labels[key] ?? key,
+        outfit: outfit,
+      );
+    }).toList();
   }
 }
 

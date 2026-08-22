@@ -24,10 +24,12 @@ class SavedOutfitService {
   static Future<SavedOutfit> create({
     required String name,
     required Map<String, String?> slots,
+    String? plannedDay,
   }) async {
     final body = await LaravelApiClient.postJson(ApiConfig.savedOutfits, {
       'name': name,
       'slots': slots,
+      if (plannedDay != null) 'planned_day': plannedDay,
     });
     final data = LaravelApiClient.extractData(body);
     if (data is! Map<String, dynamic>) {
@@ -40,10 +42,12 @@ class SavedOutfitService {
     required String outfitId,
     String? name,
     Map<String, String?>? slots,
+    String? plannedDay,
   }) async {
     final payload = <String, dynamic>{};
     if (name != null) payload['name'] = name;
     if (slots != null) payload['slots'] = slots;
+    if (plannedDay != null) payload['planned_day'] = plannedDay;
 
     final body = await LaravelApiClient.putJson(
       ApiConfig.savedOutfit(outfitId),
