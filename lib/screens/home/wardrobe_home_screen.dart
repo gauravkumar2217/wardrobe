@@ -424,7 +424,10 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
               sliver: SliverToBoxAdapter(
                 child: StaggeredFadeIn(
                   index: 11,
-                  child: _ShareBanner(onShare: () {}),
+                  child: _ShareBanner(
+                    onShare: () =>
+                        context.read<NavigationProvider>().navigateToCommunity(),
+                  ),
                 ),
               ),
             ),
@@ -2012,68 +2015,76 @@ class _ShareBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onShare,
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.primary.withValues(alpha: 0.95),
-            scheme.secondary.withValues(alpha: 0.85),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.primary.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Share your style',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: scheme.onPrimary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Post outfits, save inspirations, build your community.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onPrimary.withValues(alpha: 0.85),
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                scheme.primary.withValues(alpha: 0.95),
+                scheme.secondary.withValues(alpha: 0.85),
               ],
             ),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.25),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.onPrimary.withValues(alpha: 0.14),
-              foregroundColor: scheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: scheme.onPrimary.withValues(alpha: 0.22),
-                  width: 1,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Share your style',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: scheme.onPrimary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Post outfits, save inspirations, build your community.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: scheme.onPrimary.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            onPressed: onShare,
-            child: const Text('Share Now'),
+              const SizedBox(width: 12),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: scheme.onPrimary.withValues(alpha: 0.14),
+                  foregroundColor: scheme.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: scheme.onPrimary.withValues(alpha: 0.22),
+                      width: 1,
+                    ),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                onPressed: onShare,
+                child: const Text('Share Now'),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
