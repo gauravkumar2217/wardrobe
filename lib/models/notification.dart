@@ -65,13 +65,20 @@ class AppNotification {
     );
   }
 
-  // Helper getters for common data fields
-  String? get clothId => data?['clothId'] as String?;
-  String? get chatId => data?['chatId'] as String?;
-  String? get userId => data?['userId'] as String?;
-  String? get requestId => data?['requestId'] as String?;
-  String? get messageId => data?['messageId'] as String?;
-  String? get likeId => data?['likeId'] as String?;
-  String? get commentId => data?['commentId'] as String?;
+  // Helper getters for common data fields (supports camelCase + snake_case)
+  String? get clothId =>
+      (data?['clothId'] ?? data?['cloth_id'])?.toString();
+  String? get chatId =>
+      (data?['chatId'] ?? data?['chat_id'])?.toString();
+  String? get userId =>
+      (data?['userId'] ?? data?['user_id'] ?? data?['from_user_id'])
+          ?.toString();
+  String? get requestId =>
+      (data?['requestId'] ?? data?['request_id'])?.toString();
+  String? get messageId =>
+      (data?['messageId'] ?? data?['message_id'])?.toString();
+  String? get likeId => (data?['likeId'] ?? data?['like_id'])?.toString();
+  String? get commentId =>
+      (data?['commentId'] ?? data?['comment_id'])?.toString();
 }
 

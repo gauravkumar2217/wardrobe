@@ -41,6 +41,7 @@ class ApiConfig {
   static String deviceActive(String deviceId) =>
       '$baseUrl/devices/$deviceId/active';
   static String get fcmTokens => '$baseUrl/fcm-tokens';
+  static String get fcmTestPush => '$baseUrl/fcm-tokens/test-push';
   static String fcmTokenActive(String tokenId) =>
       '$baseUrl/fcm-tokens/$tokenId/active';
 

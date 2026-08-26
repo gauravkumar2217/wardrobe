@@ -3,12 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../models/notification.dart';
-import '../../services/chat_service.dart';
-import '../../services/cloth_service.dart';
-import '../chat/chat_detail_screen.dart';
-import '../cloth/cloth_detail_screen.dart';
-import '../friends/friend_requests_screen.dart';
-import '../events/events_planner_screen.dart';
+import '../../services/notification_deep_link.dart';
 import '../../widgets/shell_back_button.dart';
 
 /// Notifications screen with grouped notifications and deep linking
@@ -52,84 +47,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    // Deep link based on notification type
-    if (!mounted) return;
-
     switch (notification.type) {
       case 'friend_request':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FriendRequestsScreen()),
-        );
-        break;
-
       case 'friend_accept':
-        // Could navigate to friends list or friend's profile
-        break;
-
       case 'dm_message':
-        if (notification.chatId != null) {
-          final chat = await ChatService.getChat(
-            userId: authProvider.user!.uid,
-            chatId: notification.chatId!,
-          );
-          if (chat != null && mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ChatDetailScreen(chat: chat)),
-            );
-          }
-        }
-        break;
-
       case 'cloth_like':
       case 'cloth_comment':
-        if (notification.clothId != null && notification.userId != null) {
-          // Get cloth details
-          // Note: We need ownerId and wardrobeId from the notification data
-          final ownerId = notification.data?['ownerId'] as String?;
-          final wardrobeId = notification.data?['wardrobeId'] as String?;
-
-          if (ownerId != null && wardrobeId != null) {
-            final cloth = await ClothService.getCloth(
-              userId: ownerId,
-              wardrobeId: wardrobeId,
-              clothId: notification.clothId!,
-            );
-            if (cloth != null && mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ClothDetailScreen(
-                    cloth: cloth,
-                    isOwner: authProvider.user!.uid == ownerId,
-                  ),
-                ),
-              );
-            }
-          }
-        }
-        break;
-
-      case 'suggestion':
-        // Navigate to home screen or specific suggestion
-        break;
-
       case 'event_reminder':
-        final eventId = notification.data?['event_id']?.toString();
-        if (eventId != null && eventId.isNotEmpty) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => EventDetailScreen(eventId: eventId),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EventsPlannerScreen()),
-          );
+      case 'avatar_ready':
+      case 'avatar_failed':
+      case 'test_push':
+      case 'style_shared':
+      case 'outfit_suggestion':
+      case 'daily_suggestion':
+      case 'suggestion':
+        final payload = <String, dynamic>{
+          'type': notification.type,
+          if (notification.data != null) ...notification.data!,
+        };
+        // Ensure snake_case ids used by Laravel deep links are present.
+        if (notification.chatId != null) {
+          payload['chat_id'] = notification.chatId;
         }
+        if (notification.clothId != null) {
+          payload['cloth_id'] = notification.clothId;
+        }
+        await NotificationDeepLink.open(payload);
         break;
     }
   }

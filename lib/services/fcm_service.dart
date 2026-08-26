@@ -172,6 +172,35 @@ class FCMService {
 
   static String? getCurrentToken() => _currentToken;
 
+  /// Ensure token exists locally, register to Laravel, then request a test push
+  /// through the same server path used by production notifications.
+  static Future<Map<String, dynamic>> sendTestPush({
+    required String userId,
+    String title = 'Wardrobe test push',
+    String body =
+        'Push notification pipeline OK — token resolved from Laravel tables.',
+  }) async {
+    await initialize();
+    await registerDeviceToken(userId);
+
+    final payload = <String, dynamic>{
+      'title': title,
+      'body': body,
+    };
+    final token = _currentToken;
+    if (token != null && token.isNotEmpty) {
+      payload['token'] = token;
+    }
+
+    final response = await LaravelApiClient.postJson(
+      ApiConfig.fcmTestPush,
+      payload,
+    );
+    final data = LaravelApiClient.extractData(response);
+    if (data is Map<String, dynamic>) return data;
+    return {'raw': data};
+  }
+
   /// Legacy helpers — push delivery is server-side via Laravel `fcm_tokens` table.
   static Future<List<String>> getActiveTokens(String userId) async => [];
 

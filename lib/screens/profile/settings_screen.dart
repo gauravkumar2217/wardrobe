@@ -13,6 +13,7 @@ import '../../providers/scheduler_provider.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../services/onboarding_service.dart';
 import '../../services/user_service.dart';
+import '../../services/fcm_service.dart';
 import '../../models/user_profile.dart';
 import 'edit_profile_screen.dart';
 import 'verify_contact_screen.dart';
@@ -40,6 +41,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
   NotificationSettings? _notificationSettings;
   PrivacySettings? _privacySettings;
   bool _isLoading = false;
+  bool _isSendingTestPush = false;
+
+  Future<void> _sendTestPushNotification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.user?.uid;
+    if (userId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in first')),
+      );
+      return;
+    }
+
+    setState(() => _isSendingTestPush = true);
+    try {
+      final result = await FCMService.sendTestPush(userId: userId);
+      if (!mounted) return;
+
+      final sent = result['sent_count'];
+      final resolved = result['resolved_token_count'];
+      final previews = result['resolved_token_previews'];
+      final previewText = previews is List && previews.isNotEmpty
+          ? previews.first.toString()
+          : 'n/a';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 6),
+          content: Text(
+            'Test push sent ($sent device(s)). '
+            'Resolved tokens: $resolved. Preview: $previewText',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 6),
+          content: Text('Test push failed: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingTestPush = false);
+    }
+  }
 
   /// Share app link via system share sheet (WhatsApp, Instagram, LinkedIn, Facebook, SMS, etc.).
   /// Uses App Store link on iOS and Google Play link on Android.
@@ -588,6 +637,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     );
                   },
+                ),
+                ListTile(
+                  dense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  leading: _isSendingTestPush
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.notifications_active,
+                          color: Color(0xFF043915), size: 18),
+                  title: const Text('Send test push notification',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text(
+                    'Registers this device token, then pushes via Laravel FCM tables',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.send, size: 18),
+                  onTap: _isSendingTestPush ? null : _sendTestPushNotification,
                 ),
                 const SizedBox(height: 8),
                 // Privacy section - Hidden as per requirements (defaults are set automatically)

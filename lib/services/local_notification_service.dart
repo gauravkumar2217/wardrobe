@@ -8,10 +8,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/schedule.dart';
-import '../screens/profile/create_avatar_screen.dart';
-import '../screens/suggestions/daily_suggestion_screen.dart';
-import '../screens/suggestions/outfit_suggestion_screen.dart';
-import '../utils/navigator_key.dart' show navigatorKey;
+import 'notification_deep_link.dart';
 
 /// Local notification service for scheduling notifications
 /// Uses approximate scheduling to avoid exact timer issues with app stores
@@ -69,19 +66,29 @@ class LocalNotificationService {
                 AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
 
-        // Create notification channel for Android
-        const androidChannel = AndroidNotificationChannel(
-          'scheduled_notifications',
-          'Scheduled Notifications',
-          description: 'Notifications for scheduled wardrobe reminders',
-          importance: Importance.high,
-          playSound: true,
-        );
-
-        await _notifications
+        // Channels used by local schedules and by FCM (see AndroidManifest
+        // com.google.firebase.messaging.default_notification_channel_id).
+        final androidPlugin = _notifications
             .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
-            ?.createNotificationChannel(androidChannel);
+                AndroidFlutterLocalNotificationsPlugin>();
+        await androidPlugin?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'scheduled_notifications',
+            'Scheduled Notifications',
+            description: 'Notifications for scheduled wardrobe reminders',
+            importance: Importance.high,
+            playSound: true,
+          ),
+        );
+        await androidPlugin?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'wardrobe_notifications',
+            'Wardrobe Notifications',
+            description: 'Push notifications from Wardrobe',
+            importance: Importance.high,
+            playSound: true,
+          ),
+        );
       }
 
       _isInitialized = true;
@@ -101,52 +108,16 @@ class LocalNotificationService {
       debugPrint('Notification tapped: ${response.payload}');
     }
 
-    // Handle navigation based on payload
-    if (response.payload != null && response.payload!.isNotEmpty) {
-      try {
-        final payloadData = jsonDecode(response.payload!);
-        if (payloadData is Map<String, dynamic>) {
-          final type = payloadData['type'] as String?;
+    if (response.payload == null || response.payload!.isEmpty) return;
 
-          if (type == 'outfit_suggestion') {
-            // Navigate to outfit suggestion screen using global navigator key
-            if (kDebugMode) {
-              debugPrint(
-                  'Outfit suggestion notification tapped - navigating to suggestion screen');
-            }
-
-            // Use the global navigator key from main.dart
-            navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (_) => const OutfitSuggestionScreen(),
-              ),
-            );
-          } else if (type == 'daily_suggestion') {
-            if (kDebugMode) {
-              debugPrint(
-                  'Daily suggestion notification tapped - navigating to daily suggestion screen');
-            }
-            navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (_) => const DailySuggestionScreen(),
-              ),
-            );
-          } else if (type == 'avatar_ready' || type == 'avatar_failed') {
-            if (kDebugMode) {
-              debugPrint(
-                  'Avatar notification tapped - navigating to create avatar screen');
-            }
-            navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (_) => const CreateAvatarScreen(),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Error parsing notification payload: $e');
-        }
+    try {
+      final payloadData = jsonDecode(response.payload!);
+      if (payloadData is Map<String, dynamic>) {
+        NotificationDeepLink.open(payloadData);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error parsing notification payload: $e');
       }
     }
   }
@@ -552,9 +523,9 @@ class LocalNotificationService {
         }
 
         const androidChannel = AndroidNotificationChannel(
-          'scheduled_notifications',
-          'Scheduled Notifications',
-          description: 'Notifications for scheduled wardrobe reminders',
+          'wardrobe_notifications',
+          'Wardrobe Notifications',
+          description: 'Push notifications from Wardrobe',
           importance: Importance.high,
           playSound: true,
         );
@@ -634,9 +605,9 @@ class LocalNotificationService {
       }
 
       final androidDetails = AndroidNotificationDetails(
-        'scheduled_notifications',
-        'Scheduled Notifications',
-        channelDescription: 'Notifications for scheduled wardrobe reminders',
+        'wardrobe_notifications',
+        'Wardrobe Notifications',
+        channelDescription: 'Push notifications from Wardrobe',
         importance: Importance.high,
         priority: Priority.high,
         playSound: true,
@@ -644,10 +615,9 @@ class LocalNotificationService {
         showWhen: true,
         when: DateTime.now().millisecondsSinceEpoch,
         styleInformation: bigPictureStyle,
-        color: const Color(0xFF043915), // Purple theme color
-        colorized: true, // Use color for notification background
+        color: const Color(0xFF043915),
+        colorized: true,
         largeIcon: largeIconBitmap,
-        // Small icon with white background
         icon: '@mipmap/launcher_icon',
       );
 
