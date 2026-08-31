@@ -10,6 +10,7 @@ import '../../models/avatar.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../services/avatar_2d_service.dart';
+import '../../services/pose_service.dart';
 import '../../services/user_service.dart';
 import '../../widgets/shell_back_button.dart';
 
@@ -29,8 +30,15 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
   Avatar? _existingAvatar;
   bool _isSubmitting = false;
   bool _isRetrying = false;
+  bool _isValidatingPose = false;
+  bool _poseValid = false;
+  bool _photoApproved = false;
+  String? _poseValidationMessage;
   String? _statusMessage;
   Timer? _uiPollTimer;
+
+  static const String _processingMessage =
+      'Creating your avatar (removing background)… This usually takes under a minute. We will notify you when it is ready.';
 
   @override
   void initState() {
@@ -72,8 +80,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                     ? resolved.errorMessage
                     : 'Avatar creation failed. You can retry.';
           } else if (resolved.isGenerating) {
-            _statusMessage =
-                'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+            _statusMessage = _processingMessage;
           }
         });
         if (!resolved.isGenerating) {
@@ -97,8 +104,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
         _isSubmitting = false;
         _isRetrying = false;
       } else if (avatar.isGenerating) {
-        _statusMessage =
-            'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+        _statusMessage = _processingMessage;
       }
     });
   }
@@ -134,8 +140,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
           );
           _startUiPolling(userId);
           setState(() {
-            _statusMessage =
-                'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+            _statusMessage = _processingMessage;
           });
         }
       } else if (pendingId != null && (avatar == null || !avatar.isGenerated)) {
@@ -154,8 +159,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                 generationStatus: s,
                 generationJobId: pendingId,
               );
-              _statusMessage =
-                  'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+              _statusMessage = _processingMessage;
             });
           } else if (s == 'failed') {
             setState(() {
@@ -198,8 +202,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
       if (avatar.isGenerating) {
         setState(() {
           _existingAvatar = avatar;
-          _statusMessage ??=
-              'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+          _statusMessage ??= _processingMessage;
         });
         return;
       }
@@ -235,8 +238,13 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
       if (mounted) {
         setState(() {
           _bodyImage = File(pickedFile.path);
+          _poseValid = false;
+          _photoApproved = false;
+          _poseValidationMessage = null;
         });
       }
+
+      await _validatePoseAfterPick();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -246,11 +254,134 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
     }
   }
 
+  Future<void> _validatePoseAfterPick() async {
+    if (_bodyImage == null) return;
+
+    setState(() {
+      _isValidatingPose = true;
+      _poseValid = false;
+      _photoApproved = false;
+      _poseValidationMessage = 'Checking your photo…';
+    });
+
+    try {
+      final keypoints = await PoseService.detectPoseKeypoints(_bodyImage!);
+      if (!mounted) return;
+
+      if (keypoints == null) {
+        setState(() {
+          _isValidatingPose = false;
+          _poseValid = false;
+          _poseValidationMessage =
+              'Could not detect a full body. Stand straight, face the camera, and ensure head to toe are visible.';
+        });
+        return;
+      }
+
+      final valid = PoseService.validatePoseQuality(keypoints);
+      setState(() {
+        _isValidatingPose = false;
+        _poseValid = valid;
+        _poseValidationMessage = valid
+            ? 'Photo looks good — stand straight with your full body visible.'
+            : 'Photo needs adjustment. Stand upright, face the camera, and keep your full body in frame.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isValidatingPose = false;
+        _poseValid = false;
+        _poseValidationMessage =
+            'Could not validate the photo. Try again with a clear full-body shot.';
+      });
+    }
+  }
+
+  Widget _buildPoseValidationBanner() {
+    if (_bodyImage == null) return const SizedBox.shrink();
+
+    if (_isValidatingPose) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _poseValidationMessage ?? 'Checking your photo…',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_poseValidationMessage == null) return const SizedBox.shrink();
+
+    final color = _poseValid ? Colors.green : Colors.red;
+    return Card(
+      color: color.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              _poseValid ? Icons.check_circle_outline : Icons.warning_amber,
+              color: color,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _poseValidationMessage!,
+                style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool get _canSubmitAvatar =>
+      _bodyImage != null &&
+      _poseValid &&
+      _photoApproved &&
+      !_isValidatingPose &&
+      !_isSubmitting &&
+      !_isRetrying;
+
   Future<void> _createAvatar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_bodyImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please capture a full-body photo')),
+      );
+      return;
+    }
+    if (!_poseValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please use a clear full-body photo facing the camera.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!_photoApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please confirm this photo looks good before continuing.'),
+        ),
       );
       return;
     }
@@ -268,7 +399,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
     setState(() {
       _isSubmitting = true;
-      _statusMessage = 'Uploading your photo and starting avatar creation…';
+      _statusMessage = 'Uploading your photo…';
     });
 
     try {
@@ -290,7 +421,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
           errorMessage: null,
         );
         _statusMessage =
-            'Avatar is creating. We will notify you when it is ready. This may take a few minutes — you can leave this screen.';
+            '$_processingMessage You can leave this screen.';
       });
 
       _startUiPolling(userId);
@@ -322,7 +453,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
     setState(() {
       _isRetrying = true;
-      _statusMessage = 'Retrying avatar creation…';
+      _statusMessage = 'Retrying avatar creation (removing background)…';
     });
 
     try {
@@ -353,8 +484,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
             generationJobId: result.avatarId,
             errorMessage: null,
           );
-          _statusMessage =
-              'Avatar is creating. We will notify you when it is ready. This may take a few minutes.';
+          _statusMessage = _processingMessage;
         });
         _startUiPolling(userId);
         return;
@@ -398,6 +528,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
   Widget _buildImagePreview() {
     final busy = _isSubmitting ||
         _isRetrying ||
+        _isValidatingPose ||
         (_existingAvatar?.isGenerating ?? false);
 
     return Container(
@@ -618,7 +749,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
               const SizedBox(height: 10),
               Text(
                 _statusMessage ??
-                    'We will notify you when it is ready. This may take a few minutes — feel free to leave this screen.',
+                    '$_processingMessage Feel free to leave this screen.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.35,
@@ -683,7 +814,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                                 '• Face the camera directly\n'
                                 '• Ensure good lighting\n'
                                 '• Full body should be visible from head to toe\n\n'
-                                'Creation runs in the background. We will notify you when your avatar is ready.',
+                                'We validate your photo, then remove the background to create your avatar. You will be notified when it is ready.',
                                 style: TextStyle(fontSize: 14),
                               ),
                             ],
@@ -740,6 +871,30 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                                 },
                           child: _buildImagePreview(),
                         ),
+                        const SizedBox(height: 12),
+                        _buildPoseValidationBanner(),
+                        if (_bodyImage != null && _poseValid && !_isValidatingPose) ...[
+                          const SizedBox(height: 8),
+                          CheckboxListTile(
+                            value: _photoApproved,
+                            onChanged: isBusy
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _photoApproved = value ?? false;
+                                    });
+                                  },
+                            title: const Text(
+                              'Looks good — use this photo',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: const Text(
+                              'Confirm before we remove the background and create your avatar.',
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
                         if (_bodyImage != null) ...[
                           const SizedBox(height: 24),
                           TextFormField(
@@ -769,9 +924,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                           if (!(_existingAvatar?.isGenerating ?? false) &&
                               !(_existingAvatar?.isGenerated ?? false))
                             ElevatedButton(
-                              onPressed: (_isSubmitting || _bodyImage == null)
-                                  ? null
-                                  : _createAvatar,
+                              onPressed: _canSubmitAvatar ? _createAvatar : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF043915),
                                 foregroundColor: Colors.white,
@@ -792,7 +945,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                                           ),
                                         ),
                                         SizedBox(width: 12),
-                                        Text('Starting…'),
+                                        Text('Uploading…'),
                                       ],
                                     )
                                   : const Text('Create Avatar'),
