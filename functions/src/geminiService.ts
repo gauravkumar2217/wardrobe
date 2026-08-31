@@ -10,13 +10,17 @@ function getGeminiApiKey(): string {
   return key;
 }
 
-/** Multimodal + native image output; override with GEMINI_MODEL if needed. */
-function getGeminiModel(): string {
-  return process.env.GEMINI_MODEL || "gemini-2.5-flash-image";
+/** Image output (avatar/try-on legacy Cloud Functions). Use GEMINI_IMAGE_MODEL on server. */
+function getGeminiImageModel(): string {
+  return (
+    process.env.GEMINI_IMAGE_MODEL ||
+    process.env.GEMINI_MODEL ||
+    "gemini-2.5-flash-image"
+  );
 }
 
 function buildGenerateContentUrl(): string {
-  const model = getGeminiModel();
+  const model = getGeminiImageModel();
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getGeminiApiKey()}`;
 }
 
