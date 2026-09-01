@@ -183,12 +183,12 @@ class _ClothCardState extends State<ClothCard> {
       decoration: const BoxDecoration(
         color: Colors.black,
       ),
-      child: widget.cloth.imageUrl.isNotEmpty
+      child: widget.cloth.displayImageUrl.isNotEmpty
           ? Stack(
               fit: StackFit.expand,
               children: [
                 CachedNetworkImage(
-                  imageUrl: widget.cloth.imageUrl,
+                  imageUrl: widget.cloth.displayImageUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,

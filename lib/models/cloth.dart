@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/cloth_image_url.dart';
 
 /// Cloth model with complete structure from app-plan.md
 class Cloth {
@@ -85,9 +86,16 @@ class Cloth {
       ownerId: json['owner_id'] as String? ?? json['ownerId'] as String? ?? '',
       wardrobeId:
           json['wardrobe_id'] as String? ?? json['wardrobeId'] as String? ?? '',
-      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String? ?? '',
-      processedImageUrl: json['processed_image_url'] as String? ??
-          json['processedImageUrl'] as String?,
+      imageUrl: ClothImageUrl.resolve(
+        json['image_url'] as String? ?? json['imageUrl'] as String?,
+      ),
+      processedImageUrl: () {
+        final resolved = ClothImageUrl.resolve(
+          json['processed_image_url'] as String? ??
+              json['processedImageUrl'] as String?,
+        );
+        return resolved.isEmpty ? null : resolved;
+      }(),
       hasProcessedImage: json['has_processed_image'] as bool? ??
           json['hasProcessedImage'] as bool? ??
           false,
@@ -136,6 +144,9 @@ class Cloth {
   factory Cloth.fromApiJson(Map<String, dynamic> json) {
     return Cloth.fromJson(json, json['id']?.toString() ?? '');
   }
+
+  /// Best URL for thumbnails and detail views (prefers processed cutout).
+  String get displayImageUrl => ClothImageUrl.forCloth(this);
 
   Map<String, dynamic> toJson() {
     return {

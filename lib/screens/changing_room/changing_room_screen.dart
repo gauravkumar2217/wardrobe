@@ -491,8 +491,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final item = filtered[index];
-                        final thumbUrl =
-                            item.processedImageUrl ?? item.imageUrl;
+                        final thumbUrl = item.displayImageUrl;
                         final selected = _isClothInCurrentOutfit(item);
                         return Padding(
                           padding: const EdgeInsets.only(right: 10),

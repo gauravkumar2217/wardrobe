@@ -9,6 +9,7 @@ import '../../providers/wardrobe_provider.dart';
 import '../../services/cloth_service.dart';
 import '../../theme/wardrobe_tokens.dart';
 import '../../widgets/shell_back_button.dart';
+import '../../utils/cloth_image_url.dart';
 import '../../utils/open_clothes_feed.dart';
 import '../cloth/add_cloth_flow_screen.dart';
 import '../cloth/cloth_detail_screen.dart';
@@ -94,14 +95,7 @@ class _WardrobeAssetsScreenState extends State<WardrobeAssetsScreen> {
     openClothesFeed(navigationProvider);
   }
 
-  String _imageFor(Cloth cloth) {
-    if (cloth.hasProcessedImage &&
-        cloth.processedImageUrl != null &&
-        cloth.processedImageUrl!.isNotEmpty) {
-      return cloth.processedImageUrl!;
-    }
-    return cloth.imageUrl;
-  }
+  String _imageFor(Cloth cloth) => ClothImageUrl.forCloth(cloth);
 
   @override
   Widget build(BuildContext context) {

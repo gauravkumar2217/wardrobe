@@ -22,6 +22,7 @@ import '../outfit/outfit_generator_screen.dart';
 import '../wardrobe/create_wardrobe_screen.dart';
 import '../wishlist/wishlist_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
+import '../../utils/cloth_image_url.dart';
 import '../../utils/outfit_planner_days.dart';
 import '../../utils/outfit_slots.dart';
 import '../../widgets/premium/glass_panel.dart';
@@ -1152,11 +1153,7 @@ class _OutfitCollage extends StatelessWidget {
   final List<Cloth> items;
   const _OutfitCollage({required this.items});
 
-  String _imageUrl(Cloth cloth) {
-    final processed = cloth.processedImageUrl?.trim();
-    if (processed != null && processed.isNotEmpty) return processed;
-    return cloth.imageUrl;
-  }
+  String _imageUrl(Cloth cloth) => ClothImageUrl.forCloth(cloth);
 
   @override
   Widget build(BuildContext context) {
@@ -2236,13 +2233,7 @@ class _ClosetUsageRow extends StatelessWidget {
     required this.emptyMessage,
   });
 
-  String _imageUrl(Cloth cloth) {
-    if (cloth.processedImageUrl != null &&
-        cloth.processedImageUrl!.isNotEmpty) {
-      return cloth.processedImageUrl!;
-    }
-    return cloth.imageUrl;
-  }
+  String _imageUrl(Cloth cloth) => ClothImageUrl.forCloth(cloth);
 
   @override
   Widget build(BuildContext context) {
