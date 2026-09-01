@@ -11,6 +11,7 @@ import '../../theme/wardrobe_tokens.dart';
 import '../../utils/outfit_planner_days.dart';
 import '../../utils/outfit_slot_classifier.dart';
 import '../../utils/outfit_slots.dart';
+import '../../utils/cloth_image_url.dart';
 
 /// Build outfit combos by category and save collections to the user's account.
 class OutfitGeneratorScreen extends StatefulWidget {
@@ -76,12 +77,7 @@ class _OutfitGeneratorScreenState extends State<OutfitGeneratorScreen> {
     return null;
   }
 
-  String _clothImageUrl(Cloth c) {
-    if (c.processedImageUrl != null && c.processedImageUrl!.isNotEmpty) {
-      return c.processedImageUrl!;
-    }
-    return c.imageUrl;
-  }
+  String _clothImageUrl(Cloth c) => ClothImageUrl.forCloth(c);
 
   bool get _hasSelection =>
       _slots.values.any((id) => id != null && id.isNotEmpty);

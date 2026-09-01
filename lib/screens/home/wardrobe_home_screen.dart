@@ -24,7 +24,6 @@ import '../wishlist/wishlist_screen.dart';
 import '../../theme/wardrobe_tokens.dart';
 import '../../utils/cloth_image_url.dart';
 import '../../utils/outfit_planner_days.dart';
-import '../../utils/outfit_slots.dart';
 import '../../widgets/premium/glass_panel.dart';
 import '../../widgets/premium/premium_card.dart';
 import '../../widgets/premium/section_header.dart';
@@ -51,6 +50,13 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
       SavedOutfit.weekPlan(const []);
   bool _eventsLoading = false;
   List<PlannedEvent> _upcomingEvents = const [];
+  int? _lastKnownClothCount;
+  Map<String, bool> _outfitCoverage = const {
+    'top': false,
+    'bottom': false,
+    'shoes': false,
+  };
+  bool _wardrobeRefreshPending = false;
 
   @override
   void initState() {
@@ -146,6 +152,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
 
     try {
       final clothes = await ClothService.getAllUserClothes(userId);
+      final fingerprint = OutfitSuggestionService.outfitCoverage(clothes);
       var suggestions =
           await OutfitSuggestionService.getOrCreateDailySuggestions(
         userId: userId,
@@ -180,10 +187,9 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
 
       for (var i = 0; i < suggestions.length; i++) {
         final s = suggestions[i];
-        final items = s.clothIds
-            .map((id) => byId[id])
-            .whereType<Cloth>()
-            .toList();
+        final items = OutfitSuggestionService.orderOutfitItems(
+          s.clothIds.map((id) => byId[id]).whereType<Cloth>().toList(),
+        );
         if (items.length < 2) continue;
 
         final meta = s.metadata;
@@ -219,6 +225,8 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
         _outfitIndex = 0;
         _suggestionsLoading = false;
         _suggestionsLoaded = true;
+        _lastKnownClothCount = clothes.length;
+        _outfitCoverage = fingerprint;
       });
       if (_outfitController.hasClients) {
         _outfitController.jumpToPage(0);
@@ -374,6 +382,19 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
     final totalItems = _totalClothCount(wardrobeProvider);
     final wardrobeCount = wardrobeProvider.wardrobes.length;
 
+    if (_suggestionsLoaded &&
+        !_wardrobeRefreshPending &&
+        _lastKnownClothCount != null &&
+        totalItems != _lastKnownClothCount) {
+      _wardrobeRefreshPending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _loadClosetSummary(forceNewSuggestions: true);
+        if (mounted) await _loadOutfitPlanner();
+        if (mounted) _wardrobeRefreshPending = false;
+      });
+    }
+
     return Scaffold(
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(
@@ -398,6 +419,7 @@ class _WardrobeHomeScreenState extends State<WardrobeHomeScreen> {
                           ? const _DailyOutfitLoadingState()
                           : _outfits.isEmpty
                               ? _DailyOutfitNeedMoreItemsState(
+                                  coverage: _outfitCoverage,
                                   onUpload: _openGetStartedFlow,
                                 )
                               : _DailyOutfitPager(
@@ -921,9 +943,30 @@ class _DailyOutfitLoadingState extends StatelessWidget {
 }
 
 class _DailyOutfitNeedMoreItemsState extends StatelessWidget {
+  final Map<String, bool> coverage;
   final VoidCallback onUpload;
 
-  const _DailyOutfitNeedMoreItemsState({required this.onUpload});
+  const _DailyOutfitNeedMoreItemsState({
+    required this.coverage,
+    required this.onUpload,
+  });
+
+  String _missingMessage() {
+    final missing = <String>[];
+    if (coverage['top'] != true) missing.add('a top');
+    if (coverage['bottom'] != true) missing.add('a bottom');
+    if (coverage['shoes'] != true) missing.add('shoes');
+    if (missing.isEmpty) {
+      return 'Upload more clothes so we can refresh today’s outfit picks.';
+    }
+    if (missing.length == 1) {
+      return 'Upload ${missing.first} to unlock complete daily outfits (top, bottom, and shoes).';
+    }
+    if (missing.length == 2) {
+      return 'Upload ${missing[0]} and ${missing[1]} to unlock complete daily outfits.';
+    }
+    return 'Upload a top, bottom, and shoes to unlock daily outfit suggestions.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -957,7 +1000,7 @@ class _DailyOutfitNeedMoreItemsState extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Upload at least 2 wearable items so we can build outfit sets for today.',
+                  _missingMessage(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurface.withValues(alpha: 0.72),
                         height: 1.35,
@@ -2377,12 +2420,13 @@ class _OutfitPlannerRow extends StatelessWidget {
   });
 
   List<String> _previewUrls(SavedOutfit outfit) {
+    const slotOrder = ['top', 'bottom', 'footwear', 'accessories', 'makeup'];
     final urls = <String>[];
-    for (final key in OutfitSlots.all) {
+    for (final key in slotOrder) {
       final item = outfit.slotItems[key];
-      if (item != null && item.displayImageUrl.isNotEmpty) {
-        urls.add(item.displayImageUrl);
-      }
+      if (item == null) continue;
+      final url = item.displayImageUrl;
+      if (url.isNotEmpty) urls.add(url);
     }
     return urls.take(4).toList();
   }

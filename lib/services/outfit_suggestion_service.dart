@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math';
 import '../models/cloth.dart';
 import '../models/outfit_suggestion.dart';
+import '../utils/try_on_category.dart';
 
 /// Service for generating outfit suggestions based on unworn clothes
 class OutfitSuggestionService {
@@ -13,6 +14,57 @@ class OutfitSuggestionService {
   static const int _maxStoredSuggestions = 10; // Keep last 10 suggestions
   static const int _daysNotWornThreshold = 7; // Consider "not worn recently" if not worn in 7+ days
   static const int _maxDailySuggestions = 3;
+
+  static String _clothesFingerprint(List<Cloth> clothes) {
+    final ids = clothes.map((c) => c.id).toList()..sort();
+    return ids.join('|');
+  }
+
+  /// Which core outfit slots the wardrobe can fill (top, bottom, shoes).
+  static Map<String, bool> outfitCoverage(List<Cloth> clothes) {
+    final eligible = clothes.where(_isEligibleForSuggestion).toList();
+    return {
+      'top': _itemsForSlot(eligible, 'shirt').isNotEmpty,
+      'bottom': _itemsForSlot(eligible, 'pants').isNotEmpty,
+      'shoes': _itemsForSlot(eligible, 'shoes').isNotEmpty,
+    };
+  }
+
+  static List<Cloth> orderOutfitItems(List<Cloth> items) {
+    int rank(Cloth cloth) {
+      final slot = TryOnCategory.slotForCloth(cloth);
+      if (cloth.itemKind.toLowerCase() == 'footwear' || slot == 'shoes') {
+        return 2;
+      }
+      if (slot == 'pants') return 1;
+      if (slot == 'shirt') return 0;
+      return 3;
+    }
+
+    final sorted = [...items]..sort((a, b) => rank(a).compareTo(rank(b)));
+    return sorted;
+  }
+
+  static List<Cloth> _itemsForSlot(List<Cloth> eligible, String slot) {
+    return eligible.where((cloth) {
+      final kind = cloth.itemKind.toLowerCase();
+      if (slot == 'shoes') {
+        return kind == 'footwear' || TryOnCategory.slotForCloth(cloth) == 'shoes';
+      }
+      if (slot == 'accessory') {
+        return kind == 'accessories' ||
+            TryOnCategory.slotForCloth(cloth) == 'accessory';
+      }
+      if (kind != 'cloth') return false;
+      return TryOnCategory.slotForCloth(cloth) == slot;
+    }).toList();
+  }
+
+  static bool _hasMinimumOutfitCategories(List<Cloth> pool) {
+    final eligible = pool.where(_isEligibleForSuggestion).toList();
+    return _itemsForSlot(eligible, 'shirt').isNotEmpty &&
+        _itemsForSlot(eligible, 'pants').isNotEmpty;
+  }
 
   static String _dayKey(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
@@ -87,13 +139,18 @@ class OutfitSuggestionService {
     required Random random,
     Set<String>? excludeIds,
     String? itemKind,
+    String? slot,
   }) {
     final excluded = excludeIds ?? const <String>{};
-    final candidates = pool.where((c) {
+    var candidates = pool.where((c) {
       if (excluded.contains(c.id)) return false;
       if (itemKind != null && c.itemKind != itemKind) return false;
       return true;
     }).toList();
+
+    if (slot != null) {
+      candidates = _itemsForSlot(candidates, slot);
+    }
 
     if (candidates.isEmpty) return null;
 
@@ -123,93 +180,88 @@ class OutfitSuggestionService {
     String? dayKey,
     Set<String>? excludeIds,
   }) {
-    if (pool.length < 2) return null;
+    if (!_hasMinimumOutfitCategories(pool)) return null;
 
     final alreadyUsed = excludeIds ?? const <String>{};
     final eligible = pool
         .where(_isEligibleForSuggestion)
         .where((c) => !alreadyUsed.contains(c.id))
         .toList();
-    if (eligible.length < 2) return null;
+    if (!_hasMinimumOutfitCategories(eligible)) return null;
 
-    // Prefer anchoring suggestions on real clothing items when possible.
-    final eligibleCloth = eligible.where((c) => c.itemKind == 'cloth').toList();
-    final anchorPool = eligibleCloth.isNotEmpty ? eligibleCloth : eligible;
-    anchorPool.sort(
+    final tops = _itemsForSlot(eligible, 'shirt');
+    if (tops.isEmpty) return null;
+
+    tops.sort(
         (a, b) => _daysSinceWorn(b, now).compareTo(_daysSinceWorn(a, now)));
-    // Rotate anchors across multiple suggestions so sets stay distinct.
-    final anchor = anchorPool[index % anchorPool.length];
-    final wantedTags = _tagsFor(anchor);
+    final top = tops[index % tops.length];
+    final wantedTags = _tagsFor(top);
 
-    final selected = <Cloth>[anchor];
-    final selectedIds = <String>{anchor.id, ...alreadyUsed};
+    final selected = <Cloth>[top];
+    final selectedIds = <String>{top.id, ...alreadyUsed};
 
-    // Pick 1-2 more "cloth" items matching the anchor's tags.
-    for (var i = 0; i < 2; i++) {
-      final next = _pickBest(
-        pool: eligible,
-        wantedTags: wantedTags,
-        now: now,
-        random: random,
-        excludeIds: selectedIds,
-        itemKind: 'cloth',
-      );
-      if (next == null) break;
-      selected.add(next);
-      selectedIds.add(next.id);
-    }
+    final bottom = _pickBest(
+      pool: eligible,
+      wantedTags: wantedTags,
+      now: now,
+      random: random,
+      excludeIds: selectedIds,
+      slot: 'pants',
+    );
+    if (bottom == null) return null;
+    selected.add(bottom);
+    selectedIds.add(bottom.id);
 
-    // Add footwear if available.
     final footwear = _pickBest(
       pool: eligible,
       wantedTags: wantedTags,
       now: now,
       random: random,
       excludeIds: selectedIds,
-      itemKind: 'footwear',
+      slot: 'shoes',
     );
     if (footwear != null) {
       selected.add(footwear);
       selectedIds.add(footwear.id);
     }
 
-    // Add up to 2 accessories (optional).
-    for (var i = 0; i < 2; i++) {
-      final acc = _pickBest(
-        pool: eligible,
-        wantedTags: wantedTags,
-        now: now,
-        random: random,
-        excludeIds: selectedIds,
-        itemKind: 'accessories',
-      );
-      if (acc == null) break;
-      selected.add(acc);
-      selectedIds.add(acc.id);
+    final accessory = _pickBest(
+      pool: eligible,
+      wantedTags: wantedTags,
+      now: now,
+      random: random,
+      excludeIds: selectedIds,
+      slot: 'accessory',
+    );
+    if (accessory != null) {
+      selected.add(accessory);
+      selectedIds.add(accessory.id);
     }
-
-    if (selected.length < 2) return null;
 
     final createdAt = now;
     final suggestionId = dayKey != null
         ? '${_dailySuggestionKey}_${userId}_${dayKey}_$index'
         : '${DateTime.now().millisecondsSinceEpoch}_$index';
 
-    final anchorDays = _daysSinceWorn(anchor, now);
+    final anchorDays = _daysSinceWorn(top, now);
     final titleParts = <String>[];
-    if (anchor.category.isNotEmpty) titleParts.add(anchor.category);
-    if (anchor.season.isNotEmpty) titleParts.add(anchor.season);
+    if (top.category.isNotEmpty) titleParts.add(top.category);
+    if (top.season.isNotEmpty) titleParts.add(top.season);
     final title = titleParts.isEmpty
         ? 'Look ${index + 1}'
         : '${titleParts.join(' • ')} look';
 
-    final occasion = anchor.occasions.isNotEmpty
-        ? anchor.occasions.first
-        : (anchor.category.isNotEmpty ? anchor.category : 'Everyday');
+    final occasion = top.occasions.isNotEmpty
+        ? top.occasions.first
+        : (top.category.isNotEmpty ? top.category : 'Everyday');
 
-    final description = anchor.wornAt == null
-        ? 'Based on items you haven’t worn yet, plus matching tags (season/occasion/colors).'
-        : 'Based on items you haven’t worn in $anchorDays days, plus matching tags (season/occasion/colors).';
+    final slotLabels = <String>['top', 'bottom'];
+    if (footwear != null) slotLabels.add('shoes');
+    if (accessory != null) slotLabels.add('accessory');
+
+    final description = footwear != null
+        ? 'Today’s pick: ${slotLabels.join(', ')} from your wardrobe — matched by season, occasion, and colors.'
+        : 'Today’s pick: top and bottom from your wardrobe. Add shoes to complete the look.';
 
     // Match score: blend tag cohesion + how overdue the anchor is.
     final cohesion = selected.length <= 1
@@ -226,22 +278,23 @@ class OutfitSuggestionService {
       id: suggestionId,
       userId: userId,
       createdAt: createdAt,
-      clothIds: selected.map((c) => c.id).toList(),
+      clothIds: orderOutfitItems(selected).map((c) => c.id).toList(),
       title: title,
       description: description,
       metadata: {
         if (purpose != null) 'purpose': purpose,
         if (dayKey != null) 'dayKey': dayKey,
-        'anchorId': anchor.id,
+        'anchorId': top.id,
         'anchorDaysSinceWorn': anchorDays,
-        'anchorCategory': anchor.category,
-        'anchorSeason': anchor.season,
-        'anchorOccasions': anchor.occasions,
-        'anchorColors': anchor.colorTags.colors,
+        'anchorCategory': top.category,
+        'anchorSeason': top.season,
+        'anchorOccasions': top.occasions,
+        'anchorColors': top.colorTags.colors,
         'occasion': occasion,
         'matchPercent': matchPercent,
         'setIndex': index + 1,
         'includedKinds': selected.map((c) => c.itemKind).toSet().toList(),
+        'includedSlots': slotLabels,
       },
     );
   }
@@ -258,13 +311,18 @@ class OutfitSuggestionService {
     final date = forDate ?? DateTime.now();
     final key = _dayKey(date);
     final prefsKey = '${_dailySuggestionsKey}_${userId}_$key';
+    final fingerprintKey = '${prefsKey}_fp';
     final capped = maxSuggestions.clamp(1, _maxDailySuggestions);
+    final fingerprint = _clothesFingerprint(availableClothes);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!forceNew) {
         final cached = prefs.getString(prefsKey);
-        if (cached != null && cached.isNotEmpty) {
+        final cachedFingerprint = prefs.getString(fingerprintKey);
+        if (cached != null &&
+            cached.isNotEmpty &&
+            cachedFingerprint == fingerprint) {
           final list = jsonDecode(cached) as List<dynamic>;
           return list
               .map((e) =>
@@ -302,6 +360,7 @@ class OutfitSuggestionService {
         prefsKey,
         jsonEncode(suggestions.map((s) => s.toJson()).toList()),
       );
+      await prefs.setString(fingerprintKey, fingerprint);
 
       // Keep the first set as the single daily cache for legacy screens.
       await prefs.setString(
@@ -332,12 +391,17 @@ class OutfitSuggestionService {
     final date = forDate ?? DateTime.now();
     final key = _dayKey(date);
     final prefsKey = '${_dailySuggestionKey}_${userId}_$key';
+    final fingerprintKey = '${prefsKey}_fp';
+    final fingerprint = _clothesFingerprint(availableClothes);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!forceNew) {
         final cached = prefs.getString(prefsKey);
-        if (cached != null && cached.isNotEmpty) {
+        final cachedFingerprint = prefs.getString(fingerprintKey);
+        if (cached != null &&
+            cached.isNotEmpty &&
+            cachedFingerprint == fingerprint) {
           final json = jsonDecode(cached) as Map<String, dynamic>;
           return OutfitSuggestion.fromJson(json);
         }
@@ -358,6 +422,7 @@ class OutfitSuggestionService {
       if (suggestion == null) return null;
 
       await prefs.setString(prefsKey, jsonEncode(suggestion.toJson()));
+      await prefs.setString(fingerprintKey, fingerprint);
       await saveSuggestion(userId, suggestion);
       return suggestion;
     } catch (e) {
@@ -450,7 +515,7 @@ class OutfitSuggestionService {
     String userId,
   ) {
     final eligible = clothes.where(_isEligibleForSuggestion).toList();
-    if (eligible.length < 2) {
+    if (!_hasMinimumOutfitCategories(eligible)) {
       return [];
     }
 

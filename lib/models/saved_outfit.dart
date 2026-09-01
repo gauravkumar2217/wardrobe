@@ -1,5 +1,6 @@
 import '../utils/outfit_slots.dart';
 import '../utils/outfit_planner_days.dart';
+import '../utils/cloth_image_url.dart';
 
 /// A user-saved outfit combo (Outfit Generator collection).
 class SavedOutfit {
@@ -67,11 +68,12 @@ class SavedOutfit {
       slots.values.where((id) => id != null && id.isNotEmpty).length;
 
   String? get previewImageUrl {
-    for (final key in OutfitSlots.all) {
+    const order = ['top', 'bottom', 'footwear', 'accessories', 'makeup'];
+    for (final key in order) {
       final item = slotItems[key];
-      if (item != null && item.displayImageUrl.isNotEmpty) {
-        return item.displayImageUrl;
-      }
+      if (item == null) continue;
+      final url = item.displayImageUrl;
+      if (url.isNotEmpty) return url;
     }
     return null;
   }
@@ -146,9 +148,11 @@ class SavedOutfitSlotItem {
   }
 
   String get displayImageUrl {
-    if (processedImageUrl != null && processedImageUrl!.isNotEmpty) {
-      return processedImageUrl!;
+    final processed = processedImageUrl?.trim();
+    if (processed != null && processed.isNotEmpty) {
+      final resolved = ClothImageUrl.resolve(processed);
+      if (resolved.isNotEmpty) return resolved;
     }
-    return imageUrl;
+    return ClothImageUrl.resolve(imageUrl);
   }
 }
