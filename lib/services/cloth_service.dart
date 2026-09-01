@@ -392,106 +392,29 @@ class ClothService {
     }
   }
 
-  /// Remove today's worn entry (undo mark as worn)
+  /// Remove today's worn entry (undo mark as worn) via Laravel API.
   static Future<DateTime?> unmarkWornToday({
     required String userId,
     required String wardrobeId,
     required String clothId,
   }) async {
     try {
-      final now = DateTime.now();
-      final startOfToday = DateTime(now.year, now.month, now.day);
-      final historyRef = _firestore
-          .collection(_clothesPath(userId, wardrobeId))
-          .doc(clothId)
-          .collection('wearHistory');
-
-      // Find today's wear entry
-      final todayEntry = await historyRef
-          .where('wornAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-          .orderBy('wornAt', descending: true)
-          .limit(1)
-          .get();
-
-      if (todayEntry.docs.isEmpty) {
-        // Nothing to remove, simply return the current latest wornAt
-        final latestSnapshot =
-            await historyRef.orderBy('wornAt', descending: true).limit(1).get();
-        if (latestSnapshot.docs.isEmpty) {
-          // No history at all
-          await _updateWornAtFields(
-            userId: userId,
-            wardrobeId: wardrobeId,
-            clothId: clothId,
-            wornAt: null,
-          );
-          return null;
-        }
-        final latest =
-            (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
-        await _updateWornAtFields(
-          userId: userId,
-          wardrobeId: wardrobeId,
-          clothId: clothId,
-          wornAt: latest,
-        );
-        return latest;
-      }
-
-      // Remove today's entry
-      await todayEntry.docs.first.reference.delete();
-
-      // Determine the new latest wornAt (if any)
-      final latestSnapshot =
-          await historyRef.orderBy('wornAt', descending: true).limit(1).get();
-
-      DateTime? latestWornAt;
-      if (latestSnapshot.docs.isNotEmpty) {
-        latestWornAt =
-            (latestSnapshot.docs.first.data()['wornAt'] as Timestamp).toDate();
-      }
-
-      await _updateWornAtFields(
-        userId: userId,
-        wardrobeId: wardrobeId,
-        clothId: clothId,
-        wornAt: latestWornAt,
+      final body = await LaravelApiClient.deleteJson(
+        ApiConfig.clothWearHistoryToday(clothId),
       );
-
-      return latestWornAt;
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        final wornAtRaw = data['worn_at'] ?? data['wornAt'];
+        if (wornAtRaw == null) return null;
+        if (wornAtRaw is String && wornAtRaw.isNotEmpty) {
+          return DateTime.parse(wornAtRaw);
+        }
+      }
+      return null;
     } catch (e) {
       debugPrint('Failed to unmark worn status: $e');
       rethrow;
     }
-  }
-
-  static Future<void> _updateWornAtFields({
-    required String userId,
-    required String wardrobeId,
-    required String clothId,
-    required DateTime? wornAt,
-  }) async {
-    final updates = <String, dynamic>{
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (wornAt != null) {
-      updates['wornAt'] = Timestamp.fromDate(wornAt);
-      // If there's a wornAt date, keep placement as OutWardrobe
-      updates['placement'] = 'OutWardrobe';
-    } else {
-      updates['wornAt'] = FieldValue.delete();
-      // If no wornAt date, set placement back to InWardrobe
-      updates['placement'] = 'InWardrobe';
-    }
-
-    await _firestore
-        .collection(_clothesPath(userId, wardrobeId))
-        .doc(clothId)
-        .update(updates);
-
-    await _firestore.collection('clothes').doc(clothId).update(updates);
   }
 
   /// Like cloth via Laravel API.

@@ -64,6 +64,8 @@ class ApiConfig {
   static String clothLikes(String clothId) => '$baseUrl/clothes/$clothId/likes';
   static String clothWearHistory(String clothId) =>
       '$baseUrl/clothes/$clothId/wear-history';
+  static String clothWearHistoryToday(String clothId) =>
+      '$baseUrl/clothes/$clothId/wear-history/today';
   static String wearHistoryEntry(String entryId) =>
       '$baseUrl/wear-history/$entryId';
   static String get avatarDelete => '$baseUrl/avatar/me';

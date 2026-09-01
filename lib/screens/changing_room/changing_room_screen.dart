@@ -7,6 +7,7 @@ import '../../providers/navigation_provider.dart';
 import '../../models/avatar.dart' as avatar_model show Avatar;
 import '../../models/cloth.dart';
 import '../../models/tryon_outfit.dart';
+import '../../utils/try_on_category.dart';
 import '../../services/user_service.dart';
 import '../../services/tryon_2d_service.dart';
 import '../../widgets/avatar_2d_display_widget.dart';
@@ -74,80 +75,10 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     }
   }
 
-  bool _isTryOnEligible(Cloth c) {
-    final k = c.itemKind.toLowerCase();
-    return k == 'cloth' || k == 'footwear' || k == 'accessories';
-  }
-
-  bool _isShirtType(String type) {
-    final t = type.toLowerCase();
-    return [
-      'shirt',
-      't-shirt',
-      'top',
-      'blouse',
-      'sweater',
-      'hoodie',
-      'dress',
-      'jacket',
-      'coat',
-      'blazer',
-      'cardigan',
-      'vest',
-      'kurta',
-      'tank',
-      'polo',
-    ].contains(t);
-  }
-
-  bool _isPantsType(String type) {
-    final t = type.toLowerCase();
-    return [
-      'pants',
-      'trousers',
-      'jeans',
-      'shorts',
-      'leggings',
-      'skirt',
-      'cargo',
-    ].contains(t);
-  }
-
-  bool _isShoesType(String type) {
-    final t = type.toLowerCase();
-    return [
-      'shoes',
-      'sneakers',
-      'boots',
-      'sandals',
-      'heels',
-      'footwear',
-      'loafers',
-      'flats',
-    ].contains(t);
-  }
-
-  bool _isAccessoryType(String type) {
-    final t = type.toLowerCase();
-    return [
-      'accessory',
-      'bag',
-      'hat',
-      'watch',
-      'jewelry',
-      'belt',
-      'scarf',
-    ].contains(t);
-  }
+  bool _isTryOnEligible(Cloth c) => TryOnCategory.isTryOnEligible(c);
 
   /// Outfit map key: shirt | pants | shoes | accessory
-  String _outfitCategoryKey(Cloth c) {
-    if (_isShirtType(c.clothType)) return 'shirt';
-    if (_isPantsType(c.clothType)) return 'pants';
-    if (_isShoesType(c.clothType)) return 'shoes';
-    if (_isAccessoryType(c.clothType)) return 'accessory';
-    return 'shirt';
-  }
+  String _outfitCategoryKey(Cloth c) => TryOnCategory.slotForCloth(c);
 
   void _applyOutfitSlot(Cloth item, String categoryKey) {
     final items = Map<String, Cloth?>.from(_currentOutfit.items);
@@ -186,25 +117,20 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     final base = all.where(_isTryOnEligible).toList();
     switch (_clothFilter) {
       case 'tops':
-        return base.where((c) => _isShirtType(c.clothType)).toList();
+        return base.where((c) => TryOnCategory.slotForCloth(c) == 'shirt').toList();
       case 'bottoms':
-        return base.where((c) => _isPantsType(c.clothType)).toList();
+        return base.where((c) => TryOnCategory.slotForCloth(c) == 'pants').toList();
       case 'shoes':
-        return base.where((c) => _isShoesType(c.clothType)).toList();
+        return base.where((c) => TryOnCategory.slotForCloth(c) == 'shoes').toList();
       case 'accessories':
-        return base.where((c) => _isAccessoryType(c.clothType)).toList();
+        return base.where((c) => TryOnCategory.slotForCloth(c) == 'accessory').toList();
       default:
         return base;
     }
   }
 
   /// Ordered slots sent to the API (shirt → pants → shoes → accessory).
-  static const List<String> _outfitSlotOrder = [
-    'shirt',
-    'pants',
-    'shoes',
-    'accessory',
-  ];
+  static const List<String> _outfitSlotOrder = TryOnCategory.slotOrder;
 
   List<Cloth> _currentOutfitGarments() {
     final list = <Cloth>[];
@@ -295,10 +221,15 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
     Cloth? shoesItem;
     Cloth? accessory;
 
-    final shirts = clothes.where((c) => _isShirtType(c.clothType)).toList();
-    final pants = clothes.where((c) => _isPantsType(c.clothType)).toList();
-    final shoes = clothes.where((c) => _isShoesType(c.clothType)).toList();
-    final acc = clothes.where((c) => _isAccessoryType(c.clothType)).toList();
+    final shirts =
+        clothes.where((c) => TryOnCategory.slotForCloth(c) == 'shirt').toList();
+    final pants =
+        clothes.where((c) => TryOnCategory.slotForCloth(c) == 'pants').toList();
+    final shoes =
+        clothes.where((c) => TryOnCategory.slotForCloth(c) == 'shoes').toList();
+    final acc = clothes
+        .where((c) => TryOnCategory.slotForCloth(c) == 'accessory')
+        .toList();
 
     if (shirts.isNotEmpty) shirt = shirts[random % shirts.length];
     if (pants.isNotEmpty) pantsItem = pants[random % pants.length];

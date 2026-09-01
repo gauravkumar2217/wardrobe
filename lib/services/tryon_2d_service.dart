@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/cloth.dart';
 import '../config/api_config.dart';
+import '../utils/try_on_category.dart';
 import 'laravel_auth_service.dart';
 
 /// Service for 2D virtual try-on
@@ -95,8 +96,10 @@ class TryOn2DService {
 
       final data = await _postLaravel({
         'clothing_item_id': clothingItemId,
-        if (clothingType != null) 'clothing_type': clothingType,
-        // clothing_image_url is optional; backend can resolve from DB if it owns the cloth
+        'clothing_type': clothingType != null
+            ? TryOnCategory.slotForType(clothingType)
+            : null,
+        if (clothingType != null) 'display_type': clothingType,
       });
 
       final status = data['status']?.toString();
@@ -208,7 +211,8 @@ class TryOn2DService {
           .map(
             (c) => {
               'clothing_item_id': c.id,
-              'clothing_type': c.clothType,
+              'clothing_type': TryOnCategory.slotForCloth(c),
+              'display_type': c.clothType,
             },
           )
           .toList(),
