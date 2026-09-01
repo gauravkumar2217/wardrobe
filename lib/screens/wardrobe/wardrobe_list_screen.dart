@@ -30,6 +30,7 @@ class WardrobeListScreen extends StatefulWidget {
 class _WardrobeListScreenState extends State<WardrobeListScreen> {
   final BannerService _bannerService = BannerService();
   List<models.Banner> _banners = [];
+  Wardrobe? _viewingWardrobe;
 
   @override
   void initState() {
@@ -67,17 +68,29 @@ class _WardrobeListScreenState extends State<WardrobeListScreen> {
     final wardrobeProvider =
         Provider.of<WardrobeProvider>(context, listen: false);
     wardrobeProvider.setSelectedWardrobe(wardrobe);
+    setState(() => _viewingWardrobe = wardrobe);
+  }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WardrobeAssetsScreen(wardrobe: wardrobe),
-      ),
-    ).then((_) => _loadWardrobes());
+  void _closeWardrobeAssets() {
+    setState(() => _viewingWardrobe = null);
+    _loadWardrobes();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_viewingWardrobe != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _closeWardrobeAssets();
+        },
+        child: WardrobeAssetsScreen(
+          wardrobe: _viewingWardrobe!,
+          onClose: _closeWardrobeAssets,
+        ),
+      );
+    }
+
     final authProvider = Provider.of<AuthProvider>(context);
     final wardrobeProvider = Provider.of<WardrobeProvider>(context);
     final scheme = Theme.of(context).colorScheme;

@@ -17,10 +17,12 @@ import '../cloth/cloth_detail_screen.dart';
 /// Grid view of all items in a wardrobe (thumbnail gallery).
 class WardrobeAssetsScreen extends StatefulWidget {
   final Wardrobe wardrobe;
+  final VoidCallback? onClose;
 
   const WardrobeAssetsScreen({
     super.key,
     required this.wardrobe,
+    this.onClose,
   });
 
   @override
@@ -117,7 +119,23 @@ class _WardrobeAssetsScreenState extends State<WardrobeAssetsScreen> {
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
             child: Row(
               children: [
-                const Expanded(child: ShellBackButton()),
+                Expanded(
+                  child: widget.onClose != null
+                      ? Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            tooltip: 'Back',
+                            onPressed: widget.onClose,
+                            style: IconButton.styleFrom(
+                              foregroundColor: scheme.onSurface,
+                              backgroundColor:
+                                  scheme.surface.withValues(alpha: 0.65),
+                            ),
+                            icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                          ),
+                        )
+                      : const ShellBackButton(),
+                ),
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'swipe_feed') _openSwipeFeedBackup();
@@ -136,6 +154,17 @@ class _WardrobeAssetsScreenState extends State<WardrobeAssetsScreen> {
                   ],
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(
+              widget.wardrobe.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
           Expanded(
