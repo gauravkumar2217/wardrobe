@@ -27,12 +27,14 @@ class WardrobeTopHeader extends StatelessWidget {
   final VoidCallback onProfilePressed;
   final VoidCallback onNotificationsPressed;
   final VoidCallback onSettingsPressed;
+  final VoidCallback onSearchPressed;
 
   const WardrobeTopHeader({
     super.key,
     required this.onProfilePressed,
     required this.onNotificationsPressed,
     required this.onSettingsPressed,
+    required this.onSearchPressed,
   });
 
   @override
@@ -94,7 +96,7 @@ class WardrobeTopHeader extends StatelessWidget {
                       ),
                     ),
                     _HeaderIconButton(
-                      onPressed: () {},
+                      onPressed: onSearchPressed,
                       tooltip: 'Search',
                       icon: Icons.search_rounded,
                     ),

@@ -7,16 +7,9 @@ import '../../providers/wardrobe_provider.dart';
 import '../../providers/cloth_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../models/cloth.dart';
-import '../wardrobe/wardrobe_list_screen.dart';
-import '../friends/friends_list_screen.dart';
-import '../friends/friend_requests_screen.dart';
-import '../statistics/statistics_screen.dart';
-import 'edit_profile_screen.dart';
-import 'create_avatar_screen.dart';
-import 'settings_screen.dart';
+import '../../utils/shell_navigation.dart';
+import '../../widgets/shell_back_button.dart';
 import '../auth/login_screen.dart';
-import '../changing_room/changing_room_screen.dart';
-import '../cloth/batch_convert_screen.dart';
 
 /// Profile screen displaying user info and stats
 class ProfileScreen extends StatefulWidget {
@@ -54,15 +47,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Load all clothes
       await clothProvider.loadClothes(userId: authProvider.user!.uid);
 
+      if (!mounted) return;
+
       // Find most worn cloth
       if (clothProvider.clothes.isNotEmpty) {
         Cloth? mostWorn;
 
         for (var cloth in clothProvider.clothes) {
-          // Get wear history count (simplified - in production, query wearHistory)
           if (cloth.wornAt != null) {
-            // For now, just use wornAt as indicator
-            // In production, count wearHistory entries
             if (mostWorn == null ||
                 cloth.wornAt!.isAfter(mostWorn.wornAt ?? DateTime(1970))) {
               mostWorn = cloth;
@@ -138,6 +130,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: ShellBackButton(),
+              ),
               // Profile header
               Card(
                 child: Padding(
@@ -269,11 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const WardrobeListScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.wardrobeList);
                       },
                     ),
                     const Divider(height: 1),
@@ -287,11 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Text('Friends', style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const FriendsListScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.friendsList);
                       },
                     ),
                     const Divider(height: 1),
@@ -305,11 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const FriendRequestsScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.friendRequests);
                       },
                     ),
                     const Divider(height: 1),
@@ -323,10 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
-                        final result = await Navigator.push(
+                        final result = await pushShellPage(
                           context,
-                          MaterialPageRoute(
-                              builder: (_) => const StatisticsScreen()),
+                          ShellRoutes.statistics,
                         );
                         // If filter was selected, navigate to home with filter
                         if (result != null) {
@@ -362,11 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const EditProfileScreen()),
-                        );
+                        await pushShellPage(context, ShellRoutes.editProfile);
                         // Reload profile after editing
                         if (!mounted) return;
                         if (!mounted) return;
@@ -393,11 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const CreateAvatarScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.createAvatar);
                       },
                     ),
                     const Divider(height: 1),
@@ -411,11 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ChangingRoomScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.changingRoom);
                       },
                     ),
                     const Divider(height: 1),
@@ -429,11 +400,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const BatchConvertScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.batchConvert);
                       },
                     ),
                     const Divider(height: 1),
@@ -447,11 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const SettingsScreen()),
-                        );
+                        pushShellPage(context, ShellRoutes.settings);
                       },
                     ),
                     const Divider(height: 1),

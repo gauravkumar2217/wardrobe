@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/cloth.dart';
@@ -124,46 +123,36 @@ class TryOn2DService {
     }
   }
 
-  /// Get try-on result by result ID
+  /// Get try-on result by result ID (Laravel API).
   static Future<Map<String, dynamic>?> getTryOnResult(String resultId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('tryon_results')
-          .doc(resultId)
-          .get();
-
-      if (!doc.exists) {
+      final token = await LaravelAuthService.ensureToken();
+      final url = Uri.parse(ApiConfig.tryOnStatus(resultId));
+      final res = await http.get(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(ApiConfig.requestTimeout);
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map<String, dynamic> || decoded['success'] != true) {
         return null;
       }
-
-      return doc.data();
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) return data;
+      return null;
     } catch (e) {
       debugPrint('Error getting try-on result: $e');
       return null;
     }
   }
 
-  /// Get all try-on results for a user
+  /// Get recent try-on results for a user (not persisted client-side yet).
   static Future<List<Map<String, dynamic>>> getUserTryOnResults(
     String userId,
   ) async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('tryon_results')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(20)
-          .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    } catch (e) {
-      debugPrint('Error getting user try-on results: $e');
-      return [];
-    }
+    return [];
   }
 
   /// Best image URL for try-on (cutout helps Gemini fit the garment).

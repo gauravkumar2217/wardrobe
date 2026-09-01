@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../models/user_profile.dart';
@@ -8,57 +7,25 @@ import '../models/body_profile.dart';
 import '../models/avatar.dart';
 import '../models/eula_acceptance.dart';
 
-/// User service for managing user profiles
+/// User service — Laravel API (MySQL). No Firestore writes.
 class UserService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Get user profile
   static Future<UserProfile?> getUserProfile(String userId) async {
     try {
       final currentId = await LaravelAuthService.getCurrentUserId();
       if (currentId == userId) {
-        final profile = await LaravelAuthService.fetchUserProfile();
-        if (profile != null) return profile;
-      } else {
-        final body = await LaravelApiClient.getJson(ApiConfig.userById(userId));
-        final data = LaravelApiClient.extractData(body);
-        if (data is Map<String, dynamic>) {
-          return _profileFromApi(data);
-        }
+        return await LaravelAuthService.fetchUserProfile();
+      }
+      final body = await LaravelApiClient.getJson(ApiConfig.userById(userId));
+      final data = LaravelApiClient.extractData(body);
+      if (data is Map<String, dynamic>) {
+        return _profileFromApi(data);
       }
     } catch (e) {
       debugPrint('Laravel profile fetch failed for $userId: $e');
     }
-
-    try {
-      debugPrint('🔍 UserService: Fetching profile for userId: $userId');
-      final doc = await _firestore.collection('users').doc(userId).get();
-
-      debugPrint('   Document exists: ${doc.exists}');
-      
-      if (!doc.exists || doc.data() == null) {
-        debugPrint('❌ UserService: Profile not found or data is null for $userId');
-        return null;
-      }
-
-      final data = doc.data()!;
-      debugPrint('   Profile data keys: ${data.keys.toList()}');
-      debugPrint('   displayName: ${data['displayName']}');
-      debugPrint('   photoUrl: ${data['photoUrl']}');
-      debugPrint('   username: ${data['username']}');
-      
-      final profile = UserProfile.fromJson(data);
-      debugPrint('✅ UserService: Successfully loaded profile for $userId');
-      debugPrint('   Profile displayName: ${profile.displayName}');
-      debugPrint('   Profile photoUrl: ${profile.photoUrl}');
-      
-      return profile;
-    } catch (e, stackTrace) {
-      debugPrint('❌ UserService: Failed to fetch user profile for $userId: $e');
-      debugPrint('   Error type: ${e.runtimeType}');
-      debugPrint('   StackTrace: $stackTrace');
-      return null;
-    }
+    return null;
   }
 
   /// Create or update user profile
@@ -66,34 +33,11 @@ class UserService {
     required String userId,
     required UserProfile profile,
   }) async {
-    try {
-      final profileData = profile.toJson();
-      profileData['updatedAt'] = FieldValue.serverTimestamp();
-      
-      if (!profileData.containsKey('createdAt')) {
-        profileData['createdAt'] = FieldValue.serverTimestamp();
-      }
-
-      debugPrint('Saving profile for user $userId with data: $profileData');
-      debugPrint('Username in profile: ${profileData['username']}');
-
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .set(profileData, SetOptions(merge: true));
-
-      debugPrint('Profile saved successfully for user $userId');
-      
-      // Verify the save by reading it back
-      final savedDoc = await _firestore.collection('users').doc(userId).get();
-      if (savedDoc.exists) {
-        final savedData = savedDoc.data();
-        debugPrint('Verified saved profile - username: ${savedData?['username']}');
-      }
-    } catch (e) {
-      debugPrint('Failed to create/update user profile: $e');
-      rethrow;
+    final currentId = await LaravelAuthService.getCurrentUserId();
+    if (currentId != userId) {
+      throw Exception('Cannot update another user profile');
     }
+    await LaravelAuthService.updateUserProfile(profile: profile);
   }
 
   /// Update user profile (partial update)
@@ -102,25 +46,26 @@ class UserService {
     Map<String, dynamic>? updates,
     UserProfile? profile,
   }) async {
-    try {
-      if (profile != null) {
-        final profileData = profile.toJson();
-        profileData['updatedAt'] = FieldValue.serverTimestamp();
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .update(profileData);
-      } else if (updates != null) {
-        updates['updatedAt'] = FieldValue.serverTimestamp();
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .update(updates);
-      }
-    } catch (e) {
-      debugPrint('Failed to update user profile: $e');
-      rethrow;
+    final currentId = await LaravelAuthService.getCurrentUserId();
+    if (currentId != userId) {
+      throw Exception('Cannot update another user profile');
     }
+    if (profile != null) {
+      await LaravelAuthService.updateUserProfile(profile: profile);
+      return;
+    }
+    if (updates == null || updates.isEmpty) return;
+
+    final existing = await LaravelAuthService.fetchUserProfile();
+    final merged = (existing ?? UserProfile()).copyWith(
+      displayName: updates['displayName'] as String? ?? updates['display_name'] as String?,
+      username: updates['username'] as String?,
+      photoUrl: updates['photoUrl'] as String? ?? updates['photo_url'] as String?,
+      email: updates['email'] as String?,
+      phone: updates['phone'] as String?,
+      gender: updates['gender'] as String?,
+    );
+    await LaravelAuthService.updateUserProfile(profile: merged);
   }
 
   /// Update notification settings
@@ -129,13 +74,14 @@ class UserService {
     required NotificationSettings settings,
   }) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update({
-        'settings.notifications': settings.toJson(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final profile = await _loadProfileForSettings(userId);
+      final merged = UserSettings(
+        notifications: settings,
+        privacy: profile.settings?.privacy ?? PrivacySettings(),
+      );
+      await LaravelAuthService.updateUserProfile(
+        profile: profile.copyWith(settings: merged),
+      );
     } catch (e) {
       debugPrint('Failed to update notification settings: $e');
       rethrow;
@@ -148,33 +94,55 @@ class UserService {
     required PrivacySettings privacy,
   }) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update({
-        'settings.privacy': privacy.toJson(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final profile = await _loadProfileForSettings(userId);
+      final merged = UserSettings(
+        notifications: profile.settings?.notifications ?? NotificationSettings(),
+        privacy: privacy,
+      );
+      await LaravelAuthService.updateUserProfile(
+        profile: profile.copyWith(settings: merged),
+      );
     } catch (e) {
       debugPrint('Failed to update privacy settings: $e');
       rethrow;
     }
   }
 
-  /// Find user profile by email
-  /// Returns the userId if a profile with this email exists
+  static Future<UserProfile> _loadProfileForSettings(String userId) async {
+    final currentId = await LaravelAuthService.getCurrentUserId();
+    if (currentId == null || currentId != userId) {
+      throw Exception('Cannot update settings for this user');
+    }
+    final profile = await LaravelAuthService.fetchUserProfile();
+    if (profile == null) {
+      throw Exception('Could not load user profile');
+    }
+    return profile;
+  }
+
+  /// Find user profile by email (Laravel API).
   static Future<String?> findUserIdByEmail(String email) async {
     try {
       if (email.isEmpty) return null;
-      
-      final query = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email.toLowerCase().trim())
-          .limit(1)
-          .get();
-      
-      if (query.docs.isNotEmpty) {
-        return query.docs.first.id;
+      final uri = Uri.parse(ApiConfig.usersSearch).replace(
+        queryParameters: {'query': email.trim().toLowerCase()},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      final data = LaravelApiClient.extractData(body);
+      final list = data is List
+          ? data
+          : (data is Map<String, dynamic> && data['data'] is List)
+              ? data['data'] as List
+              : <dynamic>[];
+      final normalized = email.trim().toLowerCase();
+      for (final item in list) {
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
+        final itemEmail =
+            (map['email'] as String?)?.trim().toLowerCase();
+        if (itemEmail == normalized) {
+          return map['id']?.toString();
+        }
       }
       return null;
     } catch (e) {
@@ -186,146 +154,33 @@ class UserService {
   /// Search users by name, username, email, or phone
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
-      // Note: Firestore doesn't support full-text search natively
-      // This is a basic implementation - consider using Algolia or similar for production
-      final usersRef = _firestore.collection('users');
-      final normalizedQuery = query.trim().toLowerCase();
-      
-      if (normalizedQuery.isEmpty) {
-        return [];
-      }
+      final normalizedQuery = query.trim();
+      if (normalizedQuery.isEmpty) return [];
 
-      final results = <Map<String, dynamic>>[];
-      final seenUserIds = <String>{};
+      final uri = Uri.parse(ApiConfig.usersSearch).replace(
+        queryParameters: {'query': normalizedQuery},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      final data = LaravelApiClient.extractData(body);
+      final list = data is List
+          ? data
+          : (data is Map<String, dynamic> && data['data'] is List)
+              ? data['data'] as List
+              : <dynamic>[];
 
-      // Helper function to add result if not already seen
-      void addResult(doc) {
-        if (!seenUserIds.contains(doc.id)) {
-          final data = doc.data();
-          results.add({
-            'userId': doc.id,
-            'displayName': data['displayName'] as String?,
-            'username': data['username'] as String?,
-            'photoUrl': data['photoUrl'] as String?,
-            'email': data['email'] as String?,
-            'phone': data['phone'] as String? ?? data['phoneNumber'] as String?,
-          });
-          seenUserIds.add(doc.id);
-        }
-      }
-
-      // Search by displayName (prefix match)
-      try {
-        final nameQuery = await usersRef
-            .where('displayName', isGreaterThanOrEqualTo: query)
-            .where('displayName', isLessThanOrEqualTo: '$query\uf8ff')
-            .limit(20)
-            .get();
-        
-        for (var doc in nameQuery.docs) {
-          addResult(doc);
-        }
-      } catch (e) {
-        debugPrint('Error searching by displayName: $e');
-      }
-
-      // Search by username (exact match or prefix match)
-      try {
-        // Try exact match first
-        final usernameExactQuery = await usersRef
-            .where('username', isEqualTo: normalizedQuery)
-            .limit(5)
-            .get();
-        
-        for (var doc in usernameExactQuery.docs) {
-          addResult(doc);
-        }
-
-        // Try prefix match for username
-        final usernamePrefixQuery = await usersRef
-            .where('username', isGreaterThanOrEqualTo: normalizedQuery)
-            .where('username', isLessThanOrEqualTo: '$normalizedQuery\uf8ff')
-            .limit(15)
-            .get();
-        
-        for (var doc in usernamePrefixQuery.docs) {
-          addResult(doc);
-        }
-      } catch (e) {
-        debugPrint('Error searching by username: $e');
-        // If index error, try without prefix match
-        try {
-          final usernameExactQuery = await usersRef
-              .where('username', isEqualTo: normalizedQuery)
-              .limit(20)
-              .get();
-          
-          for (var doc in usernameExactQuery.docs) {
-            addResult(doc);
-          }
-        } catch (e2) {
-          debugPrint('Error searching by username (exact only): $e2');
-        }
-      }
-
-      // Search by email (exact match or prefix match)
-      try {
-        final emailQuery = await usersRef
-            .where('email', isGreaterThanOrEqualTo: query.toLowerCase())
-            .where('email', isLessThanOrEqualTo: '${query.toLowerCase()}\uf8ff')
-            .limit(20)
-            .get();
-        
-        for (var doc in emailQuery.docs) {
-          addResult(doc);
-        }
-      } catch (e) {
-        debugPrint('Error searching by email: $e');
-        // Try exact match only
-        try {
-          final emailExactQuery = await usersRef
-              .where('email', isEqualTo: query.toLowerCase())
-              .limit(20)
-              .get();
-          
-          for (var doc in emailExactQuery.docs) {
-            addResult(doc);
-          }
-        } catch (e2) {
-          debugPrint('Error searching by email (exact only): $e2');
-        }
-      }
-
-      // Search by phone (exact match)
-      try {
-        // Try both 'phone' and 'phoneNumber' fields
-        final phoneQuery = await usersRef
-            .where('phone', isEqualTo: query)
-            .limit(20)
-            .get();
-        
-        for (var doc in phoneQuery.docs) {
-          addResult(doc);
-        }
-      } catch (e) {
-        debugPrint('Error searching by phone: $e');
-      }
-
-      try {
-        final phoneNumberQuery = await usersRef
-            .where('phoneNumber', isEqualTo: query)
-            .limit(20)
-            .get();
-        
-        for (var doc in phoneNumberQuery.docs) {
-          addResult(doc);
-        }
-      } catch (e) {
-        debugPrint('Error searching by phoneNumber: $e');
-      }
-
-      // Limit total results to 20
-      return results.take(20).toList();
+      return list.whereType<Map>().map((raw) {
+        final item = Map<String, dynamic>.from(raw);
+        return {
+          'userId': item['id']?.toString(),
+          'displayName':
+              item['display_name'] as String? ?? item['displayName'] as String?,
+          'username': item['username'] as String?,
+          'photoUrl':
+              item['photo_url'] as String? ?? item['photoUrl'] as String?,
+          'email': item['email'] as String?,
+          'phone': item['phone'] as String?,
+        };
+      }).toList();
     } catch (e) {
       debugPrint('Failed to search users: $e');
       return [];
@@ -335,15 +190,12 @@ class UserService {
   /// Get user by ID (public info only)
   static Future<Map<String, dynamic>?> getUserPublicInfo(String userId) async {
     try {
-      final doc = await _firestore.collection('users').doc(userId).get();
-      
-      if (!doc.exists) return null;
-
-      final data = doc.data()!;
+      final profile = await getUserProfile(userId);
+      if (profile == null) return null;
       return {
-        'userId': doc.id,
-        'displayName': data['displayName'] as String?,
-        'photoUrl': data['photoUrl'] as String?,
+        'userId': userId,
+        'displayName': profile.displayName,
+        'photoUrl': profile.photoUrl,
       };
     } catch (e) {
       debugPrint('Failed to get user public info: $e');
@@ -353,45 +205,26 @@ class UserService {
 
   /// Delete user account
   static Future<void> deleteAccount(String userId) async {
-    try {
-      // Note: This should be handled by Cloud Function for complete cleanup
-      // This only deletes the user profile document
-      await _firestore.collection('users').doc(userId).delete();
-    } catch (e) {
-      debugPrint('Failed to delete account: $e');
-      rethrow;
+    final currentId = await LaravelAuthService.getCurrentUserId();
+    if (currentId != userId) {
+      throw Exception('Cannot delete another user account');
+    }
+    await LaravelAuthService.deleteAccount();
+  }
+
+  /// Poll user profile for updates (replaces Firestore snapshots).
+  static Stream<UserProfile?> watchUserProfile(String userId) async* {
+    yield await getUserProfile(userId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 30));
+      yield await getUserProfile(userId);
     }
   }
 
-  /// Stream user profile for real-time updates
-  static Stream<UserProfile?> watchUserProfile(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) {
-      if (!snapshot.exists || snapshot.data() == null) {
-        return null;
-      }
-      return UserProfile.fromJson(snapshot.data()!);
-    });
-  }
-
-  /// Check if username is available (Laravel API, Firestore fallback).
+  /// Check if username is available (Laravel API).
   static Future<bool> isUsernameAvailable(String username) async {
     try {
       return await LaravelAuthService.isUsernameAvailable(username);
-    } catch (e) {
-      debugPrint('Laravel username check failed, trying Firestore: $e');
-    }
-    try {
-      final normalizedUsername = username.toLowerCase().trim();
-      final query = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: normalizedUsername)
-          .limit(1)
-          .get();
-      return query.docs.isEmpty;
     } catch (e) {
       debugPrint('Failed to check username availability: $e');
       return false;
@@ -498,21 +331,26 @@ class UserService {
     );
   }
 
-  /// Get body profile for user
+  static Future<Map<String, dynamic>?> _rawSettings(String userId) async {
+    final currentId = await LaravelAuthService.getCurrentUserId();
+    if (currentId != userId) return null;
+    final body = await LaravelApiClient.getJson(ApiConfig.usersMe);
+    final data = LaravelApiClient.extractData(body);
+    if (data is Map<String, dynamic> && data['settings'] is Map) {
+      return Map<String, dynamic>.from(data['settings'] as Map);
+    }
+    return null;
+  }
+
+  /// Get body profile for user (stored in Laravel settings JSON).
   static Future<BodyProfile?> getBodyProfile(String userId) async {
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('bodyProfile')
-          .doc('current')
-          .get();
-
-      if (!doc.exists || doc.data() == null) {
-        return null;
+      final settings = await _rawSettings(userId);
+      final raw = settings?['bodyProfile'];
+      if (raw is Map<String, dynamic>) {
+        return BodyProfile.fromApiJson(raw, userId);
       }
-
-      return BodyProfile.fromJson(doc.data()!, userId);
+      return null;
     } catch (e) {
       debugPrint('Failed to get body profile: $e');
       return null;
@@ -522,14 +360,13 @@ class UserService {
   /// Save or update body profile
   static Future<void> saveBodyProfile(BodyProfile bodyProfile) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(bodyProfile.userId)
-          .collection('bodyProfile')
-          .doc('current')
-          .set(bodyProfile.toJson());
-
-      debugPrint('Body profile saved successfully for user ${bodyProfile.userId}');
+      await LaravelApiClient.putJson(ApiConfig.profileUpdate, {
+        'settings': {
+          'bodyProfile': bodyProfile.toApiJson(),
+        },
+      });
+      debugPrint(
+          'Body profile saved via Laravel for user ${bodyProfile.userId}');
     } catch (e) {
       debugPrint('Failed to save body profile: $e');
       rethrow;
@@ -539,14 +376,10 @@ class UserService {
   /// Delete body profile
   static Future<void> deleteBodyProfile(String userId) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('bodyProfile')
-          .doc('current')
-          .delete();
-
-      debugPrint('Body profile deleted successfully for user $userId');
+      await LaravelApiClient.putJson(ApiConfig.profileUpdate, {
+        'settings': {'bodyProfile': null},
+      });
+      debugPrint('Body profile deleted via Laravel for user $userId');
     } catch (e) {
       debugPrint('Failed to delete body profile: $e');
       rethrow;

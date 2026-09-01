@@ -1,115 +1,100 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+
+import '../config/api_config.dart';
 import '../models/notification.dart';
+import 'laravel_api_client.dart';
 
-/// Notification service for managing in-app notifications
+/// In-app notifications via Laravel API (MySQL).
 class NotificationService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  /// Get notifications path
-  static String _notificationsPath(String userId) {
-    return 'users/$userId/notifications';
+  static List<AppNotification> _parseList(dynamic data) {
+    Iterable<dynamic> items;
+    if (data is Map<String, dynamic> && data['data'] is List) {
+      items = data['data'] as List;
+    } else if (data is List) {
+      items = data;
+    } else {
+      return [];
+    }
+    return items
+        .whereType<Map>()
+        .map((e) => AppNotification.fromApiJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
-  /// Get notifications for a user
   static Future<List<AppNotification>> getNotifications(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection(_notificationsPath(userId))
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => AppNotification.fromJson(doc.data(), doc.id))
-          .toList();
+      final uri = Uri.parse(ApiConfig.notifications).replace(
+        queryParameters: const {'per_page': '100'},
+      );
+      final body = await LaravelApiClient.getJson(uri.toString());
+      return _parseList(LaravelApiClient.extractData(body));
     } catch (e) {
       debugPrint('Failed to get notifications: $e');
       return [];
     }
   }
 
-  /// Get unread notifications count
   static Future<int> getUnreadCount(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection(_notificationsPath(userId))
-          .where('read', isEqualTo: false)
-          .get();
-
-      return snapshot.docs.length;
+      final body = await LaravelApiClient.getJson(ApiConfig.notificationsUnread);
+      final data = LaravelApiClient.extractData(body);
+      if (data is List) return data.length;
+      return _parseList(data).where((n) => !n.read).length;
     } catch (e) {
       debugPrint('Failed to get unread count: $e');
       return 0;
     }
   }
 
-  /// Mark notification as read
   static Future<void> markAsRead({
     required String userId,
     required String notificationId,
   }) async {
     try {
-      await _firestore
-          .collection(_notificationsPath(userId))
-          .doc(notificationId)
-          .update({'read': true});
+      await LaravelApiClient.putJson(
+        ApiConfig.notificationRead(notificationId),
+        {},
+      );
     } catch (e) {
       debugPrint('Failed to mark notification as read: $e');
     }
   }
 
-  /// Mark all notifications as read
   static Future<void> markAllAsRead(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection(_notificationsPath(userId))
-          .where('read', isEqualTo: false)
-          .get();
-
-      final batch = _firestore.batch();
-      for (var doc in snapshot.docs) {
-        batch.update(doc.reference, {'read': true});
-      }
-      await batch.commit();
+      await LaravelApiClient.putJson(ApiConfig.notificationsReadAll, {});
     } catch (e) {
       debugPrint('Failed to mark all as read: $e');
     }
   }
 
-  /// Delete notification
   static Future<void> deleteNotification({
     required String userId,
     required String notificationId,
   }) async {
     try {
-      await _firestore
-          .collection(_notificationsPath(userId))
-          .doc(notificationId)
-          .delete();
+      await LaravelApiClient.deleteJson(
+        ApiConfig.notificationDelete(notificationId),
+      );
     } catch (e) {
       debugPrint('Failed to delete notification: $e');
     }
   }
 
-  /// Stream notifications for real-time updates
-  static Stream<List<AppNotification>> watchNotifications(String userId) {
-    return _firestore
-        .collection(_notificationsPath(userId))
-        .orderBy('createdAt', descending: true)
-        .limit(100)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AppNotification.fromJson(doc.data(), doc.id))
-            .toList());
+  /// Poll notifications periodically (replaces Firestore snapshots).
+  static Stream<List<AppNotification>> watchNotifications(String userId) async* {
+    yield await getNotifications(userId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 20));
+      yield await getNotifications(userId);
+    }
   }
 
-  /// Stream unread count for real-time updates
-  static Stream<int> watchUnreadCount(String userId) {
-    return _firestore
-        .collection(_notificationsPath(userId))
-        .where('read', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+  static Stream<int> watchUnreadCount(String userId) async* {
+    yield await getUnreadCount(userId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 20));
+      yield await getUnreadCount(userId);
+    }
   }
 }

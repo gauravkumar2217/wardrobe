@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../utils/shell_navigation.dart';
 import '../../services/banner_service.dart';
 import '../../widgets/banner_slider_widget.dart';
-import '../notifications/notifications_screen.dart';
-import '../profile/settings_screen.dart';
 import '../scheduler/scheduler_list_screen.dart';
 import '../suggestions/daily_suggestion_screen.dart';
 import '../statistics/statistics_screen.dart';
@@ -106,10 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Notifications',
         subtitle: 'Alerts and activity',
         color: const Color(0xFFEF6C00),
-        onTap: (ctx) => Navigator.push(
-          ctx,
-          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-        ),
+        onTap: (ctx) => openShellOverlay(ctx, ShellRoutes.notifications),
       ),
       _HomeFeature(
         icon: Icons.bar_chart_rounded,
@@ -133,10 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Settings',
         subtitle: 'Preferences and privacy',
         color: const Color(0xFF546E7A),
-        onTap: (ctx) => Navigator.push(
-          ctx,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        ),
+        onTap: (ctx) => openShellOverlay(ctx, ShellRoutes.settings),
       ),
     ];
 

@@ -7,6 +7,7 @@ import '../../providers/wardrobe_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/filter_provider.dart';
+import '../../utils/shell_navigation.dart';
 import '../../models/cloth.dart';
 import '../../models/banner.dart' as models;
 import '../../widgets/cloth_card.dart';
@@ -19,7 +20,6 @@ import '../cloth/add_cloth_screen.dart';
 import '../cloth/edit_cloth_screen.dart';
 import '../cloth/comment_screen.dart';
 import '../cloth/worn_history_screen.dart';
-import '../notifications/notifications_screen.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../services/tag_list_service.dart';
@@ -1006,13 +1006,7 @@ class _ClothesScreenState extends State<ClothesScreen>
                           icon: const Icon(Icons.notifications_outlined,
                               color: Colors.white),
                           onPressed: () async {
-                            // Navigate to notifications screen
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const NotificationsScreen()),
-                            );
-                            // Refresh counts when returning from notifications screen
+                            openShellOverlay(context, ShellRoutes.notifications);
                             if (mounted && _hasInitialLoad) {
                               await _refreshCountsOnly();
                             }

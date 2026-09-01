@@ -21,21 +21,50 @@ class BodyProfile {
   });
 
   factory BodyProfile.fromJson(Map<String, dynamic> json, String userId) {
+    return BodyProfile.fromApiJson(json, userId);
+  }
+
+  factory BodyProfile.fromApiJson(Map<String, dynamic> json, String userId) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is DateTime) return value;
+      if (value is String && value.isNotEmpty) {
+        return DateTime.tryParse(value);
+      }
+      try {
+        return (value as dynamic).toDate() as DateTime;
+      } catch (_) {
+        return null;
+      }
+    }
+
     return BodyProfile(
       userId: userId,
-      bodyImageUrl: json['bodyImageUrl'] as String?,
-      processedBodyImageUrl: json['processedBodyImageUrl'] as String?,
+      bodyImageUrl: json['bodyImageUrl'] as String? ?? json['body_image_url'] as String?,
+      processedBodyImageUrl: json['processedBodyImageUrl'] as String? ??
+          json['processed_body_image_url'] as String?,
       landmarks: json['landmarks'] != null
           ? BodyLandmarks.fromJson(json['landmarks'] as Map<String, dynamic>)
           : null,
       measurements: json['measurements'] != null
           ? BodyMeasurements.fromJson(json['measurements'] as Map<String, dynamic>)
           : null,
-      userHeightCm: (json['userHeightCm'] as num?)?.toDouble(),
-      scannedAt: json['scannedAt'] != null
-          ? (json['scannedAt'] as Timestamp).toDate()
-          : null,
+      userHeightCm: (json['userHeightCm'] as num?)?.toDouble() ??
+          (json['user_height_cm'] as num?)?.toDouble(),
+      scannedAt: parseDate(json['scannedAt'] ?? json['scanned_at']),
     );
+  }
+
+  Map<String, dynamic> toApiJson() {
+    return {
+      if (bodyImageUrl != null) 'bodyImageUrl': bodyImageUrl,
+      if (processedBodyImageUrl != null)
+        'processedBodyImageUrl': processedBodyImageUrl,
+      if (landmarks != null) 'landmarks': landmarks!.toJson(),
+      if (measurements != null) 'measurements': measurements!.toJson(),
+      if (userHeightCm != null) 'userHeightCm': userHeightCm,
+      if (scannedAt != null) 'scannedAt': scannedAt!.toIso8601String(),
+    };
   }
 
   Map<String, dynamic> toJson() {

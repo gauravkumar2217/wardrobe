@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../utils/shell_navigation.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Verify phone or email screen
 class VerifyContactScreen extends StatefulWidget {
@@ -269,12 +271,16 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
+    final embedded = isShellEmbedded(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Contact'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Verify Contact'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+            ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -283,6 +289,7 @@ class _VerifyContactScreenState extends State<VerifyContactScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (embedded) const ShellBackButton(),
                     const SizedBox(height: 6),
                     const Text(
                       'Verify Contact',

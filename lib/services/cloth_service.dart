@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../models/cloth.dart';
@@ -10,15 +9,8 @@ import 'push_notification_service.dart';
 import 'content_filter_service.dart';
 import 'background_removal_service.dart';
 
-/// Cloth service for managing clothes
+/// Cloth service for managing clothes via Laravel API.
 class ClothService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  /// Get Firestore path for clothes
-  static String _clothesPath(String userId, String wardrobeId) {
-    return 'users/$userId/wardrobes/$wardrobeId/clothes';
-  }
-
   static String _normalizeSeason(String season) {
     final s = season.trim().toLowerCase();
     const map = {
@@ -243,7 +235,7 @@ class ClothService {
     }
   }
 
-  /// Update cloth
+  /// Update cloth via Laravel API.
   static Future<void> updateCloth({
     required String userId,
     required String wardrobeId,
@@ -253,53 +245,68 @@ class ClothService {
     File? newImageFile,
   }) async {
     try {
+      final payload = <String, dynamic>{};
+
       if (newImageFile != null) {
-        // Upload new image
         final imageUrl = await StorageService.uploadClothImage(
           userId: userId,
           wardrobeId: wardrobeId,
           clothId: clothId,
           imageFile: newImageFile,
         );
-        updates ??= {};
-        updates['imageUrl'] = imageUrl;
+        payload['image_url'] = imageUrl;
       }
 
       if (cloth != null) {
-        final clothData = cloth.toJson();
-        clothData['updatedAt'] = FieldValue.serverTimestamp();
-        // Don't update likesCount and commentsCount (managed by Cloud Functions)
-        clothData.remove('likesCount');
-        clothData.remove('commentsCount');
-
-        await _firestore
-            .collection(_clothesPath(userId, wardrobeId))
-            .doc(clothId)
-            .update(clothData);
-
-        // Also update top-level collection
-        await _firestore.collection('clothes').doc(clothId).update(clothData);
+        payload.addAll(_clothToUpdatePayload(cloth));
       } else if (updates != null) {
-        updates['updatedAt'] = FieldValue.serverTimestamp();
-        // Don't allow updating likesCount and commentsCount
-        updates.remove('likesCount');
-        updates.remove('commentsCount');
-
-        await _firestore
-            .collection(_clothesPath(userId, wardrobeId))
-            .doc(clothId)
-            .update(updates);
-
-        // Also update top-level collection
-        await _firestore.collection('clothes').doc(clothId).update(updates);
+        payload.addAll(_mapUpdatesToApi(updates));
       }
+
+      if (payload.isEmpty) return;
+
+      await LaravelApiClient.putJson(ApiConfig.cloth(clothId), payload);
     } catch (e) {
       debugPrint('Failed to update cloth: $e');
       rethrow;
     }
   }
 
-  /// Move cloth to a different wardrobe
+  static Map<String, dynamic> _clothToUpdatePayload(Cloth cloth) {
+    return {
+      'season': _normalizeSeason(cloth.season),
+      'placement': cloth.placement,
+      if (_placementPayload(cloth.placementDetails) != null)
+        'placement_details': _placementPayload(cloth.placementDetails),
+      'color_tags': _colorTagsPayload(cloth.colorTags),
+      'cloth_type': cloth.clothType,
+      'category': cloth.category,
+      'occasions': cloth.occasions,
+      'visibility': cloth.visibility,
+      if (cloth.wardrobeId.isNotEmpty) 'wardrobe_id': cloth.wardrobeId,
+    };
+  }
+
+  static Map<String, dynamic> _mapUpdatesToApi(Map<String, dynamic> updates) {
+    final payload = <String, dynamic>{};
+    void put(String apiKey, dynamic value) {
+      if (value != null) payload[apiKey] = value;
+    }
+
+    put('season', updates['season']);
+    put('placement', updates['placement']);
+    put('placement_details', updates['placement_details'] ?? updates['placementDetails']);
+    put('color_tags', updates['color_tags'] ?? updates['colorTags']);
+    put('cloth_type', updates['cloth_type'] ?? updates['clothType']);
+    put('category', updates['category']);
+    put('occasions', updates['occasions']);
+    put('visibility', updates['visibility']);
+    put('image_url', updates['image_url'] ?? updates['imageUrl']);
+    put('wardrobe_id', updates['wardrobe_id'] ?? updates['wardrobeId']);
+    return payload;
+  }
+
+  /// Move cloth to a different wardrobe via Laravel API.
   static Future<void> moveClothToWardrobe({
     required String userId,
     required String oldWardrobeId,
@@ -307,46 +314,9 @@ class ClothService {
     required String clothId,
   }) async {
     try {
-      // Get the cloth from old wardrobe
-      final cloth = await getCloth(
-        userId: userId,
-        wardrobeId: oldWardrobeId,
-        clothId: clothId,
-      );
-
-      if (cloth == null) {
-        throw Exception('Cloth not found');
-      }
-
-      // Create cloth data with new wardrobe ID
-      final clothData = cloth.toJson();
-      clothData['wardrobeId'] = newWardrobeId;
-      clothData['updatedAt'] = FieldValue.serverTimestamp();
-
-      // Use batch to ensure atomicity
-      final batch = _firestore.batch();
-
-      // Delete from old wardrobe subcollection
-      final oldClothRef = _firestore
-          .collection(_clothesPath(userId, oldWardrobeId))
-          .doc(clothId);
-      batch.delete(oldClothRef);
-
-      // Add to new wardrobe subcollection
-      final newClothRef = _firestore
-          .collection(_clothesPath(userId, newWardrobeId))
-          .doc(clothId);
-      batch.set(newClothRef, clothData);
-
-      // Update top-level collection
-      final topLevelRef = _firestore.collection('clothes').doc(clothId);
-      batch.update(topLevelRef, {
-        'wardrobeId': newWardrobeId,
-        'updatedAt': FieldValue.serverTimestamp(),
+      await LaravelApiClient.putJson(ApiConfig.cloth(clothId), {
+        'wardrobe_id': newWardrobeId,
       });
-
-      await batch.commit();
-
       if (kDebugMode) {
         debugPrint(
             'Cloth moved from wardrobe $oldWardrobeId to $newWardrobeId');
@@ -607,30 +577,25 @@ class ClothService {
     }
   }
 
-  /// Stream clothes for real-time updates
+  /// Poll clothes periodically (replaces Firestore snapshots).
   static Stream<List<Cloth>> watchClothes({
     required String userId,
     required String wardrobeId,
-  }) {
-    return _firestore
-        .collection(_clothesPath(userId, wardrobeId))
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
-            .toList());
+  }) async* {
+    yield await getClothes(userId: userId, wardrobeId: wardrobeId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 30));
+      yield await getClothes(userId: userId, wardrobeId: wardrobeId);
+    }
   }
 
-  /// Stream all user clothes for real-time updates
-  static Stream<List<Cloth>> watchAllUserClothes(String userId) {
-    return _firestore
-        .collection('clothes')
-        .where('ownerId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Cloth.fromJson(doc.data(), doc.id))
-            .toList());
+  /// Poll all user clothes periodically.
+  static Stream<List<Cloth>> watchAllUserClothes(String userId) async* {
+    yield await getAllUserClothes(userId);
+    while (true) {
+      await Future.delayed(const Duration(seconds: 30));
+      yield await getAllUserClothes(userId);
+    }
   }
 
   /// Get wear history for cloth via Laravel API.

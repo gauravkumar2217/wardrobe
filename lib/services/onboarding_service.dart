@@ -1,113 +1,69 @@
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Service for managing onboarding completion status
+import '../config/api_config.dart';
+import 'laravel_api_client.dart';
+
+/// Onboarding flags stored in Laravel `users.settings` JSON.
 class OnboardingService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static Map<String, dynamic>? _settingsFromProfile(dynamic data) {
+    if (data is! Map<String, dynamic>) return null;
+    final settings = data['settings'];
+    if (settings is Map<String, dynamic>) return settings;
+    return null;
+  }
 
-  /// Check if user has completed onboarding
+  static Future<Map<String, dynamic>> _fetchSettings() async {
+    final body = await LaravelApiClient.getJson(ApiConfig.usersMe);
+    final data = LaravelApiClient.extractData(body);
+    return _settingsFromProfile(data) ?? {};
+  }
+
+  static Future<void> _patchSettings(Map<String, dynamic> patch) async {
+    await LaravelApiClient.putJson(ApiConfig.profileUpdate, {
+      'settings': patch,
+    });
+  }
+
   static Future<bool> hasCompletedOnboarding(String userId) async {
     try {
-      final userDoc = await _firestore.collection('users').doc(userId).get();
-      if (!userDoc.exists) return false;
-
-      final data = userDoc.data();
-      if (data == null) return false;
-
-      // Check settings.onboardingCompleted
-      if (data['settings'] != null) {
-        final settings = data['settings'] as Map<String, dynamic>;
-        return settings['onboardingCompleted'] as bool? ?? false;
-      }
-
-      return false;
+      final settings = await _fetchSettings();
+      return settings['onboardingCompleted'] == true;
     } catch (e) {
       debugPrint('Error checking onboarding status: $e');
       return false;
     }
   }
 
-  /// Mark onboarding as completed
   static Future<void> completeOnboarding(String userId) async {
     try {
-      final userRef = _firestore.collection('users').doc(userId);
-      
-      // Get current settings or create new
-      final userDoc = await userRef.get();
-      Map<String, dynamic> settings = {};
-      
-      if (userDoc.exists && userDoc.data()?['settings'] != null) {
-        settings = Map<String, dynamic>.from(userDoc.data()!['settings'] as Map);
-      }
-
-      // Update onboarding status
-      settings['onboardingCompleted'] = true;
-
-      // Update user document
-      await userRef.set({
-        'settings': settings,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _patchSettings({'onboardingCompleted': true});
     } catch (e) {
       debugPrint('Error completing onboarding: $e');
       rethrow;
     }
   }
 
-  /// Mark onboarding as skipped
   static Future<void> skipOnboarding(String userId) async {
     try {
-      final userRef = _firestore.collection('users').doc(userId);
-      
-      // Get current settings or create new
-      final userDoc = await userRef.get();
-      Map<String, dynamic> settings = {};
-      
-      if (userDoc.exists && userDoc.data()?['settings'] != null) {
-        settings = Map<String, dynamic>.from(userDoc.data()!['settings'] as Map);
-      }
-
-      // Mark as skipped (also means completed, but user skipped)
-      settings['onboardingCompleted'] = true;
-      settings['onboardingSkipped'] = true;
-
-      // Update user document
-      await userRef.set({
-        'settings': settings,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _patchSettings({
+        'onboardingCompleted': true,
+        'onboardingSkipped': true,
+      });
     } catch (e) {
       debugPrint('Error skipping onboarding: $e');
       rethrow;
     }
   }
 
-  /// Reset onboarding status (allows user to see onboarding again)
   static Future<void> resetOnboarding(String userId) async {
     try {
-      final userRef = _firestore.collection('users').doc(userId);
-      
-      // Get current settings or create new
-      final userDoc = await userRef.get();
-      Map<String, dynamic> settings = {};
-      
-      if (userDoc.exists && userDoc.data()?['settings'] != null) {
-        settings = Map<String, dynamic>.from(userDoc.data()!['settings'] as Map);
-      }
-
-      // Reset onboarding status
-      settings['onboardingCompleted'] = false;
-      settings['onboardingSkipped'] = false;
-
-      // Update user document
-      await userRef.set({
-        'settings': settings,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _patchSettings({
+        'onboardingCompleted': false,
+        'onboardingSkipped': false,
+      });
     } catch (e) {
       debugPrint('Error resetting onboarding: $e');
       rethrow;
     }
   }
 }
-

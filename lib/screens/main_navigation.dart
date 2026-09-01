@@ -12,15 +12,14 @@ import '../services/fcm_service.dart';
 import '../services/onboarding_service.dart';
 import '../widgets/tooltip_overlay.dart';
 import '../widgets/premium/wardrobe_top_header.dart';
+import '../widgets/shell_overlay_host.dart';
 import '../utils/main_shell_navigation.dart';
+import '../utils/shell_navigation.dart';
 import 'home/wardrobe_home_screen.dart';
 import 'wardrobe/wardrobe_list_screen.dart';
 import 'changing_room/changing_room_screen.dart';
 import 'community/community_screen.dart';
 import 'assistant/ai_assistant_screen.dart';
-import 'profile/profile_screen.dart';
-import 'notifications/notifications_screen.dart';
-import 'profile/settings_screen.dart';
 import 'auth/login_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
@@ -432,31 +431,37 @@ class _MainNavigationState extends State<MainNavigation>
                   ),
                 ),
               ),
+              if (navigationProvider.hasShellOverlay)
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: WardrobeTopHeader.contentTopInset(context),
+                    ),
+                    child: ColoredBox(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      child: ShellOverlayHost(
+                        key: ValueKey(navigationProvider.shellOverlayRoute),
+                        initialRoute: navigationProvider.shellOverlayRoute!,
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
                 child: WardrobeTopHeader(
                   onProfilePressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ProfileScreen(),
-                      ),
-                    );
+                    openShellOverlay(context, ShellRoutes.profile);
                   },
                   onNotificationsPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const NotificationsScreen(),
-                      ),
-                    );
+                    openShellOverlay(context, ShellRoutes.notifications);
                   },
                   onSettingsPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    );
+                    openShellOverlay(context, ShellRoutes.settings);
+                  },
+                  onSearchPressed: () {
+                    openShellOverlay(context, ShellRoutes.search);
                   },
                 ),
               ),
@@ -467,6 +472,10 @@ class _MainNavigationState extends State<MainNavigation>
             currentIndex: navigationProvider.currentIndex,
             unreadCount: chatProvider.totalUnreadCount,
             onSelectIndex: (index) {
+              final navigationProvider =
+                  Provider.of<NavigationProvider>(context, listen: false);
+              navigationProvider.clearShellOverlay();
+
               // Close any full-screen routes opened above the shell (e.g. add-cloth flow).
               final rootNav = Navigator.of(context);
               if (rootNav.canPop()) {

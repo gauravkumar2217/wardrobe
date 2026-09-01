@@ -6,6 +6,8 @@ import '../../services/user_service.dart';
 import '../../services/chat_service.dart';
 import '../../models/friend_request.dart';
 import '../../models/user_profile.dart';
+import '../../utils/shell_navigation.dart';
+import '../../widgets/shell_back_button.dart';
 import '../chat/chat_detail_screen.dart';
 
 /// Search users screen with friend requests
@@ -286,23 +288,46 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final hasSearchQuery = _searchController.text.trim().isNotEmpty;
 
+    final embedded = isShellEmbedded(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Friends'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Add Friends'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+            ),
       body: Column(
         children: [
+          if (embedded)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ShellBackButton(),
+              ),
+            ),
+          if (embedded)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Search users',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
           // Search bar
           Padding(
             padding: const EdgeInsets.all(10),
             child: TextField(
               controller: _searchController,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
               decoration: InputDecoration(
                 hintText: 'Search by name, email, or phone',
-                hintStyle: const TextStyle(fontSize: 13),
+                hintStyle: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 prefixIcon: const Icon(Icons.search, size: 18),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(

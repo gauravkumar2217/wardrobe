@@ -21,16 +21,38 @@ class AppNotification {
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json, String id) {
+    return AppNotification.fromApiJson({...json, 'id': id});
+  }
+
+  factory AppNotification.fromApiJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String && value.isNotEmpty) {
+        return DateTime.tryParse(value) ?? DateTime.now();
+      }
+      try {
+        return (value as dynamic).toDate() as DateTime;
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+
+    Map<String, dynamic>? parseData(dynamic value) {
+      if (value == null) return null;
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+      return null;
+    }
+
     return AppNotification(
-      id: id,
-      type: json['type'] as String,
-      title: json['title'] as String,
-      body: json['body'] as String,
-      data: json['data'] != null
-          ? Map<String, dynamic>.from(json['data'])
-          : null,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      read: json['read'] as bool? ?? false,
+      id: json['id']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'unknown',
+      title: json['title']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      data: parseData(json['data']),
+      createdAt: parseDate(json['created_at'] ?? json['createdAt']),
+      read: json['read'] == true,
     );
   }
 

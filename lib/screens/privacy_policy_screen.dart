@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/legal_content_service.dart';
 import '../constants/app_constants.dart';
+import '../utils/shell_navigation.dart';
+import '../widgets/shell_back_button.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -10,31 +12,39 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const privacyEmail = AppConstants.privacyEmail;
     const supportEmail = AppConstants.supportEmail;
+    final embedded = isShellEmbedded(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Privacy Policy'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.copy),
-            tooltip: 'Copy to clipboard',
-            onPressed: () {
-              final content = LegalContentService.getPrivacyPolicy();
-              Clipboard.setData(ClipboardData(text: content));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Privacy Policy copied to clipboard'),
-                  duration: Duration(seconds: 2),
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Privacy Policy'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.copy),
+                  tooltip: 'Copy to clipboard',
+                  onPressed: () {
+                    final content = LegalContentService.getPrivacyPolicy();
+                    Clipboard.setData(ClipboardData(text: content));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Privacy Policy copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        ],
-      ),
+              ],
+            ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (embedded)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: ShellBackButton(),
+              ),
             // Header
             Card(
               color: Theme.of(context).colorScheme.primaryContainer,

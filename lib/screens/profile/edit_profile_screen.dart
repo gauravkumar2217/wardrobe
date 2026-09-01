@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/storage_service.dart';
+import '../../utils/shell_navigation.dart';
+import '../../widgets/shell_back_button.dart';
 
 /// Edit profile screen for updating user profile information
 class EditProfileScreen extends StatefulWidget {
@@ -245,12 +247,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final embedded = isShellEmbedded(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-      ),
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Edit Profile'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+            ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -259,6 +265,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (embedded) const ShellBackButton(),
                 const SizedBox(height: 12),
                 // Profile photo
                 Center(

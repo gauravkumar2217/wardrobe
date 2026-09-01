@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/legal_content_service.dart';
 import '../constants/app_constants.dart';
+import '../utils/shell_navigation.dart';
+import '../widgets/shell_back_button.dart';
 
 class TermsConditionsScreen extends StatelessWidget {
   const TermsConditionsScreen({super.key});
@@ -9,31 +11,39 @@ class TermsConditionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const supportEmail = AppConstants.supportEmail;
+    final embedded = isShellEmbedded(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Terms & Conditions'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.copy),
-            tooltip: 'Copy to clipboard',
-            onPressed: () {
-              final content = LegalContentService.getTermsAndConditions();
-              Clipboard.setData(ClipboardData(text: content));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Terms & Conditions copied to clipboard'),
-                  duration: Duration(seconds: 2),
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Terms & Conditions'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.copy),
+                  tooltip: 'Copy to clipboard',
+                  onPressed: () {
+                    final content = LegalContentService.getTermsAndConditions();
+                    Clipboard.setData(ClipboardData(text: content));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Terms & Conditions copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        ],
-      ),
+              ],
+            ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (embedded)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: ShellBackButton(),
+              ),
             // Header
             Card(
               color: Theme.of(context).colorScheme.primaryContainer,

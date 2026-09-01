@@ -15,13 +15,9 @@ import '../../services/onboarding_service.dart';
 import '../../services/user_service.dart';
 import '../../services/fcm_service.dart';
 import '../../models/user_profile.dart';
-import 'edit_profile_screen.dart';
-import 'verify_contact_screen.dart';
 import '../auth/login_screen.dart';
-import '../privacy_policy_screen.dart';
-import '../terms_conditions_screen.dart';
-import '../scheduler/scheduler_list_screen.dart';
 import '../../widgets/shell_back_button.dart';
+import '../../utils/shell_navigation.dart';
 
 /// Live store links for sharing (Android → Google Play, iOS → App Store).
 const String _kGooglePlayShareUrl =
@@ -165,7 +161,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSettings();
+    });
   }
 
   /// Helper method to update notification settings
@@ -199,6 +197,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      await authProvider.refreshProfile();
+    }
+    if (!mounted) return;
+
     if (authProvider.userProfile?.settings != null) {
       final existingNotifications =
           authProvider.userProfile!.settings!.notifications;
@@ -445,11 +448,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(fontSize: 13)),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const EditProfileScreen()),
-                    );
+                    await pushShellPage(context, ShellRoutes.editProfile);
                     // Reload settings after editing profile
                     if (mounted) {
                       await _loadSettings();
@@ -466,11 +465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(fontSize: 13)),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const VerifyContactScreen()),
-                    );
+                    pushShellPage(context, ShellRoutes.verifyContact);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -630,12 +625,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(fontSize: 11)),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SchedulerListScreen(),
-                      ),
-                    );
+                    pushShellPage(context, ShellRoutes.schedulerList);
                   },
                 ),
                 ListTile(
@@ -679,11 +669,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(fontSize: 13)),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyScreen()),
-                    );
+                    pushShellPage(context, ShellRoutes.privacyPolicy);
                   },
                 ),
                 ListTile(
@@ -696,11 +682,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(fontSize: 13)),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const TermsConditionsScreen()),
-                    );
+                    pushShellPage(context, ShellRoutes.termsConditions);
                   },
                 ),
                 ListTile(

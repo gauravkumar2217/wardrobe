@@ -45,5 +45,23 @@ class NavigationProvider with ChangeNotifier {
   void navigateToProfile() {
     setCurrentIndex(4);
   }
+
+  String? _shellOverlayRoute;
+
+  /// Active in-shell overlay (profile, settings, search, …), or null.
+  String? get shellOverlayRoute => _shellOverlayRoute;
+
+  bool get hasShellOverlay => _shellOverlayRoute != null;
+
+  void openShellOverlay(String route) {
+    _shellOverlayRoute = route;
+    notifyListeners();
+  }
+
+  void clearShellOverlay() {
+    if (_shellOverlayRoute == null) return;
+    _shellOverlayRoute = null;
+    notifyListeners();
+  }
 }
 

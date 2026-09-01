@@ -28,8 +28,18 @@ class ApiConfig {
   static String get authCheckUsername => '$baseUrl/auth/check-username';
   static String get authVerifyToken => '$baseUrl/auth/verify-token';
   static String get usersMe => '$baseUrl/users/me';
+  static String get usersSearch => '$baseUrl/users/search';
   static String userById(String userId) => '$baseUrl/users/$userId';
   static String get profileUpdate => '$baseUrl/profile/update';
+
+  // Notifications (in-app)
+  static String get notifications => '$baseUrl/notifications';
+  static String get notificationsUnread => '$baseUrl/notifications/unread';
+  static String get notificationsReadAll => '$baseUrl/notifications/read-all';
+  static String notificationRead(String notificationId) =>
+      '$baseUrl/notifications/$notificationId/read';
+  static String notificationDelete(String notificationId) =>
+      '$baseUrl/notifications/$notificationId';
 
   // EULA
   static String get eulaVersion => '$baseUrl/eula/version';

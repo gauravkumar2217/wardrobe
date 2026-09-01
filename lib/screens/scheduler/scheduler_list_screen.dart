@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/scheduler_provider.dart';
 import '../../models/schedule.dart';
 import '../../services/schedule_notification_worker.dart';
+import '../../utils/shell_navigation.dart';
+import '../../widgets/shell_back_button.dart';
 import 'schedule_edit_screen.dart';
 
 /// Screen showing list of all schedules
@@ -377,20 +379,43 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
   Widget build(BuildContext context) {
     final schedulerProvider = Provider.of<SchedulerProvider>(context);
 
+    final embedded = isShellEmbedded(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scheduled Notifications'),
-        backgroundColor: const Color(0xFF043915),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Sync & Check Last 15 Minutes',
-            onPressed: _syncAndCheckSchedules,
-          ),
-        ],
-      ),
-      body: schedulerProvider.isLoading
+      appBar: embedded
+          ? null
+          : AppBar(
+              title: const Text('Scheduled Notifications'),
+              backgroundColor: const Color(0xFF043915),
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Sync & Check Last 15 Minutes',
+                  onPressed: _syncAndCheckSchedules,
+                ),
+              ],
+            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (embedded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Row(
+                children: [
+                  const ShellBackButton(),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Sync & Check Last 15 Minutes',
+                    onPressed: _syncAndCheckSchedules,
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: schedulerProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : schedulerProvider.schedules.isEmpty
               ? Center(
@@ -545,6 +570,9 @@ class _SchedulerListScreenState extends State<SchedulerListScreen> {
                     );
                   },
                 ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(

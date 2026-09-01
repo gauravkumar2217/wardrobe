@@ -4,14 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
+import '../utils/shell_navigation.dart';
 import '../screens/chat/chat_detail_screen.dart';
 import '../screens/cloth/cloth_detail_screen.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/events/events_planner_screen.dart';
-import '../screens/friends/friend_requests_screen.dart';
-import '../screens/friends/friends_list_screen.dart';
-import '../screens/profile/create_avatar_screen.dart';
-import '../screens/profile/settings_screen.dart';
 import '../screens/suggestions/daily_suggestion_screen.dart';
 import '../screens/suggestions/outfit_suggestion_screen.dart';
 import '../utils/navigator_key.dart';
@@ -53,16 +50,16 @@ class NotificationDeepLink {
         await _openChat(context, nav, data);
         return;
       case 'friend_requests':
-        nav.push(MaterialPageRoute(builder: (_) => const FriendRequestsScreen()));
+        openShellOverlay(context, ShellRoutes.friendRequests);
         return;
       case 'friends':
-        nav.push(MaterialPageRoute(builder: (_) => const FriendsListScreen()));
+        openShellOverlay(context, ShellRoutes.friendsList);
         return;
       case 'create_avatar':
-        nav.push(MaterialPageRoute(builder: (_) => const CreateAvatarScreen()));
+        openShellOverlay(context, ShellRoutes.createAvatar);
         return;
       case 'settings':
-        nav.push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        openShellOverlay(context, ShellRoutes.settings);
         return;
       case 'style_feed':
         _openCommunityTab(context);
@@ -90,16 +87,14 @@ class NotificationDeepLink {
         await _openChat(context, nav, data);
         break;
       case 'friend_request':
-        nav.push(
-          MaterialPageRoute(builder: (_) => const FriendRequestsScreen()),
-        );
+        openShellOverlay(context, ShellRoutes.friendRequests);
         break;
       case 'friend_accept':
-        nav.push(MaterialPageRoute(builder: (_) => const FriendsListScreen()));
+        openShellOverlay(context, ShellRoutes.friendsList);
         break;
       case 'avatar_ready':
       case 'avatar_failed':
-        nav.push(MaterialPageRoute(builder: (_) => const CreateAvatarScreen()));
+        openShellOverlay(context, ShellRoutes.createAvatar);
         break;
       case 'cloth_like':
       case 'style_shared':
@@ -122,7 +117,7 @@ class NotificationDeepLink {
         );
         break;
       case 'test_push':
-        nav.push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        openShellOverlay(context, ShellRoutes.settings);
         break;
       default:
         if (kDebugMode) {
