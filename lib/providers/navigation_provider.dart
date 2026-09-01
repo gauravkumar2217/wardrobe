@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart';
 /// Navigation provider for managing main navigation tab index
 class NavigationProvider with ChangeNotifier {
   int _currentIndex = 0;
+  int _tryOnRefreshNonce = 0;
 
   int get currentIndex => _currentIndex;
+
+  /// Bumped when try-on should reload avatar data (e.g. after avatar replacement).
+  int get tryOnRefreshNonce => _tryOnRefreshNonce;
 
   void setCurrentIndex(int index) {
     if (_currentIndex == index) {
@@ -30,6 +34,7 @@ class NavigationProvider with ChangeNotifier {
   }
 
   void navigateToTryOn() {
+    _tryOnRefreshNonce++;
     setCurrentIndex(2);
   }
 

@@ -38,8 +38,6 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation>
     with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _contentNavigatorKey =
-      GlobalKey<NavigatorState>();
   final List<Widget> _screens = [
     const WardrobeHomeScreen(),
     const WardrobeListScreen(),
@@ -428,14 +426,9 @@ class _MainNavigationState extends State<MainNavigation>
                   padding: EdgeInsets.only(
                     top: WardrobeTopHeader.contentTopInset(context),
                   ),
-                  child: Navigator(
-                    key: _contentNavigatorKey,
-                    onGenerateRoute: (_) => MaterialPageRoute<void>(
-                      builder: (_) => IndexedStack(
-                        index: navigationProvider.currentIndex,
-                        children: _screens,
-                      ),
-                    ),
+                  child: IndexedStack(
+                    index: navigationProvider.currentIndex,
+                    children: _screens,
                   ),
                 ),
               ),
@@ -445,21 +438,21 @@ class _MainNavigationState extends State<MainNavigation>
                 right: 0,
                 child: WardrobeTopHeader(
                   onProfilePressed: () {
-                    _contentNavigatorKey.currentState?.push(
+                    Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const ProfileScreen(),
                       ),
                     );
                   },
                   onNotificationsPressed: () {
-                    _contentNavigatorKey.currentState?.push(
+                    Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const NotificationsScreen(),
                       ),
                     );
                   },
                   onSettingsPressed: () {
-                    _contentNavigatorKey.currentState?.push(
+                    Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const SettingsScreen(),
                       ),
@@ -474,9 +467,11 @@ class _MainNavigationState extends State<MainNavigation>
             currentIndex: navigationProvider.currentIndex,
             unreadCount: chatProvider.totalUnreadCount,
             onSelectIndex: (index) {
-              // Pop any pushed routes in the content area (e.g. Profile).
-              _contentNavigatorKey.currentState
-                  ?.popUntil((route) => route.isFirst);
+              // Close any full-screen routes opened above the shell (e.g. add-cloth flow).
+              final rootNav = Navigator.of(context);
+              if (rootNav.canPop()) {
+                rootNav.popUntil((route) => route.isFirst);
+              }
 
               // Home: clear filters and always show hub.
               if (index == 0) {

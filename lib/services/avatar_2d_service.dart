@@ -252,7 +252,50 @@ class Avatar2DService {
   /// Poll once and return the latest avatar snapshot for [userId].
   static Future<Avatar?> refreshAvatar(String userId) async {
     try {
-      return await getAvatar(userId);
+      var avatar = await getAvatar(userId);
+      final pendingId = await getPendingAvatarId(userId);
+      if (pendingId == null || pendingId.isEmpty) {
+        return avatar;
+      }
+
+      try {
+        final status = await getAvatarStatus(pendingId);
+        final generationStatus = status['generation_status']?.toString();
+        final jobId = status['id']?.toString() ?? pendingId;
+        final base = avatar ?? Avatar(userId: userId);
+
+        if (generationStatus == 'completed') {
+          final imageUrl = status['avatar_image_url']?.toString();
+          final previewUrl = status['avatar_preview_url']?.toString();
+          if (base.generationJobId != jobId ||
+              (imageUrl != null &&
+                  imageUrl.isNotEmpty &&
+                  imageUrl != base.avatarImageUrl)) {
+            return base.copyWith(
+              generationStatus: generationStatus,
+              generationJobId: jobId,
+              avatarImageUrl: imageUrl ?? base.avatarImageUrl,
+              avatarPreviewUrl: previewUrl ?? base.avatarPreviewUrl,
+              poseLandmarks: status['pose_landmarks'] is Map<String, dynamic>
+                  ? status['pose_landmarks'] as Map<String, dynamic>
+                  : base.poseLandmarks,
+              errorMessage: null,
+            );
+          }
+        } else if (generationStatus == 'pending' ||
+            generationStatus == 'processing' ||
+            generationStatus == 'failed') {
+          return base.copyWith(
+            generationStatus: generationStatus,
+            generationJobId: jobId,
+            errorMessage: status['error_message']?.toString(),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error refreshing pending avatar status: $e');
+      }
+
+      return avatar;
     } catch (e) {
       debugPrint('Error refreshing avatar: $e');
       return null;
@@ -291,6 +334,8 @@ class Avatar2DService {
             generationStatus: s,
             generationJobId: avatarId,
             errorMessage: status['error_message']?.toString(),
+            avatarImageUrl: status['avatar_image_url']?.toString(),
+            avatarPreviewUrl: status['avatar_preview_url']?.toString(),
           );
           _emitStatus(avatar);
         }

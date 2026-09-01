@@ -33,6 +33,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
   bool _isValidatingPose = false;
   bool _poseValid = false;
   bool _photoApproved = false;
+  bool _isReplacingAvatar = false;
   String? _poseValidationMessage;
   String? _statusMessage;
   Timer? _uiPollTimer;
@@ -72,6 +73,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
           _isSubmitting = false;
           _isRetrying = false;
           if (resolved.isGenerated) {
+            _isReplacingAvatar = false;
             _statusMessage =
                 'Your avatar is ready. You can use it for Try-On.';
           } else if (resolved.isFailed) {
@@ -93,6 +95,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
     setState(() {
       _existingAvatar = avatar;
       if (avatar.isGenerated) {
+        _isReplacingAvatar = false;
         _statusMessage = 'Your avatar is ready. You can use it for Try-On.';
         _isSubmitting = false;
         _isRetrying = false;
@@ -212,6 +215,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
         _isSubmitting = false;
         _isRetrying = false;
         if (avatar.isGenerated) {
+          _isReplacingAvatar = false;
           _statusMessage =
               'Your avatar is ready. You can use it for Try-On.';
         } else if (avatar.isFailed) {
@@ -414,6 +418,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
       setState(() {
         _isSubmitting = false;
+        _isReplacingAvatar = false;
         _existingAvatar = (_existingAvatar ?? Avatar(userId: userId)).copyWith(
           generationStatus: result.generationStatus,
           generationJobId: result.avatarId,
@@ -525,6 +530,33 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
     }
   }
 
+  void _startNewAvatar() {
+    setState(() {
+      _isReplacingAvatar = true;
+      _bodyImage = null;
+      _poseValid = false;
+      _photoApproved = false;
+      _poseValidationMessage = null;
+      _statusMessage = null;
+      if (_existingAvatar?.userHeightCm != null) {
+        _heightController.text =
+            _existingAvatar!.userHeightCm!.toStringAsFixed(0);
+      }
+    });
+  }
+
+  void _cancelNewAvatar() {
+    setState(() {
+      _isReplacingAvatar = false;
+      _bodyImage = null;
+      _poseValid = false;
+      _photoApproved = false;
+      _poseValidationMessage = null;
+      _statusMessage =
+          'Your avatar is ready. You can use it for Try-On.';
+    });
+  }
+
   Widget _buildImagePreview() {
     final busy = _isSubmitting ||
         _isRetrying ||
@@ -591,11 +623,15 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
 
   Widget _buildStatusCard() {
     final avatar = _existingAvatar;
+    final isBusy = _isSubmitting ||
+        _isRetrying ||
+        (_existingAvatar?.isGenerating ?? false);
+
     if (avatar == null && _statusMessage == null) {
       return const SizedBox.shrink();
     }
 
-    if (avatar != null && avatar.isGenerated) {
+    if (avatar != null && avatar.isGenerated && !_isReplacingAvatar) {
       final imageUrl =
           avatar.avatarPreviewUrl ?? avatar.avatarImageUrl ?? '';
       return Card(
@@ -656,6 +692,41 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: const Text('Use Avatar in Try-On'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: isBusy ? null : _startNewAvatar,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF043915),
+                  side: const BorderSide(color: Color(0xFF043915)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Create New Avatar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isReplacingAvatar && avatar != null && avatar.isGenerated) {
+      return Card(
+        color: Colors.blue.withValues(alpha: 0.08),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.refresh, color: Colors.blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Upload a new full-body photo to replace your current avatar.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                ),
+              ),
+              TextButton(
+                onPressed: isBusy ? null : _cancelNewAvatar,
+                child: const Text('Cancel'),
               ),
             ],
           ),
@@ -771,7 +842,8 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
     final isBusy = _isSubmitting ||
         _isRetrying ||
         (_existingAvatar?.isGenerating ?? false);
-    final canCreateNew = !isBusy && !(_existingAvatar?.isGenerated ?? false);
+    final hasGeneratedAvatar = _existingAvatar?.isGenerated ?? false;
+    final canCreateNew = !isBusy && (!hasGeneratedAvatar || _isReplacingAvatar);
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -922,7 +994,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                           ),
                           const SizedBox(height: 24),
                           if (!(_existingAvatar?.isGenerating ?? false) &&
-                              !(_existingAvatar?.isGenerated ?? false))
+                              (!hasGeneratedAvatar || _isReplacingAvatar))
                             ElevatedButton(
                               onPressed: _canSubmitAvatar ? _createAvatar : null,
                               style: ElevatedButton.styleFrom(
@@ -948,7 +1020,11 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
                                         Text('Uploading…'),
                                       ],
                                     )
-                                  : const Text('Create Avatar'),
+                                  : Text(
+                                      _isReplacingAvatar
+                                          ? 'Replace Avatar'
+                                          : 'Create Avatar',
+                                    ),
                             ),
                         ],
                       ],

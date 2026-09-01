@@ -19,11 +19,27 @@ class Avatar2DDisplayWidget extends StatelessWidget {
     this.backgroundColor,
   });
 
+  static String _displayImageUrl(Avatar avatar) {
+    final raw = avatar.avatarImageUrl?.trim();
+    if (raw == null || raw.isEmpty) return '';
+    final version = avatar.updatedAt?.millisecondsSinceEpoch ??
+        avatar.generationJobId ??
+        '';
+    if (version.toString().isEmpty) return raw;
+    final separator = raw.contains('?') ? '&' : '?';
+    return '$raw${separator}v=$version';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (avatar == null || !avatar!.isGenerated) {
       return _buildPlaceholder();
     }
+
+    final imageUrl = _displayImageUrl(avatar!);
+    final cacheKey = avatar!.updatedAt?.millisecondsSinceEpoch.toString() ??
+        avatar!.generationJobId ??
+        avatar!.avatarImageUrl;
 
     return Container(
       width: width,
@@ -33,7 +49,8 @@ class Avatar2DDisplayWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: CachedNetworkImage(
-        imageUrl: avatar!.avatarImageUrl!,
+        imageUrl: imageUrl,
+        cacheKey: cacheKey,
         width: width,
         height: height,
         fit: fit,

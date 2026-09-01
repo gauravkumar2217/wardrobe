@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/navigation_provider.dart';
 
 /// Handles Android/iOS back and AppBar back for the main shell:
-/// 1. If a route is stacked above the shell (e.g. pushed screen), pop it.
+/// 1. If a route is stacked above the shell (e.g. add-cloth flow), pop it.
 /// 2. Else if not on Home tab, switch to Home.
 /// 3. Else exit the app (Home with nothing to pop).
 void handleMainShellBackButton(BuildContext context) {

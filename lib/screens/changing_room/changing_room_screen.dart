@@ -8,8 +8,8 @@ import '../../models/avatar.dart' as avatar_model show Avatar;
 import '../../models/cloth.dart';
 import '../../models/tryon_outfit.dart';
 import '../../utils/try_on_category.dart';
-import '../../services/user_service.dart';
 import '../../services/tryon_2d_service.dart';
+import '../../services/avatar_2d_service.dart';
 import '../../widgets/avatar_2d_display_widget.dart';
 import '../profile/create_avatar_screen.dart';
 
@@ -31,30 +31,81 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
   bool _isLoading = true;
   String? _tryOnResultUrl;
   bool _isGeneratingTryOn = false;
+  int? _lastSeenNavIndex;
+  int _lastTryOnRefreshNonce = 0;
 
   static const Color _brand = Color(0xFF043915);
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _loadBodyProfile();
-      await _loadClothes();
+    Avatar2DService.addStatusListener(_onAvatarStatusUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigationProvider =
+          Provider.of<NavigationProvider>(context, listen: false);
+      _lastSeenNavIndex = navigationProvider.currentIndex;
+      navigationProvider.addListener(_onNavigationChanged);
+      _lastTryOnRefreshNonce = navigationProvider.tryOnRefreshNonce;
+      _reloadAvatar(showLoading: true);
+      _loadClothes();
     });
   }
 
-  Future<void> _loadBodyProfile() async {
+  @override
+  void dispose() {
+    Avatar2DService.removeStatusListener(_onAvatarStatusUpdate);
+    try {
+      Provider.of<NavigationProvider>(context, listen: false)
+          .removeListener(_onNavigationChanged);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    if (!mounted) return;
+    final navigationProvider =
+        Provider.of<NavigationProvider>(context, listen: false);
+    final currentIndex = navigationProvider.currentIndex;
+    final shouldRefreshTryOn = currentIndex == 2 &&
+        (_lastSeenNavIndex != 2 ||
+            navigationProvider.tryOnRefreshNonce != _lastTryOnRefreshNonce);
+    if (shouldRefreshTryOn) {
+      _lastTryOnRefreshNonce = navigationProvider.tryOnRefreshNonce;
+      _reloadAvatar();
+    }
+    _lastSeenNavIndex = currentIndex;
+  }
+
+  void _onAvatarStatusUpdate(avatar_model.Avatar avatar) {
+    if (!mounted) return;
+    if (avatar.isGenerated || avatar.isFailed) {
+      _reloadAvatar(clearTryOn: avatar.isGenerated);
+    }
+  }
+
+  Future<void> _reloadAvatar({
+    bool showLoading = false,
+    bool clearTryOn = true,
+  }) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.user == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
+    if (showLoading && mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
-      final avatar = await UserService.getAvatar(authProvider.user!.uid);
+      final avatar = await Avatar2DService.refreshAvatar(authProvider.user!.uid);
       if (mounted) {
         setState(() {
           _avatar = avatar;
+          if (clearTryOn) {
+            _tryOnResultUrl = null;
+            _currentOutfit = TryOnOutfit();
+          }
         });
       }
     } catch (e) {
@@ -258,8 +309,7 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
       MaterialPageRoute<void>(builder: (_) => const CreateAvatarScreen()),
     );
     if (mounted) {
-      setState(() => _isLoading = true);
-      await _loadBodyProfile();
+      await _reloadAvatar();
     }
   }
 
@@ -401,6 +451,11 @@ class _ChangingRoomScreenState extends State<ChangingRoomScreen> {
                     else
                       Center(
                         child: Avatar2DDisplayWidget(
+                          key: ValueKey(
+                            _avatar?.avatarImageUrl ??
+                                _avatar?.generationJobId ??
+                                'no-avatar',
+                          ),
                           avatar: _avatar,
                           width: w * 0.88,
                           height: heroHeight,
