@@ -85,6 +85,7 @@ dependencies:
   
   # 3D Model Viewer
   webview_flutter: ^4.4.2
+  emoji_picker_flutter: ^4.4.0
   
   # Payments (Phase 6)
   # in_app_purchase: ^3.1.11

@@ -5,6 +5,7 @@ import '../../models/report.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/chat_bubble.dart';
+import '../../widgets/chat_input.dart';
 import '../../services/report_service.dart';
 import '../../services/block_service.dart';
 import '../cloth/cloth_detail_screen.dart';
@@ -494,59 +495,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             },
                           ),
           ),
-          // Message input — SafeArea so bar clears home indicator (e.g. from Friends → chat)
-          SafeArea(
-            top: false,
-            minimum: EdgeInsets.zero,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        hintStyle: const TextStyle(fontSize: 13),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    icon: const Icon(Icons.send,
-                        color: Color(0xFF043915), size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: _sendMessage,
-                  ),
-                ],
-              ),
-            ),
+          // Message input
+          ChatMessageComposer(
+            controller: _messageController,
+            onSend: _sendMessage,
+            hintText: 'Type a message...',
           ),
         ],
       ),
