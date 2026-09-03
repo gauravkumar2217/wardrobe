@@ -11,17 +11,17 @@ Last Updated: ${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2
 
 1. INTRODUCTION
 
-Welcome to ${AppConstants.appName} (the "App"). We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our mobile application.
+Welcome to ${AppConstants.appName} (the "App"), also known as Wardrobe Chat. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our mobile application, website (www.wardrobe.chat), and related services.
 
 By using ${AppConstants.appName}, you agree to the collection and use of information in accordance with this policy.
 
 2. INFORMATION WE COLLECT
 
 2.1 Account and Authentication Information
-- Phone Number: We collect your phone number for authentication purposes using Firebase Authentication. Phone numbers are verified via SMS.
-- Email Address: If you choose to sign in with Google or email, we collect your email address for authentication and account recovery.
-- Google Account Information: If you sign in with Google, we access your basic profile information (name, email, profile picture) as provided by Google.
-- Username: A unique username you create for your account.
+- Email Address / Username / Password: Collected when you create an account with credentials.
+- Phone Number: Optional verification and recovery via Firebase Authentication / SMS where enabled.
+- Google Account Information: If you sign in with Google, we access basic profile information (name, email, profile picture) you authorize.
+- Apple Account Information: If you sign in with Apple, we receive information you authorize.
 - Profile Information: Display name, gender, date of birth, and profile photo.
 
 2.2 Wardrobe and Clothing Data
@@ -36,7 +36,9 @@ By using ${AppConstants.appName}, you agree to the collection and use of informa
 - Direct Messages: Text messages and shared clothing items sent through direct messaging.
 - Comments: Comments you post on clothing items.
 - Likes: Clothing items you have liked.
+- Style Posts: Style content you create or interact with.
 - Shared Clothing: Clothing items you share with friends via direct messages.
+- Blocks and Reports: Users you block and content/users you report for safety.
 
 2.4 Notifications and Preferences
 - Notification Settings: Your preferences for receiving notifications (friend requests, friend accepts, direct messages, cloth likes, cloth comments, suggestions).
@@ -49,9 +51,18 @@ By using ${AppConstants.appName}, you agree to the collection and use of informa
 - Crash Reports: Error logs and crash reports to identify and fix issues.
 
 2.6 Images and Media
-- Clothing Photos: Images you upload to organize your wardrobe. Images are stored securely in Firebase Storage.
-- Profile Photos: Your profile picture stored in Firebase Storage.
-- Image Processing: Images are processed locally on your device using ML Kit and Palette Generator for AI features. Images are not sent to third-party AI services for analysis.
+- Clothing Photos: Images you upload to organize your wardrobe.
+- Profile Photos: Your profile picture.
+- Image Processing: Some analysis (e.g. cloth type/color) may run on-device. Other AI features may send images or related data to our servers and AI providers.
+
+2.7 Virtual Avatar and Try-On Data
+- Body photos you upload to create a personal avatar.
+- Generated avatar images and virtual try-on results.
+- These are processed on our servers and may use third-party AI providers solely to provide avatar and try-on features.
+
+2.8 AI Chat and Suggestions
+- Messages you send to the AI styling assistant.
+- Wardrobe context used to generate outfit suggestions and chat responses.
 
 3. HOW WE USE YOUR INFORMATION
 
@@ -59,8 +70,9 @@ By using ${AppConstants.appName}, you agree to the collection and use of informa
 - To provide wardrobe organization and management features
 - To enable AI-powered cloth type and color detection
 - To track clothing placement and wear history
-- To generate personalized outfit suggestions (future feature)
-- To enable social features including friends, messaging, comments, and likes
+- To generate personalized outfit suggestions and AI styling chat
+- To provide virtual avatar generation and try-on features
+- To enable social features including friends, messaging, comments, likes, and style posts
 - To send push notifications based on your preferences
 
 3.2 Social Features
@@ -89,43 +101,42 @@ By using ${AppConstants.appName}, you agree to the collection and use of informa
 
 4. DATA STORAGE AND SECURITY
 
-4.1 Firebase Services
-We use the following Google Firebase services:
-- Firebase Authentication: For secure user authentication (phone, email, Google Sign-In)
-- Cloud Firestore: For storing your wardrobe data, clothing items, user profiles, friends, messages, comments, likes, and notifications
-- Firebase Storage: For storing clothing images and profile photos
-- Firebase Analytics: For understanding app usage (anonymized data)
+4.1 Infrastructure and Services
+We use:
+- Firebase Authentication: For secure user authentication (email/password, Google, Apple, phone verification where enabled)
+- Wardrobe Chat API (Laravel / www.wardrobe.chat): For storing and serving app data such as wardrobes, clothing, social features, avatars, try-on results, and related content
+- Secure cloud storage: For clothing images, profile photos, and avatar images
+- Firebase Analytics: For understanding app usage (anonymized/aggregated where applicable)
 - Firebase Cloud Messaging: For sending push notifications
-- Firebase App Check: For additional security and abuse prevention
+- Firebase App Check: For additional security and abuse prevention where enabled
 
 4.2 Data Security Measures
 - All data is encrypted in transit using HTTPS/TLS
-- Firestore data is encrypted at rest
-- Firebase Storage uses secure access controls and encryption
-- We implement Firebase App Check to prevent unauthorized access
+- Server and storage access is protected with authentication and access controls
 - User authentication is handled securely through Firebase Authentication
-- Access to user data is controlled through Firestore security rules
+- Access to user data is controlled through server-side authorization
 
 4.3 Data Location
-Your data is stored in Firebase servers, which may be located in various regions. We ensure compliance with applicable data protection laws including GDPR, CCPA, and other regional requirements.
+Your data may be stored and processed on servers in various regions operated by us or our providers. We aim to comply with applicable data protection laws including GDPR, CCPA, and other regional requirements.
 
 5. THIRD-PARTY SERVICES
 
 5.1 Google Services
-- Firebase (Google): We use Google Firebase services for authentication, database, storage, analytics, and messaging. Firebase's privacy policy: https://firebase.google.com/support/privacy
-- Google Sign-In: If you choose to sign in with Google, your authentication is handled by Google. We only receive basic profile information you authorize.
-- Google ML Kit: Used for on-device image labeling to detect cloth types. Processing occurs locally on your device.
+- Firebase (Google): Used for authentication, analytics, messaging, and related services. Firebase's privacy policy: https://firebase.google.com/support/privacy
+- Google Sign-In: If you choose to sign in with Google, authentication is handled by Google. We only receive basic profile information you authorize.
+- Google ML Kit: May be used for on-device image labeling to detect cloth types.
 - Google Play Services: Required for push notifications and app functionality on Android devices.
 
 5.2 Apple Services
-- Apple Sign-In: If available, authentication is handled by Apple. We only receive information you authorize.
+- Apple Sign-In: Authentication is handled by Apple. We only receive information you authorize.
 - Apple Push Notification Service: Used for push notifications on iOS devices.
 
-5.3 Image Processing Libraries
-- Palette Generator: Used locally on your device to extract color information from images. No data is sent to external servers.
+5.3 AI and Image Processing Providers
+- We may use third-party AI services (such as OpenAI or Google Gemini) and image processing providers to power outfit suggestions, styling chat, cloth detection, avatar generation, and virtual try-on.
+- These providers process only the data needed to deliver the requested feature.
 
 5.4 Analytics
-- Firebase Analytics: We use Firebase Analytics to understand app usage. Analytics data is anonymized and aggregated.
+- Firebase Analytics: Used to understand app usage. Analytics data is anonymized and aggregated where applicable.
 
 6. DATA SHARING AND DISCLOSURE
 
@@ -164,13 +175,15 @@ We may disclose your information if required by law, court order, or government 
 - Account deletion will permanently remove:
   * Your user profile and account information
   * All wardrobes and clothing items
-  * All images stored in Firebase Storage
+  * All images associated with your account
   * Friend connections and friend requests
   * Direct messages and chat history
-  * Comments and likes
+  * Comments, likes, and style posts
+  * Avatar and virtual try-on data
   * Notification preferences
 - Deletion is permanent and cannot be undone
 - Some anonymized analytics data may be retained for service improvement
+- Full policy also available at ${AppConstants.privacyPolicyUrl}
 
 7.4 Data Export
 - You can view all your data within the app
@@ -266,20 +279,23 @@ Last Updated: ${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2
 
 1. ACCEPTANCE OF TERMS
 
-By downloading, installing, accessing, or using ${AppConstants.appName} (the "App"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, please do not use the App.
+By downloading, installing, accessing, or using ${AppConstants.appName} (the "App"), also known as Wardrobe Chat, including our website at www.wardrobe.chat, you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, please do not use the App.
 
-These Terms constitute a legally binding agreement between you and us. We may update these Terms from time to time, and your continued use of the App after changes constitutes acceptance.
+These Terms constitute a legally binding agreement between you and us. We may update these Terms from time to time, and your continued use of the App after changes constitutes acceptance. The website version is available at ${AppConstants.termsOfServiceUrl}.
 
 2. DESCRIPTION OF SERVICE
 
-${AppConstants.appName} is a mobile application that provides the following services:
+${AppConstants.appName} is a mobile application (Wardrobe Chat) that provides the following services:
 - Wardrobe organization and management
 - Clothing item tracking with images, categories, and metadata
 - AI-powered cloth type and color detection
 - Placement tracking (InWardrobe, OutWardrobe, Laundry, DryCleaning, Repairing)
-- Wear history tracking
-- Social features including friends, direct messaging, comments, and likes
+- Wear history tracking and saved outfits
+- AI outfit suggestions and styling chat assistant
+- Virtual avatar creation and try-on features
+- Social features including friends, direct messaging, comments, likes, and style posts
 - Clothing item sharing with friends
+- User blocking and content reporting for safety
 - Push notifications for social interactions and suggestions
 - Profile management and privacy controls
 
@@ -297,10 +313,9 @@ ${AppConstants.appName} is a mobile application that provides the following serv
 - You are responsible for all activities that occur under your account
 
 3.3 Account Types
-- You may create an account using phone number, email, or Google Sign-In
-- Phone numbers are verified via SMS
-- Email addresses may be verified via email
-- Google Sign-In requires authorization from your Google account
+- You may create an account using username/password, Google Sign-In, or Apple Sign-In
+- Phone numbers and email addresses may be verified where enabled
+- Google or Apple Sign-In requires authorization from your provider account
 
 4. ACCEPTABLE USE
 
@@ -363,11 +378,11 @@ This zero tolerance policy is non-negotiable and applies to all users equally. B
 - You may not use our intellectual property for any purpose without authorization
 
 5.3 AI-Generated Content and Features
-- Cloth type and color detection are provided using AI/ML technology (Google ML Kit and Palette Generator)
-- AI features process images locally on your device
-- We do not guarantee the accuracy of AI detections
-- You are responsible for verifying and correcting AI-detected information
-- We are not liable for any decisions made based on AI suggestions
+- Cloth type detection, color extraction, outfit suggestions, styling chat, avatar generation, and virtual try-on may use AI/ML technology
+- Some processing occurs on-device; other features are processed on our servers and/or by third-party AI providers
+- We do not guarantee the accuracy of AI detections, suggestions, or try-on results
+- You are responsible for verifying AI-generated information and for your fashion choices
+- We are not liable for any decisions made based on AI suggestions or try-on results
 
 6. SOCIAL FEATURES AND USER INTERACTIONS
 
@@ -403,16 +418,21 @@ This zero tolerance policy is non-negotiable and applies to all users equally. B
 6.5 Reporting and Blocking Mechanisms
 - The App provides mechanisms for users to flag objectionable content
 - The App provides mechanisms for users to block abusive users
-- When you block a user, their content is immediately removed from your feed
-- Blocking a user also notifies the developer of the inappropriate content
-- All reports are reviewed, and we commit to acting on reports within 24 hours
+- When you block a user, their ability to interact with you is restricted according to App rules
+- All reports are reviewed, and we commit to acting on reports within 24 hours where practicable
 - Actions taken may include removing content and ejecting users who violate these Terms
+
+6.6 Virtual Avatar and Try-On
+- Avatar generation requires a body photo you upload; you must have the right to use that image
+- Try-on results are approximations and may not perfectly reflect real-world fit or appearance
+- We may use third-party AI processors to generate avatars and try-on images
+- We do not guarantee availability, accuracy, or suitability of virtual fitting results
 
 7. PRIVACY AND DATA
 
 7.1 Privacy Policy
 - Your use of the App is also governed by our Privacy Policy
-- Please review our Privacy Policy to understand how we collect, use, and protect your data
+- Please review our Privacy Policy (in-app and at ${AppConstants.privacyPolicyUrl}) to understand how we collect, use, and protect your data
 
 7.2 Data Security
 - We implement security measures to protect your data
@@ -455,7 +475,7 @@ This zero tolerance policy is non-negotiable and applies to all users equally. B
 - We are not liable for any decisions or actions based on AI suggestions
 
 9.3 Third-Party Services
-- The App uses Firebase, Google services, and other third-party services
+- The App uses Firebase, Google/Apple services, our Wardrobe Chat API, AI providers, and other third-party services
 - We are not responsible for third-party service outages, issues, or data breaches
 - Your use of third-party services is subject to their terms and privacy policies
 - We are not liable for any issues arising from third-party services
